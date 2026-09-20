@@ -9,6 +9,7 @@ module cgx1_matrix_pipeline_control_tb;
     logic issue_valid;
     logic issue_ready;
     logic issue_legal;
+    logic issue_dependency_hazard;
     logic issue_accepted;
     logic illegal_issue;
     logic [3:0] issue_opcode;
@@ -46,6 +47,7 @@ module cgx1_matrix_pipeline_control_tb;
         .issue_valid(issue_valid),
         .issue_ready(issue_ready),
         .issue_legal(issue_legal),
+        .issue_dependency_hazard(issue_dependency_hazard),
         .issue_accepted(issue_accepted),
         .illegal_issue(illegal_issue),
         .issue_opcode(issue_opcode),
@@ -266,6 +268,66 @@ module cgx1_matrix_pipeline_control_tb;
         end
     endtask
 
+    task automatic check_pending_destination_hazard (
+        input logic [7:0] dependent_d_base,
+        input logic [7:0] dependent_a_base,
+        input logic [7:0] dependent_b_base
+    );
+        integer stall_cycles;
+        begin
+            reset_dut();
+            issue_legal_op(4'h0, 8'd32, 8'd64, 8'd68);
+
+            // Wait beyond the 16-cycle reissue interval while the older
+            // destination is still pending.
+            repeat (16) @(posedge clk);
+            @(negedge clk);
+
+            issue_opcode = 4'h1;
+            issue_d_base = dependent_d_base;
+            issue_a_base = dependent_a_base;
+            issue_b_base = dependent_b_base;
+            issue_full_wave_active = 1'b1;
+            issue_valid = 1'b1;
+
+            #1;
+            if (!issue_legal) begin
+                $fatal(1, "dependency test instruction was not statically legal");
+            end
+            if (!issue_dependency_hazard || issue_ready) begin
+                $fatal(1, "pending destination dependency did not stall matrix issue");
+            end
+
+            stall_cycles = 0;
+            while (issue_dependency_hazard) begin
+                @(posedge clk);
+                #1;
+                if (issue_accepted || illegal_issue) begin
+                    $fatal(1, "dependent matrix instruction was accepted or rejected while stalled");
+                end
+                @(negedge clk);
+                stall_cycles = stall_cycles + 1;
+                if (stall_cycles > 40) begin
+                    $fatal(1, "pending destination dependency failed to clear");
+                end
+            end
+
+            #1;
+            if (!issue_ready) begin
+                $fatal(1, "matrix issue did not become ready after destination completion");
+            end
+
+            @(posedge clk);
+            #1;
+            if (!issue_accepted || illegal_issue) begin
+                $fatal(1, "dependent matrix instruction was not accepted after hazard clearance");
+            end
+
+            @(negedge clk);
+            issue_valid = 1'b0;
+        end
+    endtask
+
     task automatic check_steady_state;
         integer i;
         begin
@@ -325,6 +387,9 @@ module cgx1_matrix_pipeline_control_tb;
 
         check_invalid_issue();
         check_single_operation();
+        check_pending_destination_hazard(8'd48, 8'd32, 8'd84); // RAW through A
+        check_pending_destination_hazard(8'd48, 8'd80, 8'd36); // RAW through B
+        check_pending_destination_hazard(8'd32, 8'd80, 8'd84); // WAW / tied C-D
         check_steady_state();
 
         $display("[pass] CGX 1 matrix pipeline control RTL checks passed.");

@@ -17,7 +17,7 @@ The repository distinguishes editable engineering source from derived files.
 | [`source/matrix/`](../source/matrix/) | Matrix numeric, physical architecture, register-interface, and banking references | Executable reference for formats, tile shapes, fragment mapping, instruction validation, pipeline targets, capture/writeback demand, staging, hazards, bank-class conflict rules, reduction order, and rate derivation; not matrix RTL or measured performance |
 | [`source/power/`](../source/power/) | Tile power-management policy and invariant tests | Executable reference for board budgets, tile states, transitions, and hysteresis |
 | [`source/firmware/`](../source/firmware/) | Power state controller | Executable reference source |
-| [`source/rtl/`](../source/rtl/) | Top level state scaffold | Limited RTL boundary, not complete GPU RTL |
+| [`source/rtl/`](../source/rtl/) | Top-level state scaffold and matrix pipeline-control RTL | Limited executable control RTL including matrix issue legality, stage sequencing, bank-safe addressing, and pending-destination interlocks; not matrix arithmetic or complete GPU RTL |
 
 Generated compiler output, test logs, local manifests, temporary captures, IDE files, and validation scratch files are excluded from version control.
 

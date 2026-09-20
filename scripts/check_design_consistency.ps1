@@ -195,6 +195,8 @@ Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "localparam integer
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "localparam integer MATRIX_REGISTER_BANK_CLASSES = $matrixBankClasses;"
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "localparam logic [2:0] MATRIX_SOURCE_A_BANK_CLASS = 3'd$matrixSourceABankClass;"
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "localparam logic [2:0] MATRIX_SOURCE_B_BANK_CLASS = 3'd$matrixSourceBBankClass;"
+Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic       issue_dependency_hazard,"
+Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "MatrixDependsOnPendingDestination("
 Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "kWaveRegisterBits ="
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
@@ -215,8 +217,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 8) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 8 for the matrix register-banking contract"
+if ([int]$architecture.schema_version -ne 9) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 9 for the matrix dependency-interlock contract"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -300,6 +302,33 @@ if (-not [bool]$architecture.matrix_engine.register_banking.single_matrix_access
 }
 if ([bool]$architecture.matrix_engine.register_banking.physical_wave_storage_depth_frozen) {
     Add-Finding "design/cgx1_architecture.json: physical VGPR bank storage depth must remain unfrozen"
+}
+
+if (-not [bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.pending_destination_raw_interlock) {
+    Add-Finding "design/cgx1_architecture.json: matrix RAW interlock against pending destinations must remain enabled"
+}
+if (-not [bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.pending_destination_waw_interlock) {
+    Add-Finding "design/cgx1_architecture.json: matrix WAW interlock against pending destinations must remain enabled"
+}
+if ([bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.matrix_to_matrix_war_possible_at_minimum_issue_interval) {
+    Add-Finding "design/cgx1_architecture.json: matrix-to-matrix WAR must remain impossible at the frozen minimum issue interval"
+}
+if ([bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.general_compute_unit_scoreboard_integrated) {
+    Add-Finding "design/cgx1_architecture.json: general compute-unit scoreboard integration must remain unclaimed"
+}
+if ([bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.ordinary_vector_source_write_interlock_implemented) {
+    Add-Finding "design/cgx1_architecture.json: ordinary vector source-write interlock must remain unclaimed"
+}
+if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.implemented -or
+    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: matrix pipeline-control RTL implementation and simulation status must remain enabled"
+}
+if ([bool]$architecture.matrix_engine.pipeline_control_rtl.arithmetic_datapath_implemented -or
+    [bool]$architecture.matrix_engine.pipeline_control_rtl.physical_vgpr_storage_implemented -or
+    [bool]$architecture.matrix_engine.pipeline_control_rtl.staging_memories_implemented -or
+    [bool]$architecture.matrix_engine.pipeline_control_rtl.cross_lane_data_path_implemented -or
+    [bool]$architecture.matrix_engine.pipeline_control_rtl.timing_closure_validated) {
+    Add-Finding "design/cgx1_architecture.json: matrix pipeline-control RTL must not claim unfinished datapath or physical implementation work"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

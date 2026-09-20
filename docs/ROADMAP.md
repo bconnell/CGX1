@@ -62,9 +62,9 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- extend the validated matrix pipeline-control RTL into staged operand storage, scoreboard integration, and arithmetic execution against the frozen tile, fragment, register, opcode, reduction-order, and issue-interval contracts;
+- extend the validated matrix pipeline-control RTL into staged operand storage, general compute-unit scoreboard integration, and arithmetic execution against the frozen tile, fragment, register, opcode, reduction-order, and issue-interval contracts;
 - implement physical VGPR storage/macros for the validated eight bank classes and two-read/one-write whole-wave schedule, plus the fixed lane/register-offset delivery network into matrix staging;
-- implement matrix input/output staging, scoreboard control, arithmetic RTL, timing, area, and power validation; revise the timing target if physical evidence cannot close it;
+- implement matrix input/output staging, non-matrix scoreboard integration, arithmetic RTL, timing, area, and power validation; revise the timing target if physical evidence cannot close it;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;
 - characterize finer-than-workgroup preemption cost before adding it to the baseline;
 - characterize real per-tile V/F curves, leakage, transition latency, and controller hysteresis;

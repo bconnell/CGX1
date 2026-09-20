@@ -107,6 +107,43 @@ inline constexpr bool MatrixDestinationPending(std::uint32_t age)
     return age < kMatrixResultLatencyCycles;
 }
 
+inline constexpr bool MatrixRegisterRangesOverlap(
+    std::uint8_t leftBase,
+    std::uint32_t leftCount,
+    std::uint8_t rightBase,
+    std::uint32_t rightCount)
+{
+    const std::uint32_t leftStart = leftBase;
+    const std::uint32_t rightStart = rightBase;
+    const std::uint32_t leftEnd = leftStart + leftCount;
+    const std::uint32_t rightEnd = rightStart + rightCount;
+
+    return leftStart < rightEnd && rightStart < leftEnd;
+}
+
+inline constexpr bool MatrixDependsOnPendingDestination(
+    std::uint8_t newDestinationBase,
+    std::uint8_t newSourceABase,
+    std::uint8_t newSourceBBase,
+    std::uint8_t olderDestinationBase)
+{
+    return MatrixRegisterRangesOverlap(
+               newSourceABase,
+               kMatrixSourceRegistersPerLane,
+               olderDestinationBase,
+               kMatrixAccumulatorRegistersPerLane)
+        || MatrixRegisterRangesOverlap(
+               newSourceBBase,
+               kMatrixSourceRegistersPerLane,
+               olderDestinationBase,
+               kMatrixAccumulatorRegistersPerLane)
+        || MatrixRegisterRangesOverlap(
+               newDestinationBase,
+               kMatrixAccumulatorRegistersPerLane,
+               olderDestinationBase,
+               kMatrixAccumulatorRegistersPerLane);
+}
+
 inline constexpr MatrixCaptureCycle MatrixCaptureSchedule(
     std::uint32_t captureCycle,
     std::uint8_t sourceABase,

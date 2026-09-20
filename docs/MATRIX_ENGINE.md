@@ -326,9 +326,13 @@ The matrix instruction itself consumes canonical in-register fragments. Memory r
 
 Issue logic tracks the entire D/C destination range as pending until writeback completes.
 
-A later instruction that reads or writes any pending destination VGPR stalls until the matrix result is available. A and B are captured during the eight-cycle capture stage; once capture completes, later instructions may overwrite those source registers without affecting the in-flight matrix operation.
+The matrix pipeline controller performs matrix-to-matrix dependency checks against every older in-flight matrix destination. A new matrix instruction stalls when either source range overlaps an older pending D/C range (RAW) or when its tied C/D range overlaps an older pending D/C range (WAW plus the tied-accumulator read dependency). A dependency stall is not an illegal-instruction fault; issue resumes after the older destination completes.
 
-Independent waves and independent instructions may make progress while a matrix result is pending, subject to normal SIMD and register-file scheduling constraints.
+Matrix-to-matrix WAR does not require a separate interlock at the frozen minimum issue interval because A/B capture ends after 8 cycles while another matrix instruction cannot issue sooner than 16 cycles. That statement applies only between matrix instructions. Ordinary vector or other compute-unit instructions that could overwrite matrix sources still require the general compute-unit scoreboard to honor source release.
+
+A and B are captured during the eight-cycle capture stage; once capture completes, later non-matrix instructions may overwrite those source registers without affecting the in-flight matrix operation, after the general scoreboard observes source release.
+
+Independent waves and independent instructions may make progress while a matrix result is pending, subject to normal SIMD, dependency, and register-file scheduling constraints.
 
 ## MX formats
 
@@ -351,9 +355,11 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 - per-instruction floating-point and integer reduction order;
 - dense arithmetic operation counts and device-level rate calculations.
 
-[source/matrix/cgx1_matrix_pipeline.hpp](../source/matrix/cgx1_matrix_pipeline.hpp) and [source/matrix/pipeline_tests.cpp](../source/matrix/pipeline_tests.cpp) validate the exact capture/writeback register schedule, 2,048-byte input staging budget, whole-wave register interface demand, source/destination hazard lifetimes, and steady-state 16-cycle overlap without simultaneous matrix read/write demand.
+[source/matrix/cgx1_matrix_pipeline.hpp](../source/matrix/cgx1_matrix_pipeline.hpp) and [source/matrix/pipeline_tests.cpp](../source/matrix/pipeline_tests.cpp) validate the exact capture/writeback register schedule, 2,048-byte input staging budget, whole-wave register interface demand, source/destination hazard lifetimes, matrix-to-matrix pending-destination dependency detection, and steady-state 16-cycle overlap without simultaneous matrix read/write demand. The dependency test exhaustively checks every legal non-aliased matrix register layout against every aligned pending D/C range.
 
 [source/matrix/cgx1_matrix_banking.hpp](../source/matrix/cgx1_matrix_banking.hpp) and [source/matrix/banking_tests.cpp](../source/matrix/banking_tests.cpp) validate modulo-8 bank selection, source base-class rules, exact-alias broadcast behavior, and exhaustive conflict freedom for every valid matrix register layout.
+
+[source/rtl/cgx1_matrix_pipeline_control.sv](../source/rtl/cgx1_matrix_pipeline_control.sv) and its SystemVerilog testbench implement and simulate matrix instruction legality, capture/execute/writeback control, bank-safe VGPR addresses, 16-cycle reissue control, source-release and destination-complete events, and matrix-to-matrix RAW/WAW stalling against older pending destinations. The controller is control RTL only; it does not implement the arithmetic datapath, staging memories, physical VGPR macros, or the general compute-unit scoreboard.
 
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
@@ -364,7 +370,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - implement the 16 × 16 product/accumulator datapath and dual 8-bit paths;
-- implement input and output staging plus scoreboard integration;
+- implement input and output staging plus the general compute-unit scoreboard path for ordinary vector/scalar dependency interlocks;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;
 - measure timing, area, and power against the compute-unit budget;

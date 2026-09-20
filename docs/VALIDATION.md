@@ -64,7 +64,7 @@ The executable matrix test verifies:
 
 The separate matrix-architecture executable test verifies M16N16K16 and M16N16K32 shapes, exact wave32 fragment coverage, input packing, VGPR grouping/alignment/overlap rules, Matrix opcode validity, the 8/16/8 capture-execute-writeback schedule, 16-cycle issue interval, 33-cycle result latency, fixed per-instruction reduction order, and dense arithmetic-rate derivation.
 
-The matrix-pipeline executable test verifies that one wave32 VGPR transfer is 1,024 bits; the input staging budget is 2,048 bytes; capture reads exactly A0-A3, B0-B3, and C/D0-C/D7; writeback covers D0-D7; source registers remain protected through capture; the destination remains pending through writeback; and a steady stream issued every 16 cycles stays within two whole-wave reads or one whole-wave write per cycle without requiring simultaneous matrix read/write access.
+The matrix-pipeline executable test verifies that one wave32 VGPR transfer is 1,024 bits; the input staging budget is 2,048 bytes; capture reads exactly A0-A3, B0-B3, and C/D0-C/D7; writeback covers D0-D7; source registers remain protected through capture; the destination remains pending through writeback; and a steady stream issued every 16 cycles stays within two whole-wave reads or one whole-wave write per cycle without requiring simultaneous matrix read/write access. It also validates matrix-to-matrix pending-destination dependency detection, including exhaustive comparison of every legal non-aliased matrix register layout against every aligned pending D/C range.
 
 The matrix-banking executable test verifies eight modulo-8 bank classes, A base class 0, distinct B base class 4, exact A/B alias broadcast, C/D bank separation, and exhaustively checks every valid destination/A/B base-register combination for capture-cycle conflicts under a single-matrix-access-per-bank-class rule.
 
@@ -109,7 +109,7 @@ The dock fault tests also verify that the fallback does not request a 70 W slot 
 
 ## 7. RTL boundary
 
-The public RTL currently covers top-level power-state/tile-enable behavior and the matrix pipeline control schedule. The matrix RTL controller validates issue legality, capture/execute/writeback sequencing, VGPR addresses, source release, destination completion, bank-class conflict freedom, and 16-cycle steady-state reissue behavior. It does not implement the matrix arithmetic datapath, physical VGPR macros, staging memories, or a complete GPU pipeline.
+The public RTL currently covers top-level power-state/tile-enable behavior and the matrix pipeline control schedule. The matrix RTL controller validates issue legality, capture/execute/writeback sequencing, VGPR addresses, source release, destination completion, bank-class conflict freedom, 16-cycle steady-state reissue behavior, and matrix-to-matrix RAW/WAW stalls against older pending D/C ranges. It does not implement the matrix arithmetic datapath, physical VGPR macros, staging memories, the general compute-unit scoreboard for non-matrix instructions, or a complete GPU pipeline.
 
 RTL control simulation is run with Icarus Verilog in SystemVerilog 2012 mode through `scripts/validate_rtl.sh` and the path-scoped Ubuntu RTL CI workflow. Future RTL work still needs arithmetic unit tests, integration, constrained random, formal, synthesis, FPGA/emulation, and implementation work appropriate to each block.
 

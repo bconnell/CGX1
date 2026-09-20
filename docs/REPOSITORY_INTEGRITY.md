@@ -32,7 +32,7 @@ Technical workload language is not blocked merely because it uses terms such as 
 
 `check_design_consistency.ps1` uses [design/cgx1_architecture.json](../design/cgx1_architecture.json) as the primary numeric design file and verifies selected mirrors in documentation, CAD, firmware, and model source.
 
-The check includes card dimensions, dock dimensions, selected card fan thickness, power states, FP32 arithmetic target, memory capacity, memory bandwidth, matrix-engine count, matrix numeric-policy flags, frozen matrix tile shapes, register contract, issue timing, latency, whole-wave capture/writeback interface requirements, staging capacity, modulo-8 bank-class placement, and theoretical dense-rate targets.
+The check includes card dimensions, dock dimensions, selected card fan thickness, power states, FP32 arithmetic target, memory capacity, memory bandwidth, matrix-engine count, matrix numeric-policy flags, frozen matrix tile shapes, register contract, issue timing, latency, whole-wave capture/writeback interface requirements, staging capacity, modulo-8 bank-class placement, matrix-to-matrix pending-destination interlock status, and theoretical dense-rate targets.
 
 ## Negative controls
 

@@ -40,6 +40,70 @@ int main()
     static_assert(MatrixDestinationPending(32U));
     static_assert(!MatrixDestinationPending(33U));
 
+    static_assert(MatrixRegisterRangesOverlap(32U, 8U, 32U, 8U));
+    static_assert(MatrixRegisterRangesOverlap(32U, 8U, 39U, 1U));
+    static_assert(!MatrixRegisterRangesOverlap(32U, 8U, 40U, 1U));
+
+    // RAW through source A.
+    static_assert(MatrixDependsOnPendingDestination(48U, 32U, 84U, 32U));
+    // RAW through source B.
+    static_assert(MatrixDependsOnPendingDestination(48U, 80U, 36U, 32U));
+    // WAW and tied C/D dependency.
+    static_assert(MatrixDependsOnPendingDestination(32U, 80U, 84U, 32U));
+    // Independent register groups.
+    static_assert(!MatrixDependsOnPendingDestination(48U, 80U, 84U, 32U));
+
+    static_assert(kMatrixIssueIntervalCycles > kMatrixRegisterCaptureCycles);
+
+    for (std::uint32_t oldD = 0U; oldD <= 248U; oldD += 8U)
+    {
+        for (std::uint32_t newD = 0U; newD <= 248U; newD += 8U)
+        {
+            for (std::uint32_t newA = 0U; newA <= 248U; newA += 8U)
+            {
+                for (std::uint32_t newB = 4U; newB <= 252U; newB += 8U)
+                {
+                    if (!IsValidMatrixRegisterLayout(
+                            static_cast<std::uint8_t>(newD),
+                            static_cast<std::uint8_t>(newA),
+                            static_cast<std::uint8_t>(newB)))
+                    {
+                        continue;
+                    }
+
+                    bool expected = false;
+                    for (std::uint32_t offset = 0U;
+                         offset < kMatrixSourceRegistersPerLane;
+                         ++offset)
+                    {
+                        const std::uint32_t aRegister = newA + offset;
+                        const std::uint32_t bRegister = newB + offset;
+                        expected = expected
+                            || (aRegister >= oldD
+                                && aRegister < oldD + kMatrixAccumulatorRegistersPerLane)
+                            || (bRegister >= oldD
+                                && bRegister < oldD + kMatrixAccumulatorRegistersPerLane);
+                    }
+                    for (std::uint32_t offset = 0U;
+                         offset < kMatrixAccumulatorRegistersPerLane;
+                         ++offset)
+                    {
+                        const std::uint32_t dRegister = newD + offset;
+                        expected = expected
+                            || (dRegister >= oldD
+                                && dRegister < oldD + kMatrixAccumulatorRegistersPerLane);
+                    }
+
+                    assert(MatrixDependsOnPendingDestination(
+                        static_cast<std::uint8_t>(newD),
+                        static_cast<std::uint8_t>(newA),
+                        static_cast<std::uint8_t>(newB),
+                        static_cast<std::uint8_t>(oldD)) == expected);
+                }
+            }
+        }
+    }
+
     constexpr std::uint8_t dBase = 32U;
     constexpr std::uint8_t aBase = 64U;
     constexpr std::uint8_t bBase = 68U;

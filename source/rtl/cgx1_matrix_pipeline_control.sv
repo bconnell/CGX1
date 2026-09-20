@@ -9,6 +9,7 @@ module cgx1_matrix_pipeline_control (
     input  logic       issue_valid,
     output logic       issue_ready,
     output logic       issue_legal,
+    output logic       issue_dependency_hazard,
     output logic       issue_accepted,
     output logic       illegal_issue,
 
@@ -73,6 +74,7 @@ module cgx1_matrix_pipeline_control (
 
     logic       issue_fire;
     logic       invalid_fire;
+    logic       issue_structural_ready;
     logic       capture_finishing;
     logic       execute_finishing;
     logic       writeback_finishing;
@@ -126,15 +128,59 @@ module cgx1_matrix_pipeline_control (
         end
     endfunction
 
+    function automatic logic depends_on_pending_destination (
+        input logic [7:0] new_d_base,
+        input logic [7:0] new_a_base,
+        input logic [7:0] new_b_base,
+        input logic [7:0] older_d_base
+    );
+        begin
+            depends_on_pending_destination =
+                spans_overlap(new_a_base, 9'd4, older_d_base, 9'd8)
+                || spans_overlap(new_b_base, 9'd4, older_d_base, 9'd8)
+                || spans_overlap(new_d_base, 9'd8, older_d_base, 9'd8);
+        end
+    endfunction
+
     always_comb begin
         issue_legal =
             (issue_opcode <= MATRIX_OPCODE_MAX)
             && issue_full_wave_active
             && register_layout_legal(issue_d_base, issue_a_base, issue_b_base);
 
-        issue_ready = !decode_valid_q && (issue_cooldown_q == 4'd0);
+        issue_dependency_hazard = 1'b0;
+        if (capture_valid_q) begin
+            issue_dependency_hazard =
+                issue_dependency_hazard
+                || depends_on_pending_destination(
+                    issue_d_base,
+                    issue_a_base,
+                    issue_b_base,
+                    capture_d_q);
+        end
+        if (execute_valid_q) begin
+            issue_dependency_hazard =
+                issue_dependency_hazard
+                || depends_on_pending_destination(
+                    issue_d_base,
+                    issue_a_base,
+                    issue_b_base,
+                    execute_d_q);
+        end
+        if (writeback_valid_q) begin
+            issue_dependency_hazard =
+                issue_dependency_hazard
+                || depends_on_pending_destination(
+                    issue_d_base,
+                    issue_a_base,
+                    issue_b_base,
+                    writeback_d_q);
+        end
+
+        issue_structural_ready = !decode_valid_q && (issue_cooldown_q == 4'd0);
+        issue_ready = issue_structural_ready && !issue_dependency_hazard;
         issue_fire = issue_valid && issue_ready && issue_legal;
-        invalid_fire = issue_valid && issue_ready && !issue_legal;
+        invalid_fire = issue_valid && issue_structural_ready && !issue_legal;
 
         decode_active = decode_valid_q;
         capture_active = capture_valid_q;
@@ -328,6 +374,9 @@ module cgx1_matrix_pipeline_control (
         if (reset_n) begin
             if (rf_read_valid && rf_write_valid) begin
                 $fatal(1, "matrix control scheduled simultaneous VGPR read and write");
+            end
+            if (issue_accepted && issue_dependency_hazard) begin
+                $fatal(1, "matrix control accepted an instruction with a pending-destination dependency");
             end
             if (decode_valid_q && capture_valid_q && !capture_finishing) begin
                 $fatal(1, "matrix decode reached an occupied capture slot");

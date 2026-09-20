@@ -1,5 +1,5 @@
 {
-  "schema_version": 8,
+  "schema_version": 9,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -468,6 +468,22 @@
       "accumulator_result_base_modulo_8": 0,
       "single_matrix_access_per_bank_class_per_cycle": true,
       "physical_wave_storage_depth_frozen": false
+    },
+    "matrix_to_matrix_dependencies": {
+      "pending_destination_raw_interlock": true,
+      "pending_destination_waw_interlock": true,
+      "matrix_to_matrix_war_possible_at_minimum_issue_interval": false,
+      "general_compute_unit_scoreboard_integrated": false,
+      "ordinary_vector_source_write_interlock_implemented": false
+    },
+    "pipeline_control_rtl": {
+      "implemented": true,
+      "simulation_exercised": true,
+      "arithmetic_datapath_implemented": false,
+      "physical_vgpr_storage_implemented": false,
+      "staging_memories_implemented": false,
+      "cross_lane_data_path_implemented": false,
+      "timing_closure_validated": false
     }
   }
 }

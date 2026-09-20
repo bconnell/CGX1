@@ -44,7 +44,6 @@
     "capacity_gb": 72,
     "capacity_per_stack_gb": 36,
     "peak_bandwidth_tbps": 6.6,
-    "last_level_cache_mb": 512,
     "future_capacity_target_gb": 96
   },
   "power_w": {
@@ -255,5 +254,12 @@
       "device"
     ],
     "starvation_prevention": true
+  },
+  "cache": {
+    "l1_shared_kb_per_compute_unit": 128,
+    "l2_mb_per_tile": 16,
+    "l2_total_mb": 64,
+    "package_cache_mb": 512,
+    "package_cache_role": "stacked SRAM victim/cache target"
   }
 }

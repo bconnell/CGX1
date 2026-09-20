@@ -35,6 +35,9 @@ int main()
     static_assert(kResidentHardwareQueueContexts == 64);
     static_assert(kSchedulerPriorityLevels == 8);
     static_assert(kPreferredVramPageBytes == 65536);
+    static_assert(kL1SharedKbPerComputeUnit == 128);
+    static_assert(kL2MbPerTile * kComputeTiles == kL2TotalMb);
+    static_assert(kPackageCacheMb == 512);
 
     const double texturePeak = TexturePeakGtex(
         kTextureBlocksTotal,

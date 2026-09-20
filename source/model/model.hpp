@@ -45,6 +45,10 @@ inline constexpr double kFabricAggregateReadTbps = 7.2;
 inline constexpr int kResidentHardwareQueueContexts = 64;
 inline constexpr int kSchedulerPriorityLevels = 8;
 inline constexpr int kPreferredVramPageBytes = 65536;
+inline constexpr int kL1SharedKbPerComputeUnit = 128;
+inline constexpr int kL2MbPerTile = 16;
+inline constexpr int kL2TotalMb = 64;
+inline constexpr int kPackageCacheMb = 512;
 
 inline double Fp32PeakTflops(double lanes, double clockGhz)
 {

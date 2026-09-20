@@ -29,7 +29,7 @@ Target filtering modes:
 
 Format decode targets include BC1-BC7, ETC2/EAC and ASTC LDR. Final API conformance determines the complete required format table.
 
-Each texture block uses a read-only sampler cache backed by the tile L2. Cache capacity and associativity are physical-design parameters and are not frozen yet.
+Each texture block uses a read-only sampler cache backed by the tile L2. Sampler-cache capacity and associativity are physical-design parameters and are not frozen yet; the tile-L2 target is 16 MB per compute tile.
 
 ## Lossless surface compression
 

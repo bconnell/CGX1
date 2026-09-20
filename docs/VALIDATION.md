@@ -32,7 +32,8 @@ The C++ model verifies:
 - texture-block totals and peak bilinear sampler arithmetic;
 - raster-partition and ROP-lane totals;
 - chiplet-fabric read-bandwidth budget relative to HBM4;
-- queue/priorities and preferred VRAM page constants.
+- queue/priorities and preferred VRAM page constants;
+- L1/shared, tile-L2, aggregate-L2, and package-cache consistency.
 
 The analytical model does not produce application speedup claims.
 

@@ -74,6 +74,10 @@ $fabricRead = Format-Number $architecture.chiplet_fabric.aggregate_read_payload_
 $queueContexts = Format-Number $architecture.scheduler.resident_hardware_queue_contexts
 $priorityLevels = Format-Number $architecture.scheduler.priority_levels
 $preferredPage = Format-Number $architecture.virtual_memory.preferred_vram_page_bytes
+$l1Shared = Format-Number $architecture.cache.l1_shared_kb_per_compute_unit
+$l2PerTile = Format-Number $architecture.cache.l2_mb_per_tile
+$l2Total = Format-Number $architecture.cache.l2_total_mb
+$packageCache = Format-Number $architecture.cache.package_cache_mb
 
 Require-Literal "README.md" ("| Card PCB | **$length " + $multiply + " $height mm** |")
 Require-Literal "README.md" "| Installed thickness | **$thickness mm, dual slot** |"
@@ -125,13 +129,24 @@ Require-Literal "source/model/model.hpp" "kFabricAggregateReadTbps = $fabricRead
 Require-Literal "source/model/model.hpp" "kResidentHardwareQueueContexts = $queueContexts;"
 Require-Literal "source/model/model.hpp" "kSchedulerPriorityLevels = $priorityLevels;"
 Require-Literal "source/model/model.hpp" "kPreferredVramPageBytes = $preferredPage;"
+Require-Literal "source/model/model.hpp" "kL1SharedKbPerComputeUnit = $l1Shared;"
+Require-Literal "source/model/model.hpp" "kL2MbPerTile = $l2PerTile;"
+Require-Literal "source/model/model.hpp" "kL2TotalMb = $l2Total;"
+Require-Literal "source/model/model.hpp" "kPackageCacheMb = $packageCache;"
 Require-Literal "source/isa/cgx1_isa.hpp" "InstructionClass::Extended"
 
 Require-Literal "docs/THERMAL_POWER.md" "| **Total** | **$fullPower W** |"
 Require-Literal "docs/MECHANICAL_DESIGN.md" ("The revised dock target is **$dockLength " + $multiply + " $dockWidth " + $multiply + " $dockHeight mm**.")
 Require-Literal "docs/ELECTRICAL_INTERFACE.md" "returns directly to **P0 Safe Boot**"
 Require-Literal "docs/STATUS.md" "$fp32 TFLOPS"
+Require-Literal "docs/ENGINEERING_SPEC.md" "$l1Shared KB combined L1/shared memory per compute unit target."
+Require-Literal "docs/ENGINEERING_SPEC.md" "$l2PerTile MB L2 slice per compute tile."
+Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
+Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 
+if (([int]$architecture.cache.l2_mb_per_tile * [int]$architecture.silicon.compute_tiles) -ne [int]$architecture.cache.l2_total_mb) {
+    Add-Finding "design/cgx1_architecture.json: L2 total does not match per-tile cache capacity"
+}
 if (([int]$architecture.execution_model.simd_partitions_per_compute_unit * [int]$architecture.execution_model.lanes_per_simd_partition) -ne [int]$architecture.silicon.fp32_lanes_per_compute_unit) {
     Add-Finding "design/cgx1_architecture.json: SIMD partition product must equal FP32 lanes per compute unit"
 }

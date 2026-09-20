@@ -102,9 +102,15 @@ Accessed September 20, 2026 unless otherwise noted.
 30. **Khronos Vulkan specification, cooperative matrices.** Cooperative matrix storage and computation are distributed across a scope such as a subgroup, while supported type and dimension combinations are enumerated by the implementation.  
     https://registry.khronos.org/vulkan/specs/latest-ratified/pdf/vkspec.pdf
 
+31. **Clang AMDGPU builtin reference, WMMA.** Documents wave32 cooperative matrix instructions, including 16 × 16 matrix operations and FP32 accumulator fragments represented as eight float values per wave32 lane in published WMMA interfaces. Used as an external architectural precedent, not as the CGX 1 fragment contract.  
+    https://clang.llvm.org/docs/AMDGPUBuiltinReference.html
+
+32. **AMD GPUOpen, WMMA on RDNA 3.** Describes 16 × 16 × 16 wave matrix multiply-accumulate operation and wave32/wave64 cooperative execution. Used as a public implementation reference when evaluating CGX 1 tile organization.  
+    https://gpuopen.com/learn/wmma_on_rdna3/
+
 ## Repository tooling reference
 
-31. **actions/checkout v7.0.1.** Repository workflow is pinned to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.  
+33. **actions/checkout v7.0.1.** Repository workflow is pinned to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.  
     https://github.com/actions/checkout/releases/tag/v7.0.1
 
 Retail listings are sourcing references, not endorsements or guarantees of future availability.

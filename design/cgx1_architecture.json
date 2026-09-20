@@ -1,5 +1,5 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -338,12 +338,12 @@
     "emergency_isolation_preserves_unfinished_work": false
   },
   "matrix_engine": {
-    "status": "numeric architecture target; matrix RTL and throughput are not yet implemented or frozen",
+    "status": "physical matrix architecture target; RTL timing, area, power, and silicon remain unvalidated",
     "cooperative_scope_target": "wave32",
     "logical_operation": "D = A * B + C",
-    "physical_tile_dimensions_frozen": false,
-    "physical_fragment_mapping_frozen": false,
-    "throughput_frozen": false,
+    "physical_tile_dimensions_frozen": true,
+    "physical_fragment_mapping_frozen": true,
+    "throughput_frozen": true,
     "independent_ai_tops_frozen": false,
     "structured_sparsity_acceleration_claimed": false,
     "baseline_profiles": [
@@ -358,7 +358,7 @@
     "fp8_standard": "OCP OFP8 Revision 1.0",
     "fp8_conversion_rounding": "round to nearest, ties to even",
     "floating_accumulator": "FP32",
-    "floating_reduction_order_frozen": false,
+    "floating_reduction_order_frozen": true,
     "deterministic_matrix_mode_claimed": false,
     "integer_accumulator": "signed INT32",
     "int8_accumulator_overflow": "two's-complement modulo 2^32",
@@ -373,6 +373,72 @@
       "non-saturating"
     ],
     "floating_operand_widening": "exact to FP32 before accumulation",
-    "floating_accumulation_step": "FP32 fused multiply-add"
+    "floating_accumulation_step": "FP32 fused multiply-add",
+    "instruction_encoding_frozen": true,
+    "full_wave_active_required": true,
+    "matrix_instruction_extension_word": false,
+    "matrix_opcodes": {
+      "0x0": "FP16 x FP16 -> FP32, M16N16K16",
+      "0x1": "BF16 x BF16 -> FP32, M16N16K16",
+      "0x2": "E4M3 x E4M3 -> FP32, M16N16K32",
+      "0x3": "E4M3 x E5M2 -> FP32, M16N16K32",
+      "0x4": "E5M2 x E4M3 -> FP32, M16N16K32",
+      "0x5": "E5M2 x E5M2 -> FP32, M16N16K32",
+      "0x6": "signed INT8 x signed INT8 -> signed INT32, M16N16K32"
+    },
+    "tile_shapes": {
+      "fp16_bf16": {
+        "m": 16,
+        "n": 16,
+        "k": 16,
+        "input_bits": 16
+      },
+      "fp8_int8": {
+        "m": 16,
+        "n": 16,
+        "k": 32,
+        "input_bits": 8
+      }
+    },
+    "fragment_registers_per_lane": {
+      "source_a": 4,
+      "source_b": 4,
+      "accumulator_result": 8
+    },
+    "fragment_register_alignment": {
+      "source_a": 4,
+      "source_b": 4,
+      "accumulator_result": 8
+    },
+    "fragment_bytes_per_wave": {
+      "read": 2048,
+      "write": 1024
+    },
+    "pipeline": {
+      "decode_cycles": 1,
+      "register_capture_cycles": 8,
+      "execution_cycles": 16,
+      "writeback_cycles": 8,
+      "issue_interval_cycles": 16,
+      "result_latency_cycles": 33,
+      "input_staging_slots": 1,
+      "output_staging_slots": 1,
+      "vector_reads_per_lane_per_capture_cycle": 2,
+      "vector_writes_per_lane_per_writeback_cycle": 1
+    },
+    "reduction_order": {
+      "fp16_bf16": "single K-ordered FP32 FMA chain from k=0 through k=15",
+      "fp8": "even-K and odd-K FP32 FMA chains over 16 cycles, then one FP32 add",
+      "int8": "even-K and odd-K signed INT32 modulo-2^32 chains over 16 cycles, then one modulo-2^32 add"
+    },
+    "timing_feasibility_validated": false,
+    "dense_rate_targets": {
+      "fp16_bf16_sustained_clock_tflops": 1085.44,
+      "fp16_bf16_peak_clock_tflops": 1146.88,
+      "fp8_sustained_clock_tflops": 2170.88,
+      "fp8_peak_clock_tflops": 2293.76,
+      "int8_sustained_clock_tops": 2170.88,
+      "int8_peak_clock_tops": 2293.76
+    }
   }
 }

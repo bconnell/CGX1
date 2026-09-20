@@ -81,6 +81,17 @@ $packageCache = Format-Number $architecture.cache.package_cache_mb
 $computeTiles = Format-Number $architecture.silicon.compute_tiles
 $matrixEnginesPerCu = Format-Number $architecture.silicon.matrix_engines_per_compute_unit
 $matrixScope = [string]$architecture.matrix_engine.cooperative_scope_target
+$matrixTileM = [int]$architecture.matrix_engine.tile_shapes.fp16_bf16.m
+$matrixTileN = [int]$architecture.matrix_engine.tile_shapes.fp16_bf16.n
+$matrixFp16K = [int]$architecture.matrix_engine.tile_shapes.fp16_bf16.k
+$matrixFp8K = [int]$architecture.matrix_engine.tile_shapes.fp8_int8.k
+$matrixSourceRegisters = [int]$architecture.matrix_engine.fragment_registers_per_lane.source_a
+$matrixAccumulatorRegisters = [int]$architecture.matrix_engine.fragment_registers_per_lane.accumulator_result
+$matrixCaptureCycles = [int]$architecture.matrix_engine.pipeline.register_capture_cycles
+$matrixExecutionCycles = [int]$architecture.matrix_engine.pipeline.execution_cycles
+$matrixWritebackCycles = [int]$architecture.matrix_engine.pipeline.writeback_cycles
+$matrixIssueInterval = [int]$architecture.matrix_engine.pipeline.issue_interval_cycles
+$matrixResultLatency = [int]$architecture.matrix_engine.pipeline.result_latency_cycles
 $pmVoltageMin = ([double]$architecture.power_management.core_voltage_target_range_v.min).ToString("0.00", $invariant)
 $pmVoltageMax = ([double]$architecture.power_management.core_voltage_target_range_v.max).ToString("0.00", $invariant)
 $p0TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P0
@@ -146,7 +157,23 @@ Require-Literal "source/model/model.hpp" "kPackageCacheMb = $packageCache;"
 Require-Literal "source/isa/cgx1_isa.hpp" "InstructionClass::Extended"
 Require-Literal "source/matrix/cgx1_matrix.hpp" "kMatrixEnginesPerComputeUnit = $($matrixEnginesPerCu)U;"
 Require-Literal "source/matrix/cgx1_matrix.hpp" "kNativeWaveSize = $($wave)U;"
-Require-Literal "docs/MATRIX_ENGINE.md" "No matrix throughput number is frozen in this phase."
+Require-Literal "source/matrix/cgx1_matrix.hpp" "kThroughputFrozen = true;"
+Require-Literal "source/matrix/cgx1_matrix.hpp" "kPhysicalTileShapesFrozen = true;"
+Require-Literal "source/matrix/cgx1_matrix.hpp" "kPhysicalFragmentMappingFrozen = true;"
+Require-Literal "source/matrix/cgx1_matrix.hpp" "kMatrixInstructionEncodingFrozen = true;"
+Require-Literal "source/matrix/cgx1_matrix.hpp" "kFloatingReductionOrderFrozen = true;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixTileM = $($matrixTileM)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixTileN = $($matrixTileN)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kFp16Bf16TileK = $($matrixFp16K)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kFp8Int8TileK = $($matrixFp8K)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixSourceRegistersPerLane = $($matrixSourceRegisters)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixAccumulatorRegistersPerLane = $($matrixAccumulatorRegisters)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixRegisterCaptureCycles = $($matrixCaptureCycles)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixExecutionCycles = $($matrixExecutionCycles)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixWritebackCycles = $($matrixWritebackCycles)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixIssueIntervalCycles = $($matrixIssueInterval)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixResultLatencyCycles = $($matrixResultLatency)U;"
+Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P1SlotEco:   return $($slotEco).0;"
@@ -165,14 +192,20 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
+if ([int]$architecture.schema_version -ne 6) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 6 for the physical matrix architecture contract"
+}
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
 }
-if ([bool]$architecture.matrix_engine.physical_tile_dimensions_frozen) {
-    Add-Finding "design/cgx1_architecture.json: physical matrix tile dimensions must remain unfrozen until implementation"
+if (-not [bool]$architecture.matrix_engine.physical_tile_dimensions_frozen) {
+    Add-Finding "design/cgx1_architecture.json: physical matrix tile dimensions must remain frozen"
 }
-if ([bool]$architecture.matrix_engine.throughput_frozen) {
-    Add-Finding "design/cgx1_architecture.json: matrix throughput must remain unfrozen until implementation and characterization"
+if (-not [bool]$architecture.matrix_engine.physical_fragment_mapping_frozen) {
+    Add-Finding "design/cgx1_architecture.json: physical matrix fragment mapping must remain frozen"
+}
+if (-not [bool]$architecture.matrix_engine.throughput_frozen) {
+    Add-Finding "design/cgx1_architecture.json: matrix throughput target must remain frozen"
 }
 if ([bool]$architecture.matrix_engine.independent_ai_tops_frozen) {
     Add-Finding "design/cgx1_architecture.json: independent AI TOPS must remain unfrozen"
@@ -180,11 +213,56 @@ if ([bool]$architecture.matrix_engine.independent_ai_tops_frozen) {
 if ([bool]$architecture.matrix_engine.structured_sparsity_acceleration_claimed) {
     Add-Finding "design/cgx1_architecture.json: structured sparsity acceleration must not be claimed in the baseline"
 }
-if ([bool]$architecture.matrix_engine.floating_reduction_order_frozen) {
-    Add-Finding "design/cgx1_architecture.json: floating matrix reduction order must remain unfrozen"
+if (-not [bool]$architecture.matrix_engine.floating_reduction_order_frozen) {
+    Add-Finding "design/cgx1_architecture.json: per-instruction floating matrix reduction order must remain frozen"
+}
+if (-not [bool]$architecture.matrix_engine.instruction_encoding_frozen) {
+    Add-Finding "design/cgx1_architecture.json: matrix instruction encoding must remain frozen"
+}
+if ([bool]$architecture.matrix_engine.timing_feasibility_validated) {
+    Add-Finding "design/cgx1_architecture.json: matrix timing feasibility must remain unvalidated until RTL timing evidence exists"
 }
 if ([bool]$architecture.matrix_engine.deterministic_matrix_mode_claimed) {
     Add-Finding "design/cgx1_architecture.json: deterministic matrix mode is not a baseline claim"
+}
+if ($matrixTileM -ne 16 -or $matrixTileN -ne 16 -or $matrixFp16K -ne 16 -or $matrixFp8K -ne 32) {
+    Add-Finding "design/cgx1_architecture.json: matrix tile shapes must remain M16N16K16 for 16-bit inputs and M16N16K32 for 8-bit inputs"
+}
+if ($matrixSourceRegisters -ne 4 -or [int]$architecture.matrix_engine.fragment_registers_per_lane.source_b -ne 4 -or $matrixAccumulatorRegisters -ne 8) {
+    Add-Finding "design/cgx1_architecture.json: matrix fragment register counts must remain 4/4/8 per lane"
+}
+if ($matrixCaptureCycles -ne 8 -or $matrixExecutionCycles -ne 16 -or $matrixWritebackCycles -ne 8) {
+    Add-Finding "design/cgx1_architecture.json: matrix pipeline must remain 8 capture / 16 execute / 8 writeback cycles"
+}
+if ($matrixIssueInterval -ne 16) {
+    Add-Finding "design/cgx1_architecture.json: matrix issue interval must remain 16 cycles"
+}
+if ($matrixResultLatency -ne 33) {
+    Add-Finding "design/cgx1_architecture.json: matrix result latency must remain 33 cycles"
+}
+if ($matrixResultLatency -ne (1 + $matrixCaptureCycles + $matrixExecutionCycles + $matrixWritebackCycles)) {
+    Add-Finding "design/cgx1_architecture.json: matrix result latency does not match the pipeline stages"
+}
+
+$matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit
+$matrixPeakClock = [double]$architecture.silicon.peak_clock_ghz
+$matrixSustainedClock = [double]$architecture.silicon.sustained_clock_target_ghz
+$fp16OpsPerInstruction = 2.0 * $matrixTileM * $matrixTileN * $matrixFp16K
+$fp8OpsPerInstruction = 2.0 * $matrixTileM * $matrixTileN * $matrixFp8K
+$expectedFp16Peak = ($fp16OpsPerInstruction / $matrixIssueInterval) * $matrixEngineCount * $matrixPeakClock / 1000.0
+$expectedFp16Sustained = ($fp16OpsPerInstruction / $matrixIssueInterval) * $matrixEngineCount * $matrixSustainedClock / 1000.0
+$expectedFp8Peak = ($fp8OpsPerInstruction / $matrixIssueInterval) * $matrixEngineCount * $matrixPeakClock / 1000.0
+$expectedFp8Sustained = ($fp8OpsPerInstruction / $matrixIssueInterval) * $matrixEngineCount * $matrixSustainedClock / 1000.0
+
+if ([Math]::Abs(([double]$architecture.matrix_engine.dense_rate_targets.fp16_bf16_peak_clock_tflops) - $expectedFp16Peak) -gt 0.0001 -or
+    [Math]::Abs(([double]$architecture.matrix_engine.dense_rate_targets.fp16_bf16_sustained_clock_tflops) - $expectedFp16Sustained) -gt 0.0001) {
+    Add-Finding "design/cgx1_architecture.json: FP16/BF16 dense matrix rate targets do not match the frozen issue model"
+}
+if ([Math]::Abs(([double]$architecture.matrix_engine.dense_rate_targets.fp8_peak_clock_tflops) - $expectedFp8Peak) -gt 0.0001 -or
+    [Math]::Abs(([double]$architecture.matrix_engine.dense_rate_targets.fp8_sustained_clock_tflops) - $expectedFp8Sustained) -gt 0.0001 -or
+    [Math]::Abs(([double]$architecture.matrix_engine.dense_rate_targets.int8_peak_clock_tops) - $expectedFp8Peak) -gt 0.0001 -or
+    [Math]::Abs(([double]$architecture.matrix_engine.dense_rate_targets.int8_sustained_clock_tops) - $expectedFp8Sustained) -gt 0.0001) {
+    Add-Finding "design/cgx1_architecture.json: FP8/INT8 dense matrix rate targets do not match the frozen issue model"
 }
 if ([bool]$architecture.matrix_engine.fp32_input_matrix_baseline -or [bool]$architecture.matrix_engine.fp64_matrix_baseline -or [bool]$architecture.matrix_engine.tf32_baseline -or [bool]$architecture.matrix_engine.ocp_mx_baseline) {
     Add-Finding "design/cgx1_architecture.json: non-baseline matrix formats were enabled without a frozen contract"

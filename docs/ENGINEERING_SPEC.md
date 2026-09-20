@@ -71,7 +71,7 @@ Nominal package envelope target: no larger than 55 × 55 mm.
 | Compute units total | 200 | Architecture target |
 | FP32 lanes per compute unit | 128 | 25,600 total |
 | FP32 lanes total | 25,600 | Peak arithmetic input |
-| Matrix engines per compute unit | 4 | Architecture target; numeric semantics defined, physical shape and throughput not frozen |
+| Matrix engines per compute unit | 4 | One per SIMD32 partition; physical shape, mapping, instruction form, and issue model are defined architecture targets |
 | Ray traversal/intersection engines per compute unit | 1 | Architecture target, throughput not yet frozen |
 | ROPs | 256 | Architecture target |
 | Sustained full clock | 2.65 GHz | Full load target |
@@ -84,6 +84,8 @@ Peak FP32 arithmetic target:
 ```
 
 This is a theoretical arithmetic target, not measured application performance.
+
+Matrix-engine architecture targets are defined separately in [Matrix Engine Architecture](MATRIX_ENGINE.md). FP16/BF16 use M16N16K16 tiles; FP8/INT8 use M16N16K32 tiles. With a 16-cycle per-engine issue interval, the derived dense peak-clock targets are 1,146.88 TFLOPS for FP16/BF16 and 2,293.76 TFLOPS/TOPS for FP8/INT8. These are architectural arithmetic targets, not measured silicon or application results.
 
 ### 3.3 Cache hierarchy
 
@@ -111,7 +113,7 @@ Each compute unit contains four SIMD32 partitions, giving the existing 128 FP32 
 
 The dedicated matrix-engine target uses wave32 cooperative execution with FP16, BF16, OCP FP8 E4M3/E5M2, and signed INT8 baseline profiles. Floating profiles accumulate to FP32; signed INT8 accumulates to signed INT32. Physical matrix tile dimensions, issue rate, and throughput remain unfrozen.
 
-See [ISA and Execution Model](ISA.md) and [Matrix Engine Precision and Semantics](MATRIX_ENGINE.md).
+See [ISA and Execution Model](ISA.md) and [Matrix Engine Architecture](MATRIX_ENGINE.md).
 
 ### 3.6 Graphics and texture organization
 

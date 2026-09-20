@@ -4,7 +4,7 @@
 
 A usable GPU requires more than silicon. CGX 1 includes a software implementation plan so firmware, drivers, compilers, media support, diagnostics, and conformance can be developed alongside hardware.
 
-Software-visible hardware behavior is defined by [ISA and Execution Model](ISA.md), [Matrix Engine Precision and Semantics](MATRIX_ENGINE.md), [Virtual Memory](VIRTUAL_MEMORY.md), and [Scheduling and Preemption](SCHEDULING_PREEMPTION.md). Driver and compiler work must not invent incompatible behavior outside those contracts.
+Software-visible hardware behavior is defined by [ISA and Execution Model](ISA.md), [Matrix Engine Architecture](MATRIX_ENGINE.md), [Virtual Memory](VIRTUAL_MEMORY.md), and [Scheduling and Preemption](SCHEDULING_PREEMPTION.md). Driver and compiler work must not invent incompatible behavior outside those contracts.
 
 ## Firmware
 
@@ -97,7 +97,7 @@ The architecture target includes four encode and four decode engines. Software w
 
 ## Local model workloads
 
-CGX 1 is intended to support local model inference and development workloads through its large memory capacity and general compute path. No independent AI TOPS figure is frozen in the architecture, and no inference speed claim is made without implemented matrix hardware, compiler support, and measured software results.
+CGX 1 is intended to support local model inference and development workloads through its large memory capacity and general compute path. The architecture now defines theoretical dense matrix arithmetic targets, but it still does not publish an independent AI TOPS benchmark figure. No inference speed claim is made without implemented matrix hardware, compiler support, and measured software results.
 
 ## Conformance and compatibility
 

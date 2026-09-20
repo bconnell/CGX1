@@ -14,7 +14,7 @@ The repository distinguishes editable engineering source from derived files.
 | [`mechanical/cgx1_dock.stl`](../mechanical/cgx1_dock.stl) | Dock envelope mesh | Derived from dock dimensions |
 | [`source/model/`](../source/model/) | Analytical calculation source | Executable engineering source |
 | [`source/isa/`](../source/isa/) | Base ISA field encoder/decoder and tests | Executable reference for the public instruction field contract |
-| [`source/matrix/`](../source/matrix/) | Matrix numeric-format and accumulation reference | Executable reference for matrix precision semantics, not matrix RTL or throughput |
+| [`source/matrix/`](../source/matrix/) | Matrix numeric and physical architecture references | Executable reference for formats, tile shapes, fragment mapping, instruction validation, pipeline targets, reduction order, and rate derivation; not matrix RTL or measured performance |
 | [`source/power/`](../source/power/) | Tile power-management policy and invariant tests | Executable reference for board budgets, tile states, transitions, and hysteresis |
 | [`source/firmware/`](../source/firmware/) | Power state controller | Executable reference source |
 | [`source/rtl/`](../source/rtl/) | Top level state scaffold | Limited RTL boundary, not complete GPU RTL |

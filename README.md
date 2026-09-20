@@ -93,7 +93,7 @@ The critical software-visible and multi-tile contracts are now defined rather th
 | Area | Current architecture decision | Document |
 |---|---|---|
 | Execution | Native wave32; four SIMD32 partitions per CU; 32-bit base ISA with extension word | [ISA](docs/ISA.md) |
-| Matrix engines | Four engines per CU; wave32 cooperative scope; FP16/BF16/OCP FP8/INT8 numeric profiles; physical tile shape and rate not frozen | [Matrix Engine Precision and Semantics](docs/MATRIX_ENGINE.md) |
+| Matrix engines | Four engines per CU; wave32; M16N16K16 FP16/BF16 and M16N16K32 FP8/INT8; fixed fragment map and 16-cycle issue target | [Matrix Engine Architecture](docs/MATRIX_ENGINE.md) |
 | Graphics | One logical GPU; 16 raster partitions; dynamic 32 × 32 pixel macro-tile ownership | [Graphics Pipeline](docs/GRAPHICS_PIPELINE.md) |
 | Texture | 100 texture blocks; four bilinear samples/block/cycle arithmetic target | [Texture and Compression](docs/TEXTURE_COMPRESSION.md) |
 | Compression | Lossless 256-byte surface blocks; no guaranteed compression ratio | [Texture and Compression](docs/TEXTURE_COMPRESSION.md) |
@@ -124,7 +124,7 @@ The complete engineering document set is listed in the [Documentation Index](doc
 |---|---|---|
 | Engineering Specification | Card, package, silicon, memory, power, display, media, reliability | [Open](docs/ENGINEERING_SPEC.md) |
 | ISA and Execution Model | Wave model, registers, instruction classes, memory ordering and faults | [Open](docs/ISA.md) |
-| Matrix Engine Precision and Semantics | FP16, BF16, OCP FP8 and INT8 numeric contract, accumulation and capability discovery | [Open](docs/MATRIX_ENGINE.md) |
+| Matrix Engine Architecture | Numeric contract, physical tile shapes, wave32 fragment mapping, ISA opcodes, pipeline timing, and dense rate targets | [Open](docs/MATRIX_ENGINE.md) |
 | Graphics Pipeline | Multi-tile geometry, raster, ownership, depth and presentation flow | [Open](docs/GRAPHICS_PIPELINE.md) |
 | Texture and Compression | Sampler organization and lossless surface compression | [Open](docs/TEXTURE_COMPRESSION.md) |
 | Chiplet Fabric | Tile links, coherence, bandwidth budget, reliability and QoS | [Open](docs/CHIPLET_FABRIC.md) |
@@ -147,7 +147,7 @@ The complete engineering document set is listed in the [Documentation Index](doc
 
 ## Build and test
 
-A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, matrix numeric tests, power-management policy tests, and firmware tests.
+A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, matrix numeric and physical-architecture tests, power-management policy tests, and firmware tests.
 
 ```text
 cmake -S . -B build

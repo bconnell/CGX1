@@ -12,8 +12,10 @@ namespace cgx1::matrix {
 
 inline constexpr std::uint32_t kMatrixEnginesPerComputeUnit = 4U;
 inline constexpr std::uint32_t kNativeWaveSize = 32U;
-inline constexpr bool kThroughputFrozen = false;
-inline constexpr bool kPhysicalTileShapesFrozen = false;
+inline constexpr bool kThroughputFrozen = true;
+inline constexpr bool kPhysicalTileShapesFrozen = true;
+inline constexpr bool kPhysicalFragmentMappingFrozen = true;
+inline constexpr bool kMatrixInstructionEncodingFrozen = true;
 inline constexpr bool kStructuredSparsityAccelerationClaimed = false;
 inline constexpr bool kMxFormatsBaseline = false;
 inline constexpr bool kTf32Baseline = false;
@@ -21,7 +23,7 @@ inline constexpr bool kFp64MatrixBaseline = false;
 inline constexpr bool kFp32InputMatrixBaseline = false;
 inline constexpr bool kFloatingOperandsWidenExactlyToFp32 = true;
 inline constexpr bool kFloatingAccumulationUsesFp32Fma = true;
-inline constexpr bool kFloatingReductionOrderFrozen = false;
+inline constexpr bool kFloatingReductionOrderFrozen = true;
 
 enum class MatrixDataType : std::uint8_t
 {

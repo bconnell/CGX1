@@ -57,7 +57,7 @@ The 4-bit opcode is a major opcode within its class. Class value 15 is reserved 
 | Control | Branch, call, return, mask manipulation, loop and termination |
 | Sync/atomic | Barriers, fences, integer atomics and supported floating-point atomics |
 | Texture | Sample, gather, query and filtered image access |
-| Matrix | Cooperative wave32 matrix operations; numeric contract is defined separately; physical shapes and rates are not frozen |
+| Matrix | Cooperative wave32 matrix operations; tied C/D accumulator; opcodes 0x0-0x6 select the frozen baseline profiles and tile shapes |
 | Ray | Traversal/intersection operations; detailed RT datapath remains future RTL work |
 | Conversion | Pack, unpack and numeric format conversion |
 | System | Queue, fault, debug, timing and privileged operations |
@@ -99,4 +99,4 @@ A recoverable memory fault is reported to the queue/context that caused it. A qu
 
 FP32 arithmetic follows IEEE 754 behavior where the selected operation and mode require it. Flush-to-zero and denormal handling are explicit instruction/compiler modes rather than silent device-wide behavior.
 
-FP16, BF16, FP64 and packed integer formats may share execution hardware, but their final throughput ratios are not asserted by this document. Matrix numeric behavior is defined in [Matrix Engine Precision and Semantics](MATRIX_ENGINE.md); physical matrix tile dimensions and throughput remain unfrozen until implementation and characterization justify them.
+FP16, BF16, FP64 and packed integer formats may share execution hardware, but their final throughput ratios are not asserted by this document. Matrix numeric behavior, physical tile shapes, fragment mapping, opcode assignments, register grouping, issue interval, result latency, and theoretical dense rates are defined in [Matrix Engine Architecture](MATRIX_ENGINE.md). RTL timing, area, power, compiler integration, and measured hardware performance remain future validation work.

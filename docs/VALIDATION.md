@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware, analytical-model, ISA-reference, matrix-numeric, and power-management policy tests.
+- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, and power-management policy tests.
 
 ## 2. Analytical model
 
@@ -60,9 +60,11 @@ The executable matrix test verifies:
 - BF16 round-to-nearest ties-to-even conversion;
 - exact FP16/BF16/FP8 widening to FP32 and FP32 fused multiply-add reference behavior;
 - signed INT8 to signed INT32 accumulation with defined modulo overflow behavior;
-- explicit absence of frozen matrix throughput, physical tile dimensions, TF32, FP64 matrix, FP32-input matrix, OCP MX, and structured-sparsity claims.
+- explicit absence of TF32, FP64 matrix, FP32-input matrix, OCP MX, and structured-sparsity claims.
 
-This reference validates numeric semantics. It is not matrix RTL, a cycle model, a compiler, or a performance benchmark.
+The separate matrix-architecture executable test verifies M16N16K16 and M16N16K32 shapes, exact wave32 fragment coverage, input packing, VGPR grouping/alignment/overlap rules, Matrix opcode validity, the 8/16/8 capture-execute-writeback schedule, 16-cycle issue interval, 33-cycle result latency, fixed per-instruction reduction order, and dense arithmetic-rate derivation.
+
+These references validate the architecture contract. They are not matrix RTL, physical timing closure, area/power characterization, compiler integration, or measured performance.
 
 ## 5. Power-management reference
 
@@ -165,7 +167,7 @@ A fabricated CGX device requires separate evidence for:
 - PCIe compliance and signal integrity;
 - HBM training, ECC, sustained bandwidth, and error handling;
 - compute instruction correctness;
-- matrix precision, conversion, accumulation, capability enumeration, physical tile shape, issue rate, throughput, and compiler lowering;
+- matrix precision, conversion, accumulation, capability enumeration, frozen tile/fragment/opcode behavior, register-file delivery, issue timing, RTL timing closure, area/power, throughput validation, and compiler lowering;
 - graphics API conformance;
 - shader/compiler correctness;
 - raster and depth/stencil correctness;

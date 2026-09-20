@@ -16,8 +16,10 @@ int main()
 
     static_assert(kMatrixEnginesPerComputeUnit == 4U);
     static_assert(kNativeWaveSize == 32U);
-    static_assert(!kThroughputFrozen);
-    static_assert(!kPhysicalTileShapesFrozen);
+    static_assert(kThroughputFrozen);
+    static_assert(kPhysicalTileShapesFrozen);
+    static_assert(kPhysicalFragmentMappingFrozen);
+    static_assert(kMatrixInstructionEncodingFrozen);
     static_assert(!kStructuredSparsityAccelerationClaimed);
     static_assert(!kMxFormatsBaseline);
     static_assert(!kTf32Baseline);
@@ -25,7 +27,7 @@ int main()
     static_assert(!kFp32InputMatrixBaseline);
     static_assert(kFloatingOperandsWidenExactlyToFp32);
     static_assert(kFloatingAccumulationUsesFp32Fma);
-    static_assert(!kFloatingReductionOrderFrozen);
+    static_assert(kFloatingReductionOrderFrozen);
 
     static_assert(FormatInfo(MatrixDataType::Fp16).exponentBits == 5U);
     static_assert(FormatInfo(MatrixDataType::Fp16).fractionBits == 10U);

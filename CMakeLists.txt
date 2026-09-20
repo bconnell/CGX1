@@ -12,6 +12,7 @@ enable_testing()
 
 add_subdirectory(source/model)
 add_subdirectory(source/isa)
+add_subdirectory(source/matrix)
 add_subdirectory(source/power)
 
 add_executable(cgx1_firmware_tests

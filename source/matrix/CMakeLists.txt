@@ -1,0 +1,3 @@
+add_executable(cgx1_matrix_tests tests.cpp)
+target_include_directories(cgx1_matrix_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_matrix_semantics_checks COMMAND cgx1_matrix_tests)

@@ -13,6 +13,7 @@
 - prototype procurement and cost planning;
 - software implementation plan;
 - native wave32 ISA and executable base instruction encoder/decoder;
+- matrix-engine numeric precision contract and executable FP8/BF16/INT8 reference;
 - multi-tile graphics pipeline and render ownership model;
 - texture block and lossless surface-compression architecture;
 - coherent chiplet-fabric protocol and bandwidth budget;
@@ -61,6 +62,8 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
+- freeze physical matrix tile dimensions, fragment mapping, instruction encoding, issue/dependency behavior, and capability enumeration before publishing matrix throughput;
+- implement matrix RTL and validate every advertised precision profile against the numeric reference;
 - characterize finer-than-workgroup preemption cost before adding it to the baseline;
 - characterize real per-tile V/F curves, leakage, transition latency, and controller hysteresis;
 - implement and verify the I/O-die power manager, tile isolation, retention, clock gating, and power-gating RTL.

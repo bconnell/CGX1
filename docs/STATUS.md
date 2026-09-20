@@ -10,6 +10,7 @@ CGX 1 is an engineering architecture and prototype program. No custom CGX 1 ASIC
 |---|---|---|
 | Architecture | Defined target | [Engineering Specification](ENGINEERING_SPEC.md) and [machine readable design file](../design/cgx1_architecture.json) |
 | ISA/execution model | Defined architecture + executable base encoder/decoder | [ISA](ISA.md) and [source/isa](../source/isa/) |
+| Matrix precision semantics | Defined numeric contract + executable reference | [Matrix Engine Precision and Semantics](MATRIX_ENGINE.md) and [source/matrix](../source/matrix/) |
 | Graphics pipeline | Defined architecture target | [Graphics Pipeline](GRAPHICS_PIPELINE.md) |
 | Texture/compression | Defined architecture target | [Texture and Compression](TEXTURE_COMPRESSION.md) |
 | Chiplet fabric/coherence | Defined architecture target; physical lane map not frozen | [Chiplet Fabric](CHIPLET_FABRIC.md) |
@@ -36,6 +37,8 @@ CGX 1 is an engineering architecture and prototype program. No custom CGX 1 ASIC
 Thermal temperatures in this repository are analytical estimates until measured on P0 hardware.
 
 Application performance, frame rate, renderer throughput, media speed, and local model inference performance require hardware and reproducible benchmark data. They are not derived from the analytical model.
+
+No matrix throughput, independent AI TOPS value, or structured-sparsity multiplier is currently frozen.
 
 ## Evidence labels used in this repository
 

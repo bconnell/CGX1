@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -336,5 +336,43 @@
     ],
     "emergency_isolation_may_bypass_orderly_drain": true,
     "emergency_isolation_preserves_unfinished_work": false
+  },
+  "matrix_engine": {
+    "status": "numeric architecture target; matrix RTL and throughput are not yet implemented or frozen",
+    "cooperative_scope_target": "wave32",
+    "logical_operation": "D = A * B + C",
+    "physical_tile_dimensions_frozen": false,
+    "physical_fragment_mapping_frozen": false,
+    "throughput_frozen": false,
+    "independent_ai_tops_frozen": false,
+    "structured_sparsity_acceleration_claimed": false,
+    "baseline_profiles": [
+      "FP16 x FP16 -> FP32 accumulator/result",
+      "BF16 x BF16 -> FP32 accumulator/result",
+      "OCP FP8 E4M3 x E4M3 -> FP32 accumulator/result",
+      "OCP FP8 E4M3 x E5M2 -> FP32 accumulator/result",
+      "OCP FP8 E5M2 x E4M3 -> FP32 accumulator/result",
+      "OCP FP8 E5M2 x E5M2 -> FP32 accumulator/result",
+      "signed INT8 x signed INT8 -> signed INT32 accumulator/result"
+    ],
+    "fp8_standard": "OCP OFP8 Revision 1.0",
+    "fp8_conversion_rounding": "round to nearest, ties to even",
+    "floating_accumulator": "FP32",
+    "floating_reduction_order_frozen": false,
+    "deterministic_matrix_mode_claimed": false,
+    "integer_accumulator": "signed INT32",
+    "int8_accumulator_overflow": "two's-complement modulo 2^32",
+    "fp32_input_matrix_baseline": false,
+    "fp64_matrix_baseline": false,
+    "tf32_baseline": false,
+    "ocp_mx_baseline": false,
+    "capability_discovery_required": true,
+    "dense_operation_count": "2 * M * N * K",
+    "fp8_saturation_modes": [
+      "saturating",
+      "non-saturating"
+    ],
+    "floating_operand_widening": "exact to FP32 before accumulation",
+    "floating_accumulation_step": "FP32 fused multiply-add"
   }
 }

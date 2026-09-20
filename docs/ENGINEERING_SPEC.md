@@ -71,7 +71,7 @@ Nominal package envelope target: no larger than 55 × 55 mm.
 | Compute units total | 200 | Architecture target |
 | FP32 lanes per compute unit | 128 | 25,600 total |
 | FP32 lanes total | 25,600 | Peak arithmetic input |
-| Matrix engines per compute unit | 4 | Architecture target, throughput not yet frozen |
+| Matrix engines per compute unit | 4 | Architecture target; numeric semantics defined, physical shape and throughput not frozen |
 | Ray traversal/intersection engines per compute unit | 1 | Architecture target, throughput not yet frozen |
 | ROPs | 256 | Architecture target |
 | Sustained full clock | 2.65 GHz | Full load target |
@@ -109,7 +109,9 @@ Samsung currently publishes HBM4 capacities through 36 GB on 12 layers at up to 
 
 Each compute unit contains four SIMD32 partitions, giving the existing 128 FP32 lanes per CU. Native wave size is 32 lanes. The first instruction contract uses a 32-bit base word and an optional 32-bit extension word.
 
-See [ISA and Execution Model](ISA.md).
+The dedicated matrix-engine target uses wave32 cooperative execution with FP16, BF16, OCP FP8 E4M3/E5M2, and signed INT8 baseline profiles. Floating profiles accumulate to FP32; signed INT8 accumulates to signed INT32. Physical matrix tile dimensions, issue rate, and throughput remain unfrozen.
+
+See [ISA and Execution Model](ISA.md) and [Matrix Engine Precision and Semantics](MATRIX_ENGINE.md).
 
 ### 3.6 Graphics and texture organization
 

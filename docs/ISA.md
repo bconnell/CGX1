@@ -1,6 +1,6 @@
 # CGX 1 Instruction Set and Execution Model
 
-[Documentation index](README.md) · [Engineering specification](ENGINEERING_SPEC.md) · [Virtual memory](VIRTUAL_MEMORY.md) · [Scheduling and preemption](SCHEDULING_PREEMPTION.md)
+[Documentation index](README.md) · [Engineering specification](ENGINEERING_SPEC.md) · [Matrix engine precision](MATRIX_ENGINE.md) · [Virtual memory](VIRTUAL_MEMORY.md) · [Scheduling and preemption](SCHEDULING_PREEMPTION.md)
 
 This document defines the first software-visible execution contract for CGX 1. It is an architecture target, not fabricated silicon behavior.
 
@@ -57,7 +57,7 @@ The 4-bit opcode is a major opcode within its class. Class value 15 is reserved 
 | Control | Branch, call, return, mask manipulation, loop and termination |
 | Sync/atomic | Barriers, fences, integer atomics and supported floating-point atomics |
 | Texture | Sample, gather, query and filtered image access |
-| Matrix | Cooperative matrix operations; precision/rate details are frozen separately |
+| Matrix | Cooperative wave32 matrix operations; numeric contract is defined separately; physical shapes and rates are not frozen |
 | Ray | Traversal/intersection operations; detailed RT datapath remains future RTL work |
 | Conversion | Pack, unpack and numeric format conversion |
 | System | Queue, fault, debug, timing and privileged operations |
@@ -99,4 +99,4 @@ A recoverable memory fault is reported to the queue/context that caused it. A qu
 
 FP32 arithmetic follows IEEE 754 behavior where the selected operation and mode require it. Flush-to-zero and denormal handling are explicit instruction/compiler modes rather than silent device-wide behavior.
 
-FP16, BF16, FP64, packed integer and matrix formats may share execution hardware, but their final throughput ratios are not asserted by this document. Correctness semantics are frozen before a throughput claim is added.
+FP16, BF16, FP64 and packed integer formats may share execution hardware, but their final throughput ratios are not asserted by this document. Matrix numeric behavior is defined in [Matrix Engine Precision and Semantics](MATRIX_ENGINE.md); physical matrix tile dimensions and throughput remain unfrozen until implementation and characterization justify them.

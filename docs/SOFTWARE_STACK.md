@@ -4,7 +4,7 @@
 
 A usable GPU requires more than silicon. CGX 1 includes a software implementation plan so firmware, drivers, compilers, media support, diagnostics, and conformance can be developed alongside hardware.
 
-Software-visible hardware behavior is defined by [ISA and Execution Model](ISA.md), [Virtual Memory](VIRTUAL_MEMORY.md), and [Scheduling and Preemption](SCHEDULING_PREEMPTION.md). Driver and compiler work must not invent incompatible behavior outside those contracts.
+Software-visible hardware behavior is defined by [ISA and Execution Model](ISA.md), [Matrix Engine Precision and Semantics](MATRIX_ENGINE.md), [Virtual Memory](VIRTUAL_MEMORY.md), and [Scheduling and Preemption](SCHEDULING_PREEMPTION.md). Driver and compiler work must not invent incompatible behavior outside those contracts.
 
 ## Firmware
 
@@ -88,6 +88,8 @@ The compiler targets the native wave32 ISA in [ISA and Execution Model](ISA.md) 
 - matrix operations;
 - debug information;
 - reproducible conformance failures.
+
+Matrix lowering must consume advertised component types, scope, dimensions or granularities, layouts, and modifiers from the device capability contract. Software must not assume one universal physical matrix tile shape.
 
 ## Media path
 

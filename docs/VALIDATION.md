@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware, analytical-model, ISA-reference, and power-management policy tests.
+- executable firmware, analytical-model, ISA-reference, matrix-numeric, and power-management policy tests.
 
 ## 2. Analytical model
 
@@ -48,7 +48,23 @@ The executable ISA test verifies:
 
 This validates the public field contract only. It is not a shader core or ISA conformance suite.
 
-## 4. Power-management reference
+## 4. Matrix numeric reference
+
+The executable matrix test verifies:
+
+- the four-matrix-engine-per-CU and native wave32 architecture constants;
+- accepted FP16, BF16, OCP FP8 E4M3/E5M2, and signed INT8 precision tuples;
+- rejection of unsupported and invalid tuples;
+- OCP FP8 special values, subnormals, round-to-nearest ties-to-even conversion, and both saturation modes;
+- exhaustive finite positive and negative FP8 encode/decode round trips for E4M3 and E5M2;
+- BF16 round-to-nearest ties-to-even conversion;
+- exact FP16/BF16/FP8 widening to FP32 and FP32 fused multiply-add reference behavior;
+- signed INT8 to signed INT32 accumulation with defined modulo overflow behavior;
+- explicit absence of frozen matrix throughput, physical tile dimensions, TF32, FP64 matrix, FP32-input matrix, OCP MX, and structured-sparsity claims.
+
+This reference validates numeric semantics. It is not matrix RTL, a cycle model, a compiler, or a performance benchmark.
+
+## 5. Power-management reference
 
 The executable power-management test verifies:
 
@@ -69,7 +85,7 @@ The executable power-management test verifies:
 
 The policy model does not claim a measured tile power, regulator response time, transition latency, or silicon V/F curve.
 
-## 5. Firmware
+## 6. Firmware
 
 Reference firmware tests cover:
 
@@ -85,7 +101,7 @@ Reference firmware tests cover:
 
 The dock fault tests also verify that the fallback does not request a 70 W slot state.
 
-## 6. RTL boundary
+## 7. RTL boundary
 
 The public RTL currently covers top level power state gating and tile enable behavior. It does not implement or verify a complete GPU pipeline, cache fabric, HBM controller, display engine, media engine, PCIe controller, shader ISA, or production security design.
 
@@ -95,7 +111,7 @@ The critical architecture contracts are defined in [ISA](ISA.md), [Graphics Pipe
 
 The power state scaffold must keep the reported state and tile enable state consistent. A dock fault reports P0 and disables compute tiles.
 
-## 7. Mechanical validation
+## 8. Mechanical validation
 
 Before P0 acceptance:
 
@@ -112,7 +128,7 @@ Before P0 acceptance:
 - inspect mounting pressure and PCB bending;
 - pressure and leak test the cooling assembly.
 
-## 8. P0 electrothermal validation
+## 9. P0 electrothermal validation
 
 P0 measures:
 
@@ -129,7 +145,7 @@ P0 measures:
 
 Use [Test Record Template](TEST_RECORD_TEMPLATE.md) for each repeatable configuration.
 
-## 9. P1 surrogate validation
+## 10. P1 surrogate validation
 
 P1 results must identify the surrogate hardware. Alveo U50 measurements cannot be labeled as CGX performance.
 
@@ -142,13 +158,14 @@ P1 can provide evidence for:
 - selected RTL blocks;
 - early compiler/API experiments.
 
-## 10. Future silicon validation
+## 11. Future silicon validation
 
 A fabricated CGX device requires separate evidence for:
 
 - PCIe compliance and signal integrity;
 - HBM training, ECC, sustained bandwidth, and error handling;
 - compute instruction correctness;
+- matrix precision, conversion, accumulation, capability enumeration, physical tile shape, issue rate, throughput, and compiler lowering;
 - graphics API conformance;
 - shader/compiler correctness;
 - raster and depth/stencil correctness;
@@ -162,7 +179,7 @@ A fabricated CGX device requires separate evidence for:
 - long duration workloads;
 - application and game compatibility.
 
-## 11. Reporting results
+## 12. Reporting results
 
 Every published result should identify whether it is:
 

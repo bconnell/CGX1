@@ -79,6 +79,8 @@ $l2PerTile = Format-Number $architecture.cache.l2_mb_per_tile
 $l2Total = Format-Number $architecture.cache.l2_total_mb
 $packageCache = Format-Number $architecture.cache.package_cache_mb
 $computeTiles = Format-Number $architecture.silicon.compute_tiles
+$matrixEnginesPerCu = Format-Number $architecture.silicon.matrix_engines_per_compute_unit
+$matrixScope = [string]$architecture.matrix_engine.cooperative_scope_target
 $pmVoltageMin = ([double]$architecture.power_management.core_voltage_target_range_v.min).ToString("0.00", $invariant)
 $pmVoltageMax = ([double]$architecture.power_management.core_voltage_target_range_v.max).ToString("0.00", $invariant)
 $p0TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P0
@@ -142,6 +144,9 @@ Require-Literal "source/model/model.hpp" "kL2MbPerTile = $l2PerTile;"
 Require-Literal "source/model/model.hpp" "kL2TotalMb = $l2Total;"
 Require-Literal "source/model/model.hpp" "kPackageCacheMb = $packageCache;"
 Require-Literal "source/isa/cgx1_isa.hpp" "InstructionClass::Extended"
+Require-Literal "source/matrix/cgx1_matrix.hpp" "kMatrixEnginesPerComputeUnit = $($matrixEnginesPerCu)U;"
+Require-Literal "source/matrix/cgx1_matrix.hpp" "kNativeWaveSize = $($wave)U;"
+Require-Literal "docs/MATRIX_ENGINE.md" "No matrix throughput number is frozen in this phase."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P1SlotEco:   return $($slotEco).0;"
@@ -160,6 +165,46 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
+if ($matrixScope -ne ("wave" + $wave)) {
+    Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
+}
+if ([bool]$architecture.matrix_engine.physical_tile_dimensions_frozen) {
+    Add-Finding "design/cgx1_architecture.json: physical matrix tile dimensions must remain unfrozen until implementation"
+}
+if ([bool]$architecture.matrix_engine.throughput_frozen) {
+    Add-Finding "design/cgx1_architecture.json: matrix throughput must remain unfrozen until implementation and characterization"
+}
+if ([bool]$architecture.matrix_engine.independent_ai_tops_frozen) {
+    Add-Finding "design/cgx1_architecture.json: independent AI TOPS must remain unfrozen"
+}
+if ([bool]$architecture.matrix_engine.structured_sparsity_acceleration_claimed) {
+    Add-Finding "design/cgx1_architecture.json: structured sparsity acceleration must not be claimed in the baseline"
+}
+if ([bool]$architecture.matrix_engine.floating_reduction_order_frozen) {
+    Add-Finding "design/cgx1_architecture.json: floating matrix reduction order must remain unfrozen"
+}
+if ([bool]$architecture.matrix_engine.deterministic_matrix_mode_claimed) {
+    Add-Finding "design/cgx1_architecture.json: deterministic matrix mode is not a baseline claim"
+}
+if ([bool]$architecture.matrix_engine.fp32_input_matrix_baseline -or [bool]$architecture.matrix_engine.fp64_matrix_baseline -or [bool]$architecture.matrix_engine.tf32_baseline -or [bool]$architecture.matrix_engine.ocp_mx_baseline) {
+    Add-Finding "design/cgx1_architecture.json: non-baseline matrix formats were enabled without a frozen contract"
+}
+if (-not [bool]$architecture.matrix_engine.capability_discovery_required) {
+    Add-Finding "design/cgx1_architecture.json: matrix capability discovery is required"
+}
+if ([string]$architecture.matrix_engine.fp8_standard -ne "OCP OFP8 Revision 1.0") {
+    Add-Finding "design/cgx1_architecture.json: FP8 standard does not match the matrix numeric contract"
+}
+$fp8SaturationModes = @($architecture.matrix_engine.fp8_saturation_modes)
+if ($fp8SaturationModes.Count -ne 2 -or $fp8SaturationModes -notcontains "saturating" -or $fp8SaturationModes -notcontains "non-saturating") {
+    Add-Finding "design/cgx1_architecture.json: FP8 saturation modes must match the OCP OFP8 contract"
+}
+if ([string]$architecture.matrix_engine.floating_operand_widening -ne "exact to FP32 before accumulation") {
+    Add-Finding "design/cgx1_architecture.json: floating matrix operands must widen exactly to FP32"
+}
+if ([string]$architecture.matrix_engine.floating_accumulation_step -ne "FP32 fused multiply-add") {
+    Add-Finding "design/cgx1_architecture.json: floating matrix accumulation step must use FP32 fused multiply-add semantics"
+}
 if ([bool]$architecture.power_management.full_hbm_availability_in_p0_claimed) {
     Add-Finding "design/cgx1_architecture.json: full HBM availability must not be claimed in P0 before characterization"
 }

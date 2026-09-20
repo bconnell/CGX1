@@ -87,9 +87,24 @@ Accessed September 20, 2026 unless otherwise noted.
 25. **PCI-SIG PASID Translation.** Defines PASID use with address translation services and page request behavior.  
     https://pcisig.com/PCIExpress/ECN/Base/PASIDTranslation
 
+26. **IEEE 754-2019, IEEE Standard for Floating-Point Arithmetic.** Base reference for binary floating-point formats, operations, exceptions, and default handling.  
+    https://standards.ieee.org/ieee/754/6210/
+
+27. **Intel Deep Learning Boost bfloat16 technical reference.** Describes BF16 as one sign bit, eight exponent bits, and seven fraction bits, with BF16 dot-product accumulation to FP32.  
+    https://www.intel.com/content/www/us/en/developer/articles/technical/intel-deep-learning-boost-new-instruction-bfloat16.html
+
+28. **Open Compute Project OCP 8-bit Floating Point Specification (OFP8), Revision 1.0.** Defines E4M3 and E5M2 encodings, special values, rounding, and saturating/non-saturating conversion behavior.  
+    https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
+
+29. **Open Compute Project Microscaling Formats (MX) Specification, Version 1.0.** Defines block-scaled microscaling formats and shared scale semantics; ordinary OFP8 support does not by itself establish MX support.  
+    https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+
+30. **Khronos Vulkan specification, cooperative matrices.** Cooperative matrix storage and computation are distributed across a scope such as a subgroup, while supported type and dimension combinations are enumerated by the implementation.  
+    https://registry.khronos.org/vulkan/specs/latest-ratified/pdf/vkspec.pdf
+
 ## Repository tooling reference
 
-26. **actions/checkout v7.0.1.** Repository workflow is pinned to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.  
+31. **actions/checkout v7.0.1.** Repository workflow is pinned to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.  
     https://github.com/actions/checkout/releases/tag/v7.0.1
 
 Retail listings are sourcing references, not endorsements or guarantees of future availability.

@@ -14,23 +14,23 @@ A resident wave32 issues matrix work to the matrix engine paired with its SIMD32
 
 The logical operation is:
 
-\x60D = A × B + C\x60
+`D = A × B + C`
 
-The base ISA uses a tied accumulator form, so the destination register group contains \x60C\x60 on input and receives \x60D\x60 on completion.
+The base ISA uses a tied accumulator form, so the destination register group contains `C` on input and receives `D` on completion.
 
 ## Baseline precision profiles and tile shapes
 
 | Opcode | A operand | B operand | Accumulator/result | Tile |
 |---:|---|---|---|---|
-| \x600x0\x60 | IEEE binary16 (FP16) | IEEE binary16 (FP16) | FP32 | M16N16K16 |
-| \x600x1\x60 | BF16 | BF16 | FP32 | M16N16K16 |
-| \x600x2\x60 | OCP FP8 E4M3 | OCP FP8 E4M3 | FP32 | M16N16K32 |
-| \x600x3\x60 | OCP FP8 E4M3 | OCP FP8 E5M2 | FP32 | M16N16K32 |
-| \x600x4\x60 | OCP FP8 E5M2 | OCP FP8 E4M3 | FP32 | M16N16K32 |
-| \x600x5\x60 | OCP FP8 E5M2 | OCP FP8 E5M2 | FP32 | M16N16K32 |
-| \x600x6\x60 | signed INT8 | signed INT8 | signed INT32 | M16N16K32 |
+| `0x0` | IEEE binary16 (FP16) | IEEE binary16 (FP16) | FP32 | M16N16K16 |
+| `0x1` | BF16 | BF16 | FP32 | M16N16K16 |
+| `0x2` | OCP FP8 E4M3 | OCP FP8 E4M3 | FP32 | M16N16K32 |
+| `0x3` | OCP FP8 E4M3 | OCP FP8 E5M2 | FP32 | M16N16K32 |
+| `0x4` | OCP FP8 E5M2 | OCP FP8 E4M3 | FP32 | M16N16K32 |
+| `0x5` | OCP FP8 E5M2 | OCP FP8 E5M2 | FP32 | M16N16K32 |
+| `0x6` | signed INT8 | signed INT8 | signed INT32 | M16N16K32 |
 
-Opcodes \x600x7\x60 through \x600xF\x60 in the Matrix instruction class are reserved in this architecture revision.
+Opcodes `0x7` through `0xF` in the Matrix instruction class are reserved in this architecture revision.
 
 FP32 input matrix acceleration, FP64 matrix acceleration, TF32, OCP MX block-scaled formats, unsigned or mixed-sign integer profiles, and structured sparsity acceleration are not part of the baseline.
 
@@ -46,11 +46,11 @@ The physical fragment mapping is part of the architecture contract.
 
 Each lane owns eight elements of the 16 × 16 output tile.
 
-For lane \x60L\x60 and local output element \x60e\x60, where \x600 <= L < 32\x60 and \x600 <= e < 8\x60:
+For lane `L` and local output element `e`, where `0 <= L < 32` and `0 <= e < 8`:
 
-\x60row = floor(L / 2)\x60
+`row = floor(L / 2)`
 
-\x60column = (L mod 2) × 8 + e\x60
+`column = (L mod 2) × 8 + e`
 
 Therefore lanes 0 and 1 own output row 0, lanes 2 and 3 own output row 1, and so on. The even lane owns columns 0 through 7 and the odd lane owns columns 8 through 15.
 
@@ -60,9 +60,9 @@ A is a 16 × 16 matrix.
 
 Each lane owns eight 16-bit A elements:
 
-\x60row = floor(L / 2)\x60
+`row = floor(L / 2)`
 
-\x60k = (L mod 2) × 8 + e\x60
+`k = (L mod 2) × 8 + e`
 
 The eight values are packed two per 32-bit VGPR, low half first, for four VGPRs per lane.
 
@@ -72,9 +72,9 @@ B is a 16 × 16 matrix.
 
 Each lane owns eight 16-bit B elements:
 
-\x60k = floor(L / 2)\x60
+`k = floor(L / 2)`
 
-\x60column = (L mod 2) × 8 + e\x60
+`column = (L mod 2) × 8 + e`
 
 The eight values are packed two per 32-bit VGPR, low half first, for four VGPRs per lane.
 
@@ -84,9 +84,9 @@ A is a 16 × 32 matrix.
 
 Each lane owns sixteen 8-bit A elements:
 
-\x60row = floor(L / 2)\x60
+`row = floor(L / 2)`
 
-\x60k = (L mod 2) × 16 + e\x60
+`k = (L mod 2) × 16 + e`
 
 The sixteen values are packed four per 32-bit VGPR in increasing byte order for four VGPRs per lane.
 
@@ -94,11 +94,11 @@ The sixteen values are packed four per 32-bit VGPR in increasing byte order for 
 
 B is a 32 × 16 matrix.
 
-Lane \x60L\x60 owns all sixteen columns for \x60k = L\x60:
+Lane `L` owns all sixteen columns for `k = L`:
 
-\x60k = L\x60
+`k = L`
 
-\x60column = e\x60
+`column = e`
 
 The sixteen values are packed four per 32-bit VGPR in increasing byte order for four VGPRs per lane.
 
@@ -139,7 +139,7 @@ The destination field names the tied C/D accumulator group. Source 0 names the A
 
 A malformed Matrix instruction is illegal when any of these conditions is true:
 
-- the opcode is not \x600x0\x60 through \x600x6\x60;
+- the opcode is not `0x0` through `0x6`;
 - D/C is not aligned to an 8-register boundary;
 - A or B is not aligned to a 4-register boundary;
 - any register group extends beyond VGPR 255;
@@ -163,9 +163,40 @@ Each engine has one input staging slot and one output staging slot in addition t
 
 The architecture target is therefore one accepted matrix instruction per engine every **16 cycles**.
 
-The register interface budget implied by this schedule is two 32-bit VGPR reads per lane per capture cycle and one 32-bit VGPR write per lane per writeback cycle.
+The register interface budget implied by this schedule is two whole-wave VGPR reads per capture cycle and one whole-wave VGPR write per writeback cycle. A wave32 VGPR read or write transfers 32 × 32-bit lane words, or 1,024 bits. The matrix path therefore consumes 2,048 read bits per capture cycle or 1,024 write bits per writeback cycle.
 
 This timing model is frozen as an architecture target. RTL timing closure, register-file banking, physical routing, area, power, and achievable clock frequency remain unvalidated.
+
+### Register-file capture schedule
+
+The baseline matrix interface reuses the SIMD partition's logical vector-register bandwidth rather than assuming an additional unverified matrix-only register file port.
+
+The eight capture cycles are fixed:
+
+| Capture cycle | Read port 0 | Read port 1 |
+|---:|---|---|
+| 0 | A register offset 0 | B register offset 0 |
+| 1 | A register offset 1 | B register offset 1 |
+| 2 | A register offset 2 | B register offset 2 |
+| 3 | A register offset 3 | B register offset 3 |
+| 4 | C/D register offset 0 | C/D register offset 1 |
+| 5 | C/D register offset 2 | C/D register offset 3 |
+| 6 | C/D register offset 4 | C/D register offset 5 |
+| 7 | C/D register offset 6 | C/D register offset 7 |
+
+Writeback uses one whole-wave VGPR write per cycle for destination offsets 0 through 7.
+
+With matrix instructions issued every 16 cycles, the capture window of one operation and the writeback window of the preceding operation do **not** overlap. The matrix path therefore does not require simultaneous matrix read and write access to the SIMD partition's VGPR interface. This statement is about the logical schedule; the physical bank organization is still an RTL implementation choice.
+
+The 2,048-byte input staging requirement is exact for every baseline profile:
+
+- 512 bytes for A;
+- 512 bytes for B;
+- 1,024 bytes for C/D.
+
+The canonical fragment mapping makes the lane-to-staging destination deterministic from lane ID, register offset, and packed element position. No software-visible dynamic permutation selector is part of the architecture.
+
+During capture, a following instruction that would overwrite A or B must wait until the eight capture cycles finish. The C/D destination remains pending until the end of writeback. Vector instructions in the same SIMD partition that require conflicting VGPR ports stall while matrix capture or writeback owns those ports. These are scheduler rules, not measured performance claims.
 
 ## Physical reduction order
 
@@ -177,7 +208,7 @@ Each output element uses one FP32 accumulator chain.
 
 Starting from C, K is processed in increasing order from 0 through 15:
 
-\x60acc = fma(A[m,k], B[k,n], acc)\x60
+`acc = fma(A[m,k], B[k,n], acc)`
 
 Each step uses FP32 fused multiply-add semantics.
 
@@ -187,15 +218,15 @@ Each output element has two FP32 accumulator chains so that two K terms are proc
 
 The even-K chain starts from C. The odd-K chain starts from +0.
 
-For execution cycle \x60p = 0..15\x60:
+For execution cycle `p = 0..15`:
 
-\x60even = fma(A[m,2p], B[2p,n], even)\x60
+`even = fma(A[m,2p], B[2p,n], even)`
 
-\x60odd = fma(A[m,2p+1], B[2p+1,n], odd)\x60
+`odd = fma(A[m,2p+1], B[2p+1,n], odd)`
 
 After cycle 15:
 
-\x60D = even + odd\x60
+`D = even + odd`
 
 The final addition is an FP32 addition.
 
@@ -203,7 +234,7 @@ This fixes the reduction order for one CGX 1 matrix instruction. It does not req
 
 ### INT8
 
-INT8 uses the same even-K and odd-K split, with signed INT32 accumulation. Each product is exact in INT32. Each chain and the final combine use two's-complement modulo \x602^32\x60 arithmetic.
+INT8 uses the same even-K and odd-K split, with signed INT32 accumulation. Each product is exact in INT32. Each chain and the final combine use two's-complement modulo `2^32` arithmetic.
 
 ## Floating-point format behavior
 
@@ -238,7 +269,7 @@ NaN converts to an FP8 NaN. NaN payload and sign propagation are not guaranteed.
 
 Dense matrix arithmetic counts one multiply and one add for every inner-product term:
 
-\x60operations = 2 × M × N × K\x60
+`operations = 2 × M × N × K`
 
 The 16-cycle issue interval gives:
 
@@ -302,13 +333,16 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 - per-instruction floating-point and integer reduction order;
 - dense arithmetic operation counts and device-level rate calculations.
 
+[source/matrix/cgx1_matrix_pipeline.hpp](../source/matrix/cgx1_matrix_pipeline.hpp) and [source/matrix/pipeline_tests.cpp](../source/matrix/pipeline_tests.cpp) validate the exact capture/writeback register schedule, 2,048-byte input staging budget, whole-wave register interface demand, source/destination hazard lifetimes, and steady-state 16-cycle overlap without simultaneous matrix read/write demand.
+
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
 ## Remaining implementation work
 
 The next implementation boundary is matrix RTL and feasibility closure:
 
-- design the register-file banking and cross-lane delivery network required by the capture budget;
+- choose and implement the physical VGPR bank organization that satisfies the validated two-read/one-write logical schedule;
+- implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - implement the 16 × 16 product/accumulator datapath and dual 8-bit paths;
 - implement input and output staging plus scoreboard integration;
 - verify exact instruction behavior against the executable reference;

@@ -117,15 +117,15 @@ int main()
     static_assert(kMatrixResultLatencyCycles == 33U);
     static_assert(kMatrixInputStagingSlots == 1U);
     static_assert(kMatrixOutputStagingSlots == 1U);
-    static_assert(kMatrixVectorReadsPerLanePerCaptureCycle == 2U);
-    static_assert(kMatrixVectorWritesPerLanePerWritebackCycle == 1U);
+    static_assert(kMatrixWaveRegisterReadsPerCaptureCycle == 2U);
+    static_assert(kMatrixWaveRegisterWritesPerWritebackCycle == 1U);
     static_assert(kMatrixFullWaveActiveRequired);
     static_assert(!kMatrixInstructionUsesExtensionWord);
     static_assert(!kMatrixTimingFeasibilityValidated);
 
-    static_assert(kMatrixVectorReadsPerLanePerCaptureCycle * kMatrixRegisterCaptureCycles
+    static_assert(kMatrixWaveRegisterReadsPerCaptureCycle * kMatrixRegisterCaptureCycles
         == 2U * kMatrixSourceRegistersPerLane + kMatrixAccumulatorRegistersPerLane);
-    static_assert(kMatrixVectorWritesPerLanePerWritebackCycle * kMatrixWritebackCycles
+    static_assert(kMatrixWaveRegisterWritesPerWritebackCycle * kMatrixWritebackCycles
         == kMatrixAccumulatorRegistersPerLane);
     static_assert(kMatrixResultLatencyCycles
         == 1U + kMatrixRegisterCaptureCycles + kMatrixExecutionCycles + kMatrixWritebackCycles);

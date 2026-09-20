@@ -92,6 +92,10 @@ $matrixExecutionCycles = [int]$architecture.matrix_engine.pipeline.execution_cyc
 $matrixWritebackCycles = [int]$architecture.matrix_engine.pipeline.writeback_cycles
 $matrixIssueInterval = [int]$architecture.matrix_engine.pipeline.issue_interval_cycles
 $matrixResultLatency = [int]$architecture.matrix_engine.pipeline.result_latency_cycles
+$matrixWaveRegisterReads = [int]$architecture.matrix_engine.pipeline.wave_register_reads_per_capture_cycle
+$matrixWaveRegisterWrites = [int]$architecture.matrix_engine.pipeline.wave_register_writes_per_writeback_cycle
+$matrixWaveRegisterBits = [int]$architecture.matrix_engine.pipeline.wave_register_width_bits
+$matrixInputStageBytes = [int]$architecture.matrix_engine.staging_bytes.total_input
 $pmVoltageMin = ([double]$architecture.power_management.core_voltage_target_range_v.min).ToString("0.00", $invariant)
 $pmVoltageMax = ([double]$architecture.power_management.core_voltage_target_range_v.max).ToString("0.00", $invariant)
 $p0TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P0
@@ -173,6 +177,10 @@ Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixExecutionCy
 Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixWritebackCycles = $($matrixWritebackCycles)U;"
 Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixIssueIntervalCycles = $($matrixIssueInterval)U;"
 Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixResultLatencyCycles = $($matrixResultLatency)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixWaveRegisterReadsPerCaptureCycle = $($matrixWaveRegisterReads)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixWaveRegisterWritesPerWritebackCycle = $($matrixWaveRegisterWrites)U;"
+Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "kMatrixInputStageBytes ="
+Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "kWaveRegisterBits ="
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
@@ -192,8 +200,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 6) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 6 for the physical matrix architecture contract"
+if ([int]$architecture.schema_version -ne 7) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 7 for the matrix register-interface contract"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -242,6 +250,19 @@ if ($matrixResultLatency -ne 33) {
 }
 if ($matrixResultLatency -ne (1 + $matrixCaptureCycles + $matrixExecutionCycles + $matrixWritebackCycles)) {
     Add-Finding "design/cgx1_architecture.json: matrix result latency does not match the pipeline stages"
+}
+
+if ($matrixWaveRegisterReads -ne 2 -or $matrixWaveRegisterWrites -ne 1 -or $matrixWaveRegisterBits -ne 1024) {
+    Add-Finding "design/cgx1_architecture.json: matrix VGPR interface must remain two 1024-bit reads or one 1024-bit write per active transfer cycle"
+}
+if ([bool]$architecture.matrix_engine.pipeline.simultaneous_matrix_read_write_required) {
+    Add-Finding "design/cgx1_architecture.json: matrix schedule must not require simultaneous VGPR read and write access"
+}
+if ($matrixInputStageBytes -ne 2048 -or
+    [int]$architecture.matrix_engine.staging_bytes.source_a -ne 512 -or
+    [int]$architecture.matrix_engine.staging_bytes.source_b -ne 512 -or
+    [int]$architecture.matrix_engine.staging_bytes.accumulator_result -ne 1024) {
+    Add-Finding "design/cgx1_architecture.json: matrix input staging must remain 512/512/1024 bytes for A/B/C-D"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

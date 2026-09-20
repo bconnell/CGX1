@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -423,8 +423,10 @@
       "result_latency_cycles": 33,
       "input_staging_slots": 1,
       "output_staging_slots": 1,
-      "vector_reads_per_lane_per_capture_cycle": 2,
-      "vector_writes_per_lane_per_writeback_cycle": 1
+      "wave_register_reads_per_capture_cycle": 2,
+      "wave_register_writes_per_writeback_cycle": 1,
+      "wave_register_width_bits": 1024,
+      "simultaneous_matrix_read_write_required": false
     },
     "reduction_order": {
       "fp16_bf16": "single K-ordered FP32 FMA chain from k=0 through k=15",
@@ -439,6 +441,22 @@
       "fp8_peak_clock_tflops": 2293.76,
       "int8_sustained_clock_tops": 2170.88,
       "int8_peak_clock_tops": 2293.76
-    }
+    },
+    "staging_bytes": {
+      "source_a": 512,
+      "source_b": 512,
+      "accumulator_result": 1024,
+      "total_input": 2048
+    },
+    "capture_schedule": [
+      "cycles 0-3: read A[offset] and B[offset] as two whole-wave registers",
+      "cycles 4-7: read two C/D whole-wave registers per cycle"
+    ],
+    "register_hazards": {
+      "source_write_lock": "issue through end of capture",
+      "destination_pending": "issue through end of writeback",
+      "same_partition_vector_port_conflicts": "stall while matrix capture or writeback owns the required VGPR ports"
+    },
+    "cross_lane_delivery": "fixed canonical lane/register-offset permutation into engine-local staging; no software-visible dynamic permutation selector"
   }
 }

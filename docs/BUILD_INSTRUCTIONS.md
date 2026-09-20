@@ -14,7 +14,7 @@ Define and verify:
 - command processor and queue ABI against [Scheduling and Preemption](SCHEDULING_PREEMPTION.md);
 - PCIe BAR and address translation behavior against [Virtual Memory](VIRTUAL_MEMORY.md);
 - shader execution against [ISA and Execution Model](ISA.md);
-- matrix numeric behavior, tile shape, wave32 fragment mapping, register contract, Matrix opcodes, reduction order, issue interval, and latency against [Matrix Engine Architecture](MATRIX_ENGINE.md);
+- matrix numeric behavior, tile shape, wave32 fragment mapping, register contract, capture/writeback schedule, Matrix opcodes, reduction order, issue interval, and latency against [Matrix Engine Architecture](MATRIX_ENGINE.md);
 - raster/texture/back-end behavior against [Graphics Pipeline](GRAPHICS_PIPELINE.md) and [Texture and Compression](TEXTURE_COMPRESSION.md);
 - display and media block interfaces;
 - firmware mailbox and telemetry registers;
@@ -22,7 +22,7 @@ Define and verify:
 
 ## 2. Implement and verify logic
 
-1. Implement scalar/vector issue, register files, arithmetic, matrix engines matching the frozen numeric and physical execution contract, load/store, texture, ray traversal, raster functions, and local caches.
+1. Implement scalar/vector issue, register files, arithmetic, and matrix engines matching the frozen numeric, physical execution, and logical register-interface schedule contracts; then integrate load/store, texture, ray traversal, raster functions, and local caches.
 2. Implement package fabric and coherent cache controllers.
 3. Implement command processors, hardware queues, preemption, memory protection, and reset handling.
 4. Implement the I/O-die power manager, tile clock gating, isolation, retention, and power-gating controls against [Power Management](POWER_MANAGEMENT.md).

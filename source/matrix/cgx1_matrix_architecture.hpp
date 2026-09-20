@@ -30,8 +30,8 @@ inline constexpr std::uint32_t kMatrixIssueIntervalCycles = 16U;
 inline constexpr std::uint32_t kMatrixResultLatencyCycles = 33U;
 inline constexpr std::uint32_t kMatrixInputStagingSlots = 1U;
 inline constexpr std::uint32_t kMatrixOutputStagingSlots = 1U;
-inline constexpr std::uint32_t kMatrixVectorReadsPerLanePerCaptureCycle = 2U;
-inline constexpr std::uint32_t kMatrixVectorWritesPerLanePerWritebackCycle = 1U;
+inline constexpr std::uint32_t kMatrixWaveRegisterReadsPerCaptureCycle = 2U;
+inline constexpr std::uint32_t kMatrixWaveRegisterWritesPerWritebackCycle = 1U;
 
 inline constexpr bool kMatrixFullWaveActiveRequired = true;
 inline constexpr bool kMatrixInstructionUsesExtensionWord = false;

@@ -5,3 +5,7 @@ add_test(NAME cgx1_matrix_semantics_checks COMMAND cgx1_matrix_tests)
 add_executable(cgx1_matrix_architecture_tests architecture_tests.cpp)
 target_include_directories(cgx1_matrix_architecture_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME cgx1_matrix_architecture_checks COMMAND cgx1_matrix_architecture_tests)
+
+add_executable(cgx1_matrix_pipeline_tests pipeline_tests.cpp)
+target_include_directories(cgx1_matrix_pipeline_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_matrix_pipeline_checks COMMAND cgx1_matrix_pipeline_tests)

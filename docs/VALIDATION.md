@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, and power-management policy tests.
+- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, and power-management policy tests.
 
 ## 2. Analytical model
 
@@ -64,7 +64,9 @@ The executable matrix test verifies:
 
 The separate matrix-architecture executable test verifies M16N16K16 and M16N16K32 shapes, exact wave32 fragment coverage, input packing, VGPR grouping/alignment/overlap rules, Matrix opcode validity, the 8/16/8 capture-execute-writeback schedule, 16-cycle issue interval, 33-cycle result latency, fixed per-instruction reduction order, and dense arithmetic-rate derivation.
 
-These references validate the architecture contract. They are not matrix RTL, physical timing closure, area/power characterization, compiler integration, or measured performance.
+The matrix-pipeline executable test verifies that one wave32 VGPR transfer is 1,024 bits; the input staging budget is 2,048 bytes; capture reads exactly A0-A3, B0-B3, and C/D0-C/D7; writeback covers D0-D7; source registers remain protected through capture; the destination remains pending through writeback; and a steady stream issued every 16 cycles stays within two whole-wave reads or one whole-wave write per cycle without requiring simultaneous matrix read/write access.
+
+These references validate the architecture contract and logical register-interface schedule. They do not validate a physical VGPR bank implementation, matrix RTL, timing closure, area/power characterization, compiler integration, or measured performance.
 
 ## 5. Power-management reference
 

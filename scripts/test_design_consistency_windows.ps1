@@ -47,6 +47,19 @@ try {
         throw "Matrix design consistency negative control did not report the expected invariant."
     }
 
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.matrix_engine.pipeline.wave_register_reads_per_capture_cycle = 1
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted an invalid matrix VGPR read-port budget." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "matrix VGPR interface must remain two 1024-bit reads") {
+        throw "Matrix VGPR interface negative control did not report the expected invariant."
+    }
+
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

@@ -110,13 +110,13 @@ Every baseline matrix opcode uses the same VGPR group sizes per lane:
 
 | Fragment | VGPRs per lane | Alignment |
 |---|---:|---:|
-| A | 4 | 4-register boundary |
-| B | 4 | 4-register boundary |
-| C/D | 8 | 8-register boundary |
+| A | 4 | base register congruent to 0 modulo 8 |
+| B | 4 | base register congruent to 4 modulo 8 when distinct from A; exact A alias allowed |
+| C/D | 8 | base register congruent to 0 modulo 8 |
 
 The instruction fields name the base register of each group.
 
-The C/D group is read and written by the matrix instruction. It must not overlap either source group. A and B are read-only and may alias each other.
+The C/D group is read and written by the matrix instruction. It must not overlap either source group. A and B are read-only. They may be exact aliases; otherwise their required modulo-8 base classes keep the two source reads in different register bank classes.
 
 All groups must fit entirely inside the architectural 256-entry vector-register namespace.
 
@@ -193,6 +193,24 @@ The 2,048-byte input staging requirement is exact for every baseline profile:
 - 512 bytes for A;
 - 512 bytes for B;
 - 1,024 bytes for C/D.
+
+### Register bank classes
+
+The architecture now defines an eight-class register banking rule for matrix transfers:
+
+`bank = VGPR index mod 8`
+
+This is a logical bank-class contract, not a claim about the number, dimensions, or circuit implementation of physical SRAM/register-file macros.
+
+A uses base register class 0. A distinct B uses base register class 4. C/D uses an 8-register-aligned base and therefore starts in class 0.
+
+For A/B capture cycles 0 through 3, source offsets are identical, so the two distinct source addresses land in bank classes `0..3` and `4..7` respectively. For C/D capture cycles 4 through 7, the two adjacent C/D registers land in different classes. Writeback uses one destination register per cycle.
+
+An exact A/B register alias is also legal. In that case the same physical register value can be read once and routed to both deterministic staging destinations. This is a broadcast case, not two accesses to the same bank.
+
+The executable banking test exhaustively enumerates every valid destination/A/B base-register combination in the 256-entry VGPR namespace and verifies that every capture cycle is conflict-free under a single-matrix-access-per-bank-class rule.
+
+Physical storage depth, macro partitioning, wiring, clock closure, area, and power remain unvalidated. Those require RTL and implementation evidence.
 
 The canonical fragment mapping makes the lane-to-staging destination deterministic from lane ID, register offset, and packed element position. No software-visible dynamic permutation selector is part of the architecture.
 
@@ -335,13 +353,15 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/matrix/cgx1_matrix_pipeline.hpp](../source/matrix/cgx1_matrix_pipeline.hpp) and [source/matrix/pipeline_tests.cpp](../source/matrix/pipeline_tests.cpp) validate the exact capture/writeback register schedule, 2,048-byte input staging budget, whole-wave register interface demand, source/destination hazard lifetimes, and steady-state 16-cycle overlap without simultaneous matrix read/write demand.
 
+[source/matrix/cgx1_matrix_banking.hpp](../source/matrix/cgx1_matrix_banking.hpp) and [source/matrix/banking_tests.cpp](../source/matrix/banking_tests.cpp) validate modulo-8 bank selection, source base-class rules, exact-alias broadcast behavior, and exhaustive conflict freedom for every valid matrix register layout.
+
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
 ## Remaining implementation work
 
 The next implementation boundary is matrix RTL and feasibility closure:
 
-- choose and implement the physical VGPR bank organization that satisfies the validated two-read/one-write logical schedule;
+- implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - implement the 16 × 16 product/accumulator datapath and dual 8-bit paths;
 - implement input and output staging plus scoreboard integration;

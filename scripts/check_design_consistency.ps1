@@ -96,6 +96,10 @@ $matrixWaveRegisterReads = [int]$architecture.matrix_engine.pipeline.wave_regist
 $matrixWaveRegisterWrites = [int]$architecture.matrix_engine.pipeline.wave_register_writes_per_writeback_cycle
 $matrixWaveRegisterBits = [int]$architecture.matrix_engine.pipeline.wave_register_width_bits
 $matrixInputStageBytes = [int]$architecture.matrix_engine.staging_bytes.total_input
+$matrixBankClasses = [int]$architecture.matrix_engine.register_banking.bank_classes_per_lane
+$matrixSourceABankClass = [int]$architecture.matrix_engine.register_banking.source_a_base_modulo_8
+$matrixSourceBBankClass = [int]$architecture.matrix_engine.register_banking.source_b_base_modulo_8
+$matrixDestinationBankClass = [int]$architecture.matrix_engine.register_banking.accumulator_result_base_modulo_8
 $pmVoltageMin = ([double]$architecture.power_management.core_voltage_target_range_v.min).ToString("0.00", $invariant)
 $pmVoltageMax = ([double]$architecture.power_management.core_voltage_target_range_v.max).ToString("0.00", $invariant)
 $p0TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P0
@@ -179,6 +183,10 @@ Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixIssueInterv
 Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixResultLatencyCycles = $($matrixResultLatency)U;"
 Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixWaveRegisterReadsPerCaptureCycle = $($matrixWaveRegisterReads)U;"
 Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixWaveRegisterWritesPerWritebackCycle = $($matrixWaveRegisterWrites)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixRegisterBankClasses = $($matrixBankClasses)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixSourceABaseModulo = $($matrixSourceABankClass)U;"
+Require-Literal "source/matrix/cgx1_matrix_architecture.hpp" "kMatrixSourceBBaseModulo = $($matrixSourceBBankClass)U;"
+Require-Literal "source/matrix/cgx1_matrix_banking.hpp" "kMatrixRegisterBankMask ="
 Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "kMatrixInputStageBytes ="
 Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "kWaveRegisterBits ="
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
@@ -200,8 +208,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 7) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 7 for the matrix register-interface contract"
+if ([int]$architecture.schema_version -ne 8) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 8 for the matrix register-banking contract"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -263,6 +271,28 @@ if ($matrixInputStageBytes -ne 2048 -or
     [int]$architecture.matrix_engine.staging_bytes.source_b -ne 512 -or
     [int]$architecture.matrix_engine.staging_bytes.accumulator_result -ne 1024) {
     Add-Finding "design/cgx1_architecture.json: matrix input staging must remain 512/512/1024 bytes for A/B/C-D"
+}
+
+if ([int]$architecture.matrix_engine.fragment_register_alignment.source_a -ne 8 -or
+    [int]$architecture.matrix_engine.fragment_register_alignment.source_b -ne 4 -or
+    [int]$architecture.matrix_engine.fragment_register_alignment.accumulator_result -ne 8) {
+    Add-Finding "design/cgx1_architecture.json: matrix register-group alignment must remain A=8, B=4, C-D=8"
+}
+if ($matrixBankClasses -ne 8 -or
+    [string]$architecture.matrix_engine.register_banking.bank_select -ne "VGPR index modulo 8" -or
+    $matrixSourceABankClass -ne 0 -or
+    $matrixSourceBBankClass -ne 4 -or
+    $matrixDestinationBankClass -ne 0) {
+    Add-Finding "design/cgx1_architecture.json: matrix register bank classes must remain modulo-8 with A=0, B=4, C-D=0"
+}
+if (-not [bool]$architecture.matrix_engine.register_banking.source_b_exact_alias_of_a_allowed) {
+    Add-Finding "design/cgx1_architecture.json: exact A-B source alias broadcast must remain allowed"
+}
+if (-not [bool]$architecture.matrix_engine.register_banking.single_matrix_access_per_bank_class_per_cycle) {
+    Add-Finding "design/cgx1_architecture.json: matrix banking contract requires one matrix access per bank class per cycle"
+}
+if ([bool]$architecture.matrix_engine.register_banking.physical_wave_storage_depth_frozen) {
+    Add-Finding "design/cgx1_architecture.json: physical VGPR bank storage depth must remain unfrozen"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

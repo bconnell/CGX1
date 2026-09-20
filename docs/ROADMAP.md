@@ -13,7 +13,7 @@
 - prototype procurement and cost planning;
 - software implementation plan;
 - native wave32 ISA and executable base instruction encoder/decoder;
-- matrix-engine numeric contract, M16N16 physical tile definitions, wave32 fragment map, base ISA opcodes, pipeline timing target, dense-rate derivation, and executable register-interface/capture schedule references;
+- matrix-engine numeric contract, M16N16 physical tile definitions, wave32 fragment map, base ISA opcodes, pipeline timing target, dense-rate derivation, executable register-interface schedule, and exhaustive modulo-8 bank-conflict reference;
 - multi-tile graphics pipeline and render ownership model;
 - texture block and lossless surface-compression architecture;
 - coherent chiplet-fabric protocol and bandwidth budget;
@@ -63,7 +63,7 @@
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
 - implement matrix RTL against the frozen tile, fragment, register, opcode, reduction-order, issue-interval, and scoreboard contracts;
-- implement a physical VGPR bank organization for the validated two-read/one-write whole-wave schedule, plus the fixed lane/register-offset delivery network into matrix staging;
+- implement physical VGPR storage/macros for the validated eight bank classes and two-read/one-write whole-wave schedule, plus the fixed lane/register-offset delivery network into matrix staging;
 - implement matrix input/output staging, scoreboard control, arithmetic RTL, timing, area, and power validation; revise the timing target if physical evidence cannot close it;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;
 - characterize finer-than-workgroup preemption cost before adding it to the baseline;

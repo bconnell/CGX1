@@ -9,3 +9,7 @@ add_test(NAME cgx1_matrix_architecture_checks COMMAND cgx1_matrix_architecture_t
 add_executable(cgx1_matrix_pipeline_tests pipeline_tests.cpp)
 target_include_directories(cgx1_matrix_pipeline_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME cgx1_matrix_pipeline_checks COMMAND cgx1_matrix_pipeline_tests)
+
+add_executable(cgx1_matrix_banking_tests banking_tests.cpp)
+target_include_directories(cgx1_matrix_banking_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_matrix_banking_checks COMMAND cgx1_matrix_banking_tests)

@@ -10,7 +10,7 @@ CGX 1 is an engineering architecture and prototype program. No custom CGX 1 ASIC
 |---|---|---|
 | Architecture | Defined target | [Engineering Specification](ENGINEERING_SPEC.md) and [machine readable design file](../design/cgx1_architecture.json) |
 | ISA/execution model | Defined architecture + executable base encoder/decoder | [ISA](ISA.md) and [source/isa](../source/isa/) |
-| Matrix engine architecture | Defined numeric + physical execution contract with executable numeric, fragment, and register-interface schedule references | [Matrix Engine Architecture](MATRIX_ENGINE.md) and [source/matrix](../source/matrix/) |
+| Matrix engine architecture | Defined numeric + physical execution contract with executable numeric, fragment, register-interface schedule, and bank-conflict references | [Matrix Engine Architecture](MATRIX_ENGINE.md) and [source/matrix](../source/matrix/) |
 | Graphics pipeline | Defined architecture target | [Graphics Pipeline](GRAPHICS_PIPELINE.md) |
 | Texture/compression | Defined architecture target | [Texture and Compression](TEXTURE_COMPRESSION.md) |
 | Chiplet fabric/coherence | Defined architecture target; physical lane map not frozen | [Chiplet Fabric](CHIPLET_FABRIC.md) |
@@ -38,7 +38,7 @@ Thermal temperatures in this repository are analytical estimates until measured 
 
 Application performance, frame rate, renderer throughput, media speed, and local model inference performance require hardware and reproducible benchmark data. They are not derived from the analytical model.
 
-Matrix tile shapes, fragment mapping, opcode assignments, per-engine issue interval, and theoretical dense arithmetic targets are frozen as architecture targets. The current peak-clock targets are 1,146.88 TFLOPS for FP16/BF16 and 2,293.76 TFLOPS/TOPS for FP8/INT8. These are not measured silicon results. The matrix register-interface schedule is analytically/executably checked, but physical VGPR banking, routing, RTL timing, area, and power are not yet validated. No independent AI TOPS benchmark value or structured-sparsity multiplier is claimed.
+Matrix tile shapes, fragment mapping, opcode assignments, per-engine issue interval, and theoretical dense arithmetic targets are frozen as architecture targets. The current peak-clock targets are 1,146.88 TFLOPS for FP16/BF16 and 2,293.76 TFLOPS/TOPS for FP8/INT8. These are not measured silicon results. The matrix register-interface schedule and modulo-8 bank-class conflict rules are analytically/executably checked, but physical VGPR macros, routing, RTL timing, area, and power are not yet validated. No independent AI TOPS benchmark value or structured-sparsity multiplier is claimed.
 
 ## Evidence labels used in this repository
 

@@ -108,6 +108,10 @@ int main()
     static_assert(kFp8Int8TileK == 32U);
     static_assert(kMatrixSourceRegistersPerLane == 4U);
     static_assert(kMatrixAccumulatorRegistersPerLane == 8U);
+    static_assert(kMatrixRegisterBankClasses == 8U);
+    static_assert(kMatrixSourceABaseModulo == 0U);
+    static_assert(kMatrixSourceBBaseModulo == 4U);
+    static_assert(kMatrixAliasedSourceBroadcastAllowed);
     static_assert(kMatrixFragmentReadBytesPerWave == 2048U);
     static_assert(kMatrixFragmentWriteBytesPerWave == 1024U);
     static_assert(kMatrixRegisterCaptureCycles == 8U);
@@ -223,6 +227,15 @@ int main()
         68U
     };
     static_assert(!IsValidMatrixInstruction(badSourceAlignment));
+
+    constexpr isa::BaseInstruction wrongSourceBankClass{
+        isa::InstructionClass::Matrix,
+        static_cast<std::uint8_t>(MatrixOpcode::Fp16Fp32),
+        32U,
+        68U,
+        72U
+    };
+    static_assert(!IsValidMatrixInstruction(wrongSourceBankClass));
 
     constexpr isa::BaseInstruction overlappingDestination{
         isa::InstructionClass::Matrix,

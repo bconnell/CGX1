@@ -147,7 +147,7 @@ The complete engineering document set is listed in the [Documentation Index](doc
 
 ## Build and test
 
-A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, matrix numeric, physical-architecture, and register-interface schedule tests, power-management policy tests, and firmware tests.
+A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, matrix numeric, physical-architecture, register-interface schedule, and bank-conflict tests, power-management policy tests, and firmware tests.
 
 ```text
 cmake -S . -B build

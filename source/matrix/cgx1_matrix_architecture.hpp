@@ -20,6 +20,10 @@ inline constexpr std::uint32_t kFp8Int8TileK = 32U;
 
 inline constexpr std::uint32_t kMatrixSourceRegistersPerLane = 4U;
 inline constexpr std::uint32_t kMatrixAccumulatorRegistersPerLane = 8U;
+inline constexpr std::uint32_t kMatrixRegisterBankClasses = 8U;
+inline constexpr std::uint32_t kMatrixSourceABaseModulo = 0U;
+inline constexpr std::uint32_t kMatrixSourceBBaseModulo = 4U;
+inline constexpr bool kMatrixAliasedSourceBroadcastAllowed = true;
 inline constexpr std::uint32_t kMatrixFragmentReadBytesPerWave = 2048U;
 inline constexpr std::uint32_t kMatrixFragmentWriteBytesPerWave = 1024U;
 
@@ -240,9 +244,13 @@ inline constexpr bool IsValidMatrixRegisterLayout(
     const RegisterSpan sourceA{sourceABase, kMatrixSourceRegistersPerLane};
     const RegisterSpan sourceB{sourceBBase, kMatrixSourceRegistersPerLane};
 
-    return (destinationBase % 8U) == 0U
-        && (sourceABase % 4U) == 0U
-        && (sourceBBase % 4U) == 0U
+    const bool sourceBankPlacement =
+        (sourceABase % kMatrixRegisterBankClasses) == kMatrixSourceABaseModulo
+        && ((sourceBBase == sourceABase && kMatrixAliasedSourceBroadcastAllowed)
+            || (sourceBBase % kMatrixRegisterBankClasses) == kMatrixSourceBBaseModulo);
+
+    return (destinationBase % kMatrixAccumulatorRegistersPerLane) == 0U
+        && sourceBankPlacement
         && SpanFitsVectorFile(destination)
         && SpanFitsVectorFile(sourceA)
         && SpanFitsVectorFile(sourceB)

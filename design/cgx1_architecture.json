@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -406,7 +406,7 @@
       "accumulator_result": 8
     },
     "fragment_register_alignment": {
-      "source_a": 4,
+      "source_a": 8,
       "source_b": 4,
       "accumulator_result": 8
     },
@@ -457,6 +457,17 @@
       "destination_pending": "issue through end of writeback",
       "same_partition_vector_port_conflicts": "stall while matrix capture or writeback owns the required VGPR ports"
     },
-    "cross_lane_delivery": "fixed canonical lane/register-offset permutation into engine-local staging; no software-visible dynamic permutation selector"
+    "cross_lane_delivery": "fixed canonical lane/register-offset permutation into engine-local staging; no software-visible dynamic permutation selector",
+    "register_banking": {
+      "status": "architecture target; physical macro organization, timing, area, and power remain unvalidated",
+      "bank_classes_per_lane": 8,
+      "bank_select": "VGPR index modulo 8",
+      "source_a_base_modulo_8": 0,
+      "source_b_base_modulo_8": 4,
+      "source_b_exact_alias_of_a_allowed": true,
+      "accumulator_result_base_modulo_8": 0,
+      "single_matrix_access_per_bank_class_per_cycle": true,
+      "physical_wave_storage_depth_frozen": false
+    }
   }
 }

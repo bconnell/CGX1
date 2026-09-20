@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, and power-management policy tests.
+- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, and power-management policy tests.
 
 ## 2. Analytical model
 
@@ -66,7 +66,9 @@ The separate matrix-architecture executable test verifies M16N16K16 and M16N16K3
 
 The matrix-pipeline executable test verifies that one wave32 VGPR transfer is 1,024 bits; the input staging budget is 2,048 bytes; capture reads exactly A0-A3, B0-B3, and C/D0-C/D7; writeback covers D0-D7; source registers remain protected through capture; the destination remains pending through writeback; and a steady stream issued every 16 cycles stays within two whole-wave reads or one whole-wave write per cycle without requiring simultaneous matrix read/write access.
 
-These references validate the architecture contract and logical register-interface schedule. They do not validate a physical VGPR bank implementation, matrix RTL, timing closure, area/power characterization, compiler integration, or measured performance.
+The matrix-banking executable test verifies eight modulo-8 bank classes, A base class 0, distinct B base class 4, exact A/B alias broadcast, C/D bank separation, and exhaustively checks every valid destination/A/B base-register combination for capture-cycle conflicts under a single-matrix-access-per-bank-class rule.
+
+These references validate the architecture contract, logical register-interface schedule, and bank-class conflict rules. They do not validate physical VGPR macros, matrix RTL, timing closure, area/power characterization, compiler integration, or measured performance.
 
 ## 5. Power-management reference
 

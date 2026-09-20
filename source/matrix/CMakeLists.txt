@@ -29,3 +29,7 @@ add_test(NAME cgx1_matrix_result_staging_checks COMMAND cgx1_matrix_result_stagi
 add_executable(cgx1_matrix_int8_execution_tests int8_execution_tests.cpp)
 target_include_directories(cgx1_matrix_int8_execution_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME cgx1_matrix_int8_execution_checks COMMAND cgx1_matrix_int8_execution_tests)
+
+add_executable(cgx1_matrix_int8_path_tests int8_path_tests.cpp)
+target_include_directories(cgx1_matrix_int8_path_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_matrix_int8_path_checks COMMAND cgx1_matrix_int8_path_tests)

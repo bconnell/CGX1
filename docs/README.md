@@ -20,7 +20,7 @@ This directory contains the public engineering documentation for CGX 1. The docu
 | Document | Scope | Start here when |
 |---|---|---|
 | [ISA and Execution Model](ISA.md) | Native wave model, registers, instruction encoding, ordering, faults | You are writing RTL, an assembler, compiler or debugger |
-| [Matrix Engine Architecture](MATRIX_ENGINE.md) | Numeric behavior, M16N16 tile shapes, wave32 fragment mapping, Matrix opcodes, register-interface schedule, input/output staging, modulo-8 bank classes, per-wave scoreboard behavior, signed INT8 arithmetic, pipeline timing, reduction order, and dense-rate targets | You are implementing matrix RTL, compiler lowering or API exposure |
+| [Matrix Engine Architecture](MATRIX_ENGINE.md) | Numeric behavior, M16N16 tile shapes, wave32 fragment mapping, Matrix opcodes, register-interface schedule, input/output staging, modulo-8 bank classes, per-wave scoreboard behavior, signed INT8 arithmetic and path integration, pipeline timing, reduction order, and dense-rate targets | You are implementing matrix RTL, compiler lowering or API exposure |
 | [Graphics Pipeline](GRAPHICS_PIPELINE.md) | Multi-tile geometry, rasterization, render ownership, depth and presentation | You are implementing the graphics front/back end |
 | [Texture and Compression](TEXTURE_COMPRESSION.md) | Samplers, filtering, format decode and lossless surface compression | You are implementing texture or memory-bandwidth logic |
 | [Chiplet Fabric](CHIPLET_FABRIC.md) | Tile topology, coherence, bandwidth budget, reliability and QoS | You are designing package links or cache coherence |

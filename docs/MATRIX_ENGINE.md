@@ -212,7 +212,7 @@ The logical per-engine pipeline storage target is:
 
 The 1,024-byte output result slot now has an executable reference model and synthesizable staging RTL. It accepts one completed eight-register wave result set, presents one 1,024-bit wave register per writeback cycle in offsets 0 through 7, rejects overwrite while occupied, and releases the slot after writeback cycle 7. The matrix pipeline controller exposes the authoritative writeback-cycle index used by this contract.
 
-The input/active and output staging blocks use synthesizable registers as reference implementations. They do not select or validate physical SRAM/register-file macros, routing, timing, area, or power. The arithmetic datapath that produces the completed result set is still not implemented.
+The input/active and output staging blocks use synthesizable registers as reference implementations. They do not select or validate physical SRAM/register-file macros, routing, timing, area, or power. Signed INT8 result generation is implemented functionally; FP16/BF16/FP8 result generation remains unimplemented.
 
 The matrix pipeline controller exposes its capture-cycle index so the staging block receives the same authoritative cycle position used for register-address generation.
 
@@ -413,7 +413,7 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/matrix/cgx1_matrix_staging.hpp](../source/matrix/cgx1_matrix_staging.hpp) and [source/matrix/staging_tests.cpp](../source/matrix/staging_tests.cpp) validate capture ordering, the 2 KB capture buffer, the separate 2 KB active operand set, commit on capture cycle 7, and preservation of active operands while the next capture is in progress.
 
-[source/rtl/cgx1_matrix_operand_staging.sv](../source/rtl/cgx1_matrix_operand_staging.sv) and its SystemVerilog testbench implement and simulate the same capture-to-active transfer. The output-result slot, arithmetic datapath, and physical storage macro implementation remain open work.
+[source/rtl/cgx1_matrix_operand_staging.sv](../source/rtl/cgx1_matrix_operand_staging.sv) and its SystemVerilog testbench implement and simulate the same capture-to-active transfer. Physical storage macro implementation remains open work.
 
 [source/matrix/cgx1_matrix_scoreboard.hpp](../source/matrix/cgx1_matrix_scoreboard.hpp) and [source/matrix/scoreboard_tests.cpp](../source/matrix/scoreboard_tests.cpp) validate the 256-VGPR per-wave reservation model, exhaustive single-register ordinary RAW/WAW/WAR behavior, source release, destination completion, multiple independent pending matrix destinations, and matrix read/write-port conflicts.
 
@@ -421,11 +421,15 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/matrix/cgx1_matrix_result_staging.hpp](../source/matrix/cgx1_matrix_result_staging.hpp) and [source/matrix/result_staging_tests.cpp](../source/matrix/result_staging_tests.cpp) validate the 1,024-byte output slot, occupied-slot rejection, ordered writeback consumption, cycle-7 release, and reuse after drain.
 
-[source/rtl/cgx1_matrix_result_staging.sv](../source/rtl/cgx1_matrix_result_staging.sv) and its SystemVerilog testbench implement and simulate the same eight-register result slot and ordered writeback data selection. Result generation remains outside this block.
+[source/rtl/cgx1_matrix_result_staging.sv](../source/rtl/cgx1_matrix_result_staging.sv) and its SystemVerilog testbench implement and simulate the eight-register result slot and ordered writeback data selection. The integration revision adds a cycle-0 load-to-writeback bypass so a registered arithmetic result can drive D register 0 during the first writeback cycle while the full result set is captured for cycles 1 through 7.
 
 [source/matrix/cgx1_matrix_int8_execution.hpp](../source/matrix/cgx1_matrix_int8_execution.hpp) and [source/matrix/int8_execution_tests.cpp](../source/matrix/int8_execution_tests.cpp) implement and validate the signed INT8 M16N16K32 execution contract, canonical operand/result mapping, 16-cycle even/odd reduction, and modulo-`2^32` behavior.
 
-[source/rtl/cgx1_matrix_int8_execution.sv](../source/rtl/cgx1_matrix_int8_execution.sv) and its SystemVerilog testbench implement the same functional INT8 arithmetic boundary. Until the exact revision passes the RTL simulation gate, the machine-readable architecture file records simulation evidence separately from implementation status.
+[source/matrix/int8_path_tests.cpp](../source/matrix/int8_path_tests.cpp) composes capture-to-active staging, signed INT8 execution, cycle-0 output bypass, and ordered result drain in the executable reference.
+
+[source/rtl/cgx1_matrix_int8_path.sv](../source/rtl/cgx1_matrix_int8_path.sv) composes the corresponding RTL blocks using controller-provided capture, execute, opcode, and writeback cycle signals. Its integration testbench models the architectural wave register file and verifies a complete opcode-6 capture/execute/writeback transaction. Simulation evidence for this composed path is tracked separately until the exact revision passes RTL CI.
+
+[source/rtl/cgx1_matrix_int8_execution.sv](../source/rtl/cgx1_matrix_int8_execution.sv) and its SystemVerilog testbench implement the same functional INT8 arithmetic boundary. The standalone INT8 arithmetic block has passed the repository RTL simulation gate.
 
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
@@ -436,7 +440,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - complete FP16/BF16/FP8 arithmetic datapaths with the frozen FP32-FMA semantics; the signed INT8 arithmetic boundary is implemented functionally;
-- integrate the implemented input/active and output-result staging with the arithmetic datapath; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
+- keep the integrated signed INT8 capture/execute/writeback path aligned with the frozen control contract; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;
 - measure timing, area, and power against the compute-unit budget;

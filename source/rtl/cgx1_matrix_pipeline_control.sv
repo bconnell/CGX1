@@ -27,6 +27,7 @@ module cgx1_matrix_pipeline_control (
     output logic [2:0] capture_cycle_index,
     output logic       execute_active,
     output logic [4:0] execute_cycle_index,
+    output logic [3:0] execute_opcode,
     output logic       writeback_active,
     output logic [2:0] writeback_cycle_index,
 
@@ -197,6 +198,7 @@ module cgx1_matrix_pipeline_control (
         capture_cycle_index = capture_cycle_q;
         execute_active = execute_valid_q;
         execute_cycle_index = execute_cycle_q;
+        execute_opcode = execute_opcode_q;
         writeback_active = writeback_valid_q;
         writeback_cycle_index = writeback_cycle_q;
 

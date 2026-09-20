@@ -14,10 +14,10 @@ The repository distinguishes editable engineering source from derived files.
 | [`mechanical/cgx1_dock.stl`](../mechanical/cgx1_dock.stl) | Dock envelope mesh | Derived from dock dimensions |
 | [`source/model/`](../source/model/) | Analytical calculation source | Executable engineering source |
 | [`source/isa/`](../source/isa/) | Base ISA field encoder/decoder and tests | Executable reference for the public instruction field contract |
-| [`source/matrix/`](../source/matrix/) | Matrix numeric, physical architecture, register-interface, banking, staging, scoreboard, and INT8 arithmetic references | Executable reference for formats, tile shapes, fragment mapping, instruction validation, pipeline targets, staging, per-wave VGPR hazards, signed INT8 execution, reduction order, and rate derivation; not measured hardware performance |
+| [`source/matrix/`](../source/matrix/) | Matrix numeric, physical architecture, register-interface, banking, staging, scoreboard, INT8 arithmetic, and INT8 path references | Executable references cover functional capture/execute/result/writeback behavior and architectural invariants; they do not establish physical timing, area, power, or measured hardware performance |
 | [`source/power/`](../source/power/) | Tile power-management policy and invariant tests | Executable reference for board budgets, tile states, transitions, and hysteresis |
 | [`source/firmware/`](../source/firmware/) | Power state controller | Executable reference source |
-| [`source/rtl/`](../source/rtl/) | Top-level state scaffold plus matrix control/storage/scoreboard/arithmetic RTL | Limited RTL including matrix issue legality, staging, per-wave hazards, and signed INT8 arithmetic; FP16/BF16/FP8 arithmetic and complete GPU RTL remain open |
+| [`source/rtl/`](../source/rtl/) | Top-level state scaffold plus matrix control/storage/scoreboard/arithmetic RTL | Limited RTL including matrix issue legality, staging, per-wave hazards, signed INT8 arithmetic, and composed INT8 capture-to-writeback plumbing; FP16/BF16/FP8 arithmetic and complete GPU RTL remain open |
 
 Generated compiler output, test logs, local manifests, temporary captures, IDE files, and validation scratch files are excluded from version control.
 

@@ -210,6 +210,7 @@ Require-Literal "source/matrix/cgx1_matrix_staging.hpp" "kMatrixLogicalPipelineS
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [2:0] capture_cycle_index,"
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [2:0] writeback_cycle_index,"
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [4:0] execute_cycle_index,"
+Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [3:0] execute_opcode,"
 Require-Literal "source/rtl/cgx1_matrix_operand_staging.sv" "output logic [4095:0] active_a_words,"
 Require-Literal "source/rtl/cgx1_matrix_operand_staging.sv" "output logic [8191:0] active_c_words"
 Require-Literal "source/matrix/cgx1_matrix_scoreboard.hpp" "kMatrixScoreboardRegisterCount = 256U;"
@@ -223,6 +224,8 @@ Require-Literal "source/matrix/cgx1_matrix_result_staging.hpp" "struct MatrixRes
 Require-Literal "source/rtl/cgx1_matrix_result_staging.sv" "output logic [1023:0] rf_write_data"
 Require-Literal "source/matrix/cgx1_matrix_int8_execution.hpp" "struct MatrixInt8ExecutionState"
 Require-Literal "source/rtl/cgx1_matrix_int8_execution.sv" "module cgx1_matrix_int8_execution"
+Require-Literal "source/matrix/cgx1_matrix_result_staging.hpp" "LoadAndConsumeMatrixResultCycleZero("
+Require-Literal "source/rtl/cgx1_matrix_int8_path.sv" "module cgx1_matrix_int8_path"
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
@@ -242,8 +245,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 13) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 13 for the signed INT8 matrix arithmetic contract"
+if ([int]$architecture.schema_version -ne 14) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 14 for the integrated signed INT8 matrix path contract"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -421,15 +424,22 @@ if (-not [bool]$architecture.matrix_engine.staging_storage.result_writeback_orde
     -not [bool]$architecture.matrix_engine.staging_storage.writeback_cycle_index_exposed_by_control_rtl) {
     Add-Finding "design/cgx1_architecture.json: matrix output-result staging order/release contract is incomplete"
 }
-if ([bool]$architecture.matrix_engine.staging_storage.result_source_arithmetic_datapath_integrated) {
-    Add-Finding "design/cgx1_architecture.json: matrix arithmetic result source integration must remain unclaimed"
+if (-not [bool]$architecture.matrix_engine.staging_storage.result_source_arithmetic_datapath_integrated -or
+    -not [bool]$architecture.matrix_engine.staging_storage.result_cycle0_load_to_writeback_bypass -or
+    -not [bool]$architecture.matrix_engine.staging_storage.result_cycle0_bypass_reference_model -or
+    -not [bool]$architecture.matrix_engine.staging_storage.result_cycle0_bypass_rtl_implemented) {
+    Add-Finding "design/cgx1_architecture.json: matrix INT8 result-source and cycle-0 bypass integration is incomplete"
+}
+if ([bool]$architecture.matrix_engine.staging_storage.result_cycle0_bypass_simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: integrated cycle-0 bypass simulation evidence must remain false until the exact revision passes RTL CI"
 }
 if ([bool]$architecture.matrix_engine.staging_storage.physical_macro_selection_frozen) {
     Add-Finding "design/cgx1_architecture.json: matrix physical storage macro must remain unclaimed"
 }
 
-if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.execute_cycle_index_exposed) {
-    Add-Finding "design/cgx1_architecture.json: matrix execute-cycle index must remain exposed by control RTL"
+if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.execute_cycle_index_exposed -or
+    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.execute_opcode_exposed) {
+    Add-Finding "design/cgx1_architecture.json: matrix execute-cycle index and opcode must remain exposed by control RTL"
 }
 if (-not [bool]$architecture.matrix_engine.arithmetic_rtl.int8_m16n16k32_implemented -or
     -not [bool]$architecture.matrix_engine.arithmetic_rtl.int8_two_k_terms_per_cycle -or
@@ -446,8 +456,8 @@ if ([string]$architecture.matrix_engine.arithmetic_rtl.int8_accumulation -ne "tw
 if ([string]$architecture.matrix_engine.arithmetic_rtl.result_word_format -ne "eight whole-wave signed INT32 result registers") {
     Add-Finding "design/cgx1_architecture.json: signed INT8 matrix result format changed"
 }
-if ([bool]$architecture.matrix_engine.arithmetic_rtl.simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: signed INT8 RTL simulation evidence must remain false until the exact published revision passes RTL CI"
+if (-not [bool]$architecture.matrix_engine.arithmetic_rtl.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: standalone signed INT8 RTL simulation evidence must remain recorded"
 }
 if ([bool]$architecture.matrix_engine.arithmetic_rtl.fp16_rtl_implemented -or
     [bool]$architecture.matrix_engine.arithmetic_rtl.bf16_rtl_implemented -or
@@ -458,6 +468,27 @@ if ([bool]$architecture.matrix_engine.arithmetic_rtl.timing_closure_validated -o
     [bool]$architecture.matrix_engine.arithmetic_rtl.area_validated -or
     [bool]$architecture.matrix_engine.arithmetic_rtl.power_validated) {
     Add-Finding "design/cgx1_architecture.json: INT8 arithmetic physical implementation evidence must remain unclaimed"
+}
+
+if (-not [bool]$architecture.matrix_engine.int8_path_integration.implemented -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.controller_capture_cycle_used -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.controller_execute_cycle_used -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.controller_execute_opcode_used -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.controller_writeback_cycle_used -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.operand_staging_connected -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.arithmetic_connected -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.result_staging_connected -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.cycle0_result_bypass_required -or
+    -not [bool]$architecture.matrix_engine.int8_path_integration.rtl_testbench_implemented) {
+    Add-Finding "design/cgx1_architecture.json: integrated signed INT8 path contract is incomplete"
+}
+if ([bool]$architecture.matrix_engine.int8_path_integration.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: integrated INT8 path simulation evidence must remain false until the exact revision passes RTL CI"
+}
+if ([bool]$architecture.matrix_engine.int8_path_integration.physical_timing_validated -or
+    [bool]$architecture.matrix_engine.int8_path_integration.physical_area_validated -or
+    [bool]$architecture.matrix_engine.int8_path_integration.physical_power_validated) {
+    Add-Finding "design/cgx1_architecture.json: integrated INT8 path physical evidence must remain unclaimed"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

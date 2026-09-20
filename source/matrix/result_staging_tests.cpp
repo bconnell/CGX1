@@ -103,6 +103,40 @@ int main()
     }
     assert(rejectedEmpty);
 
+    MatrixResultStagingState bypassState{};
+    const MatrixResultSet bypass = MakeResultSet(0x400U);
+    assert(LoadAndConsumeMatrixResultCycleZero(
+        bypassState,
+        bypass) == bypass[0]);
+    assert(bypassState.valid);
+    assert(bypassState.expectedWritebackCycle == 1U);
+    assert(bypassState.generation == 1U);
+
+    for (std::uint32_t cycle = 1U;
+         cycle < kMatrixWritebackCycles;
+         ++cycle)
+    {
+        assert(ConsumeMatrixResultWritebackCycle(
+            bypassState,
+            cycle) == bypass[cycle]);
+    }
+    assert(!bypassState.valid);
+
+    bool rejectedBypassOverwrite = false;
+    MatrixResultStagingState occupiedBypass{};
+    LoadMatrixResult(occupiedBypass, MakeResultSet(0x500U));
+    try
+    {
+        (void)LoadAndConsumeMatrixResultCycleZero(
+            occupiedBypass,
+            MakeResultSet(0x600U));
+    }
+    catch (const std::logic_error&)
+    {
+        rejectedBypassOverwrite = true;
+    }
+    assert(rejectedBypassOverwrite);
+
     MatrixResultStagingState rangeState{};
     LoadMatrixResult(rangeState, MakeResultSet(0x300U));
     bool rejectedRange = false;

@@ -22,17 +22,24 @@ module cgx1_matrix_result_staging (
     logic [2:0] expected_writeback_cycle_q;
 
     always_comb begin
-        unique case (writeback_cycle)
-            3'd0: rf_write_data = result_q[1023:0];
-            3'd1: rf_write_data = result_q[2047:1024];
-            3'd2: rf_write_data = result_q[3071:2048];
-            3'd3: rf_write_data = result_q[4095:3072];
-            3'd4: rf_write_data = result_q[5119:4096];
-            3'd5: rf_write_data = result_q[6143:5120];
-            3'd6: rf_write_data = result_q[7167:6144];
-            3'd7: rf_write_data = result_q[8191:7168];
-            default: rf_write_data = '0;
-        endcase
+        if (!result_valid
+            && result_load_valid
+            && writeback_valid
+            && writeback_cycle == 3'd0) begin
+            rf_write_data = result_words[1023:0];
+        end else begin
+            unique case (writeback_cycle)
+                3'd0: rf_write_data = result_q[1023:0];
+                3'd1: rf_write_data = result_q[2047:1024];
+                3'd2: rf_write_data = result_q[3071:2048];
+                3'd3: rf_write_data = result_q[4095:3072];
+                3'd4: rf_write_data = result_q[5119:4096];
+                3'd5: rf_write_data = result_q[6143:5120];
+                3'd6: rf_write_data = result_q[7167:6144];
+                3'd7: rf_write_data = result_q[8191:7168];
+                default: rf_write_data = '0;
+            endcase
+        end
     end
 
     always_ff @(posedge clk or negedge reset_n) begin
@@ -48,12 +55,16 @@ module cgx1_matrix_result_staging (
 
             if (result_load_valid && !result_valid) begin
                 result_q <= result_words;
-                expected_writeback_cycle_q <= 3'd0;
-                result_valid <= 1'b1;
                 result_loaded <= 1'b1;
-            end
 
-            if (writeback_valid && result_valid) begin
+                if (writeback_valid && writeback_cycle == 3'd0) begin
+                    expected_writeback_cycle_q <= 3'd1;
+                    result_valid <= 1'b1;
+                end else begin
+                    expected_writeback_cycle_q <= 3'd0;
+                    result_valid <= 1'b1;
+                end
+            end else if (writeback_valid && result_valid) begin
                 if (writeback_cycle == 3'd7) begin
                     result_valid <= 1'b0;
                     expected_writeback_cycle_q <= 3'd0;
@@ -72,7 +83,9 @@ module cgx1_matrix_result_staging (
             if (result_load_valid && result_valid) begin
                 $fatal(1, "matrix output-result staging load attempted while occupied");
             end
-            if (writeback_valid && !result_valid) begin
+            if (writeback_valid
+                && !result_valid
+                && !(result_load_valid && writeback_cycle == 3'd0)) begin
                 $fatal(1, "matrix output-result writeback attempted while empty");
             end
             if (writeback_valid

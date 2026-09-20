@@ -37,6 +37,23 @@ inline void LoadMatrixResult(
     ++state.generation;
 }
 
+inline MatrixWaveRegister LoadAndConsumeMatrixResultCycleZero(
+    MatrixResultStagingState& state,
+    const MatrixResultSet& result)
+{
+    if (state.valid)
+    {
+        throw std::logic_error(
+            "matrix output-result staging slot is already occupied");
+    }
+
+    state.result = result;
+    state.expectedWritebackCycle = 1U;
+    state.valid = true;
+    ++state.generation;
+    return result[0];
+}
+
 inline MatrixWaveRegister ConsumeMatrixResultWritebackCycle(
     MatrixResultStagingState& state,
     std::uint32_t writebackCycle)

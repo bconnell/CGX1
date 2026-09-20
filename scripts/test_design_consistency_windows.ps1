@@ -138,6 +138,19 @@ try {
         throw "Matrix INT8-only arithmetic negative control did not report the expected invariant."
     }
 
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.matrix_engine.int8_path_integration.cycle0_result_bypass_required = $false
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted an integrated INT8 path without the cycle-0 bypass." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "integrated signed INT8 path contract is incomplete") {
+        throw "Integrated INT8 path negative control did not report the expected invariant."
+    }
+
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

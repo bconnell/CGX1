@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, matrix-staging, and power-management policy tests.
+- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, matrix-staging, matrix-result-staging, matrix-scoreboard, matrix-INT8-execution, matrix-INT8-path, and power-management policy tests.
 
 ## 2. Analytical model
 
@@ -70,15 +70,15 @@ The matrix-banking executable test verifies eight modulo-8 bank classes, A base 
 
 The matrix-staging executable test verifies the 2,048-byte capture set, separate 2,048-byte active execution operand set, ordered eight-cycle capture, cycle-7 commit, and preservation of the active set while the next capture is incomplete.
 
-The matrix-result-staging executable test verifies the 1,024-byte eight-register result slot, rejection of a second load while occupied, ordered writeback cycles 0 through 7, release after the final cycle, and safe slot reuse.
+The matrix-result-staging executable test verifies the 1,024-byte eight-register result slot, rejection of a second load while occupied, ordered writeback cycles 0 through 7, release after the final cycle, safe slot reuse, and cycle-0 load-to-writeback bypass.
 
 The matrix-INT8-execution executable test verifies M16N16K32 signed INT8 arithmetic over 16 execution cycles, canonical A/B/C/D fragment mapping, two K terms per output per cycle, the frozen even/odd signed INT32 reduction order, signed extreme inputs, and explicit modulo-`2^32` overflow.
 
+The matrix-INT8-path executable test composes capture-to-active operand staging, the 16-cycle signed INT8 execution model, cycle-0 result bypass, and ordered result drain. The corresponding SystemVerilog integration testbench models the wave register file and performs a complete opcode-6 capture/execute/writeback transaction.
+
 The matrix-scoreboard executable test verifies a 256-VGPR per-wave reservation state, all single-register ordinary RAW/WAW/WAR outcomes across the full register namespace, source release, destination completion, multiple independent pending destinations, exact A/B alias handling, and read/write-port conflict reporting. The RTL integration test additionally changes the live issue register inputs after acceptance and verifies that scoreboard state is created from the controller-latched accepted bases.
 
-The matrix-staging executable test verifies 2,048-byte capture and active operand sets, cycle-7 commit, sequential capture ordering, a 1,024-byte logical output-slot requirement, and preservation of active operands while the next capture buffer is overwritten.
-
-These references validate the architecture contract, logical register-interface schedule, and bank-class conflict rules. They do not validate physical VGPR macros, matrix RTL, timing closure, area/power characterization, compiler integration, or measured performance.
+These references validate the architecture contract and functional reference behavior. The standalone signed INT8 arithmetic RTL has passed the repository simulation gate. The composed INT8 path has its own exact-revision simulation evidence flag. None of these tests establish physical VGPR macros, timing closure, area/power characterization, compiler integration, or measured silicon performance.
 
 ## 5. Power-management reference
 
@@ -119,9 +119,9 @@ The dock fault tests also verify that the fallback does not request a 70 W slot 
 
 ## 7. RTL boundary
 
-The public RTL currently covers top-level power-state/tile-enable behavior, matrix pipeline control, and matrix operand staging. The controller validates issue legality, capture/execute/writeback sequencing, VGPR addresses, source release, destination completion, bank-class conflict freedom, 16-cycle steady-state reissue behavior, and matrix-to-matrix RAW/WAW stalls against older pending D/C ranges. The staging RTL validates capture buffering and transfer into a separate active execution operand set. It does not implement the matrix arithmetic datapath, output-result staging, physical VGPR/storage macros, the general compute-unit scoreboard for non-matrix instructions, or a complete GPU pipeline.
+The public RTL currently covers top-level power-state/tile-enable behavior, matrix pipeline control, capture/active operand staging, output-result staging, per-wave matrix/ordinary VGPR hazard reporting, signed INT8 arithmetic, and a composed INT8 capture-to-writeback path. FP16/BF16/FP8 arithmetic, physical VGPR/storage macros, ordinary vector execution, resident-wave scoreboard arbitration, and the rest of the GPU pipeline remain open.
 
-RTL control simulation is run with Icarus Verilog in SystemVerilog 2012 mode through `scripts/validate_rtl.sh` and the path-scoped Ubuntu RTL CI workflow. Future RTL work still needs arithmetic unit tests, integration, constrained random, formal, synthesis, FPGA/emulation, and implementation work appropriate to each block.
+RTL simulation is run with Icarus Verilog in SystemVerilog 2012 mode through `scripts/validate_rtl.sh` and the path-scoped Ubuntu RTL CI workflow. Functional unit and integration testbenches do not replace constrained-random verification, formal work, synthesis, FPGA/emulation, timing closure, or physical implementation.
 
 The critical architecture contracts are defined in [ISA](ISA.md), [Graphics Pipeline](GRAPHICS_PIPELINE.md), [Texture and Compression](TEXTURE_COMPRESSION.md), [Chiplet Fabric](CHIPLET_FABRIC.md), [Virtual Memory](VIRTUAL_MEMORY.md), and [Scheduling and Preemption](SCHEDULING_PREEMPTION.md). RTL must match those contracts or update them and their tests in the same revision.
 

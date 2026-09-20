@@ -14,7 +14,7 @@ Define and verify:
 - command processor and queue ABI against [Scheduling and Preemption](SCHEDULING_PREEMPTION.md);
 - PCIe BAR and address translation behavior against [Virtual Memory](VIRTUAL_MEMORY.md);
 - shader execution against [ISA and Execution Model](ISA.md);
-- matrix numeric behavior, tile shape, wave32 fragment mapping, register contract, capture/writeback schedule, modulo-8 bank-class placement, capture/active operand staging, output-result staging, per-wave scoreboard behavior, signed INT8 arithmetic, Matrix opcodes, reduction order, issue interval, and latency against [Matrix Engine Architecture](MATRIX_ENGINE.md);
+- matrix numeric behavior, tile shape, wave32 fragment mapping, register contract, capture/writeback schedule, modulo-8 bank-class placement, capture/active operand staging, cycle-0 output bypass, output-result staging, per-wave scoreboard behavior, signed INT8 arithmetic and path integration, Matrix opcodes, reduction order, issue interval, and latency against [Matrix Engine Architecture](MATRIX_ENGINE.md);
 - raster/texture/back-end behavior against [Graphics Pipeline](GRAPHICS_PIPELINE.md) and [Texture and Compression](TEXTURE_COMPRESSION.md);
 - display and media block interfaces;
 - firmware mailbox and telemetry registers;

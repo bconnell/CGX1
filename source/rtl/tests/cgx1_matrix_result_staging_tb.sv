@@ -120,6 +120,45 @@ module cgx1_matrix_result_staging_tb;
         load_result(512);
         drain_result(512);
 
+        // Cycle-0 load-to-writeback bypass preserves the frozen pipeline latency.
+        @(negedge clk);
+        result_words = '0;
+        for (i = 0; i < 8; i = i + 1) begin
+            result_words[(i * 1024) +: 1024] = make_wave(768 + i);
+        end
+        result_load_valid = 1'b1;
+        writeback_valid = 1'b1;
+        writeback_cycle = 3'd0;
+        #1;
+        if (rf_write_data !== make_wave(768)) begin
+            $fatal(1, "matrix output-result cycle-0 bypass data mismatch");
+        end
+
+        @(posedge clk);
+        #1;
+        if (!result_loaded || !result_valid || result_consumed) begin
+            $fatal(1, "matrix output-result cycle-0 bypass state mismatch");
+        end
+
+        @(negedge clk);
+        result_load_valid = 1'b0;
+        for (i = 1; i < 8; i = i + 1) begin
+            writeback_cycle = i[2:0];
+            #1;
+            if (rf_write_data !== make_wave(768 + i)) begin
+                $fatal(1, "matrix output-result bypass follow-on data mismatch at cycle %0d", i);
+            end
+            @(posedge clk);
+            #1;
+        end
+        @(negedge clk);
+        writeback_valid = 1'b0;
+        writeback_cycle = 3'd0;
+
+        if (result_valid) begin
+            $fatal(1, "matrix output-result bypass slot did not drain");
+        end
+
         $display("[pass] CGX 1 matrix output-result staging RTL checks passed.");
         $finish;
     end

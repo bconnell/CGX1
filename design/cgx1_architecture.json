@@ -1,5 +1,5 @@
 {
-  "schema_version": 13,
+  "schema_version": 14,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -490,7 +490,8 @@
       "accepted_register_bases_exposed": true,
       "writeback_cycle_index_exposed": true,
       "output_result_staging_rtl_implemented": true,
-      "execute_cycle_index_exposed": true
+      "execute_cycle_index_exposed": true,
+      "execute_opcode_exposed": true
     },
     "staging_storage": {
       "capture_buffer_bytes": 2048,
@@ -508,7 +509,11 @@
       "result_slot_overwrite_rejected": true,
       "result_slot_release_writeback_cycle": 7,
       "writeback_cycle_index_exposed_by_control_rtl": true,
-      "result_source_arithmetic_datapath_integrated": false
+      "result_source_arithmetic_datapath_integrated": true,
+      "result_cycle0_load_to_writeback_bypass": true,
+      "result_cycle0_bypass_reference_model": true,
+      "result_cycle0_bypass_rtl_implemented": true,
+      "result_cycle0_bypass_simulation_exercised": false
     },
     "wave_vgpr_scoreboard": {
       "status": "per-wave VGPR hazard and matrix-port conflict logic implemented in executable reference and RTL; multi-wave CU integration remains open",
@@ -542,13 +547,30 @@
       "reference_model_implemented": true,
       "rtl_implemented": true,
       "rtl_testbench_implemented": true,
-      "simulation_exercised": false,
+      "simulation_exercised": true,
       "fp16_rtl_implemented": false,
       "bf16_rtl_implemented": false,
       "fp8_rtl_implemented": false,
       "timing_closure_validated": false,
       "area_validated": false,
       "power_validated": false
+    },
+    "int8_path_integration": {
+      "status": "functional INT8 path connects capture/active operand staging, 16-cycle arithmetic, cycle-0 result bypass, result staging, and ordered writeback; exact integrated simulation pending for this revision",
+      "implemented": true,
+      "controller_capture_cycle_used": true,
+      "controller_execute_cycle_used": true,
+      "controller_execute_opcode_used": true,
+      "controller_writeback_cycle_used": true,
+      "operand_staging_connected": true,
+      "arithmetic_connected": true,
+      "result_staging_connected": true,
+      "cycle0_result_bypass_required": true,
+      "rtl_testbench_implemented": true,
+      "simulation_exercised": false,
+      "physical_timing_validated": false,
+      "physical_area_validated": false,
+      "physical_power_validated": false
     }
   }
 }

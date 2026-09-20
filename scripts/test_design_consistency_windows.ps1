@@ -86,6 +86,19 @@ try {
         throw "Matrix dependency-interlock negative control did not report the expected invariant."
     }
 
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.matrix_engine.staging_storage.active_execution_operand_bytes = 1024
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted an invalid matrix active operand storage size." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "matrix logical staging storage must remain 2048/2048/1024 bytes") {
+        throw "Matrix staging-storage negative control did not report the expected invariant."
+    }
+
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

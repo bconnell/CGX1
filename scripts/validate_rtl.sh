@@ -25,4 +25,16 @@ iverilog     -g2012     -Wall     -s cgx1_matrix_pipeline_control_tb     -o buil
 echo "==> Run matrix pipeline control RTL"
 vvp build/rtl/cgx1_matrix_pipeline_control_tb.vvp
 
+echo "==> Compile matrix operand staging RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_matrix_operand_staging_tb \
+    -o build/rtl/cgx1_matrix_operand_staging_tb.vvp \
+    source/rtl/cgx1_matrix_operand_staging.sv \
+    source/rtl/tests/cgx1_matrix_operand_staging_tb.sv
+
+echo "==> Run matrix operand staging RTL"
+vvp build/rtl/cgx1_matrix_operand_staging_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

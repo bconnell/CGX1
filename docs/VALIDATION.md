@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, and power-management policy tests.
+- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, matrix-staging, and power-management policy tests.
 
 ## 2. Analytical model
 
@@ -68,6 +68,8 @@ The matrix-pipeline executable test verifies that one wave32 VGPR transfer is 1,
 
 The matrix-banking executable test verifies eight modulo-8 bank classes, A base class 0, distinct B base class 4, exact A/B alias broadcast, C/D bank separation, and exhaustively checks every valid destination/A/B base-register combination for capture-cycle conflicts under a single-matrix-access-per-bank-class rule.
 
+The matrix-staging executable test verifies 2,048-byte capture and active operand sets, cycle-7 commit, sequential capture ordering, a 1,024-byte logical output-slot requirement, and preservation of active operands while the next capture buffer is overwritten.
+
 These references validate the architecture contract, logical register-interface schedule, and bank-class conflict rules. They do not validate physical VGPR macros, matrix RTL, timing closure, area/power characterization, compiler integration, or measured performance.
 
 ## 5. Power-management reference
@@ -109,7 +111,7 @@ The dock fault tests also verify that the fallback does not request a 70 W slot 
 
 ## 7. RTL boundary
 
-The public RTL currently covers top-level power-state/tile-enable behavior and the matrix pipeline control schedule. The matrix RTL controller validates issue legality, capture/execute/writeback sequencing, VGPR addresses, source release, destination completion, bank-class conflict freedom, 16-cycle steady-state reissue behavior, and matrix-to-matrix RAW/WAW stalls against older pending D/C ranges. It does not implement the matrix arithmetic datapath, physical VGPR macros, staging memories, the general compute-unit scoreboard for non-matrix instructions, or a complete GPU pipeline.
+The public RTL currently covers top-level power-state/tile-enable behavior, matrix pipeline control, and matrix operand staging. The controller validates issue legality, capture/execute/writeback sequencing, VGPR addresses, source release, destination completion, bank-class conflict freedom, 16-cycle steady-state reissue behavior, and matrix-to-matrix RAW/WAW stalls against older pending D/C ranges. The staging RTL validates capture buffering and transfer into a separate active execution operand set. It does not implement the matrix arithmetic datapath, output-result staging, physical VGPR/storage macros, the general compute-unit scoreboard for non-matrix instructions, or a complete GPU pipeline.
 
 RTL control simulation is run with Icarus Verilog in SystemVerilog 2012 mode through `scripts/validate_rtl.sh` and the path-scoped Ubuntu RTL CI workflow. Future RTL work still needs arithmetic unit tests, integration, constrained random, formal, synthesis, FPGA/emulation, and implementation work appropriate to each block.
 

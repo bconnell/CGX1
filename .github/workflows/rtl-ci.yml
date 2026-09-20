@@ -11,6 +11,7 @@ on:
       - "source/matrix/cgx1_matrix_architecture.hpp"
       - "source/matrix/cgx1_matrix_pipeline.hpp"
       - "source/matrix/cgx1_matrix_banking.hpp"
+      - "source/matrix/cgx1_matrix_staging.hpp"
       - "design/cgx1_architecture.json"
   workflow_dispatch:
 

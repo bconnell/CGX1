@@ -194,6 +194,26 @@ The 2,048-byte input staging requirement is exact for every baseline profile:
 - 512 bytes for B;
 - 1,024 bytes for C/D.
 
+### Double-buffered operand storage
+
+The 16-cycle issue interval overlaps the next instruction's capture with the current instruction's execution. The 2,048-byte capture buffer therefore cannot also be the only execution operand store.
+
+Each engine has a separate **2,048-byte active-execution operand set**. On capture cycle 7, the completed capture buffer commits into the active set. The following instruction may then begin overwriting the capture buffer while the executing instruction continues to use the active set.
+
+The logical per-engine pipeline storage target is:
+
+| Storage role | Bytes |
+|---|---:|
+| Capture buffer | 2,048 |
+| Active execution operands | 2,048 |
+| Output result slot | 1,024 |
+| **Logical total per engine** | **5,120** |
+| **Logical total per CU, four engines** | **20,480** |
+
+The output result slot remains a logical pipeline requirement in this phase; output staging RTL is not yet implemented. The reference operand-staging RTL implements the capture buffer and active-execution operand set using synthesizable registers. This does not select or validate physical SRAM/register-file macros, routing, timing, area, or power.
+
+The matrix pipeline controller exposes its capture-cycle index so the staging block receives the same authoritative cycle position used for register-address generation.
+
 ### Register bank classes
 
 The architecture now defines an eight-class register banking rule for matrix transfers:
@@ -359,7 +379,11 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/matrix/cgx1_matrix_banking.hpp](../source/matrix/cgx1_matrix_banking.hpp) and [source/matrix/banking_tests.cpp](../source/matrix/banking_tests.cpp) validate modulo-8 bank selection, source base-class rules, exact-alias broadcast behavior, and exhaustive conflict freedom for every valid matrix register layout.
 
-[source/rtl/cgx1_matrix_pipeline_control.sv](../source/rtl/cgx1_matrix_pipeline_control.sv) and its SystemVerilog testbench implement and simulate matrix instruction legality, capture/execute/writeback control, bank-safe VGPR addresses, 16-cycle reissue control, source-release and destination-complete events, and matrix-to-matrix RAW/WAW stalling against older pending destinations. The controller is control RTL only; it does not implement the arithmetic datapath, staging memories, physical VGPR macros, or the general compute-unit scoreboard.
+[source/rtl/cgx1_matrix_pipeline_control.sv](../source/rtl/cgx1_matrix_pipeline_control.sv) and its SystemVerilog testbench implement and simulate matrix instruction legality, capture/execute/writeback control, bank-safe VGPR addresses, 16-cycle reissue control, source-release and destination-complete events, and matrix-to-matrix RAW/WAW stalling against older pending destinations. The controller is control RTL only; it does not implement the arithmetic datapath, physical VGPR macros, or the general compute-unit scoreboard.
+
+[source/matrix/cgx1_matrix_staging.hpp](../source/matrix/cgx1_matrix_staging.hpp) and [source/matrix/staging_tests.cpp](../source/matrix/staging_tests.cpp) validate capture ordering, the 2 KB capture buffer, the separate 2 KB active operand set, commit on capture cycle 7, and preservation of active operands while the next capture is in progress.
+
+[source/rtl/cgx1_matrix_operand_staging.sv](../source/rtl/cgx1_matrix_operand_staging.sv) and its SystemVerilog testbench implement and simulate the same capture-to-active transfer. The output-result slot, arithmetic datapath, and physical storage macro implementation remain open work.
 
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
@@ -370,7 +394,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - implement the 16 × 16 product/accumulator datapath and dual 8-bit paths;
-- implement input and output staging plus the general compute-unit scoreboard path for ordinary vector/scalar dependency interlocks;
+- integrate the implemented input/active operand staging with the arithmetic datapath; implement output-result staging and the general compute-unit scoreboard path for ordinary vector/scalar dependency interlocks;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;
 - measure timing, area, and power against the compute-unit budget;

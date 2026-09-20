@@ -1,5 +1,5 @@
 {
-  "schema_version": 9,
+  "schema_version": 10,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -481,9 +481,23 @@
       "simulation_exercised": true,
       "arithmetic_datapath_implemented": false,
       "physical_vgpr_storage_implemented": false,
-      "staging_memories_implemented": false,
       "cross_lane_data_path_implemented": false,
-      "timing_closure_validated": false
+      "timing_closure_validated": false,
+      "operand_staging_rtl_implemented": true,
+      "physical_staging_storage_validated": false
+    },
+    "staging_storage": {
+      "capture_buffer_bytes": 2048,
+      "active_execution_operand_bytes": 2048,
+      "output_result_slot_bytes": 1024,
+      "logical_pipeline_storage_bytes_per_engine": 5120,
+      "logical_pipeline_storage_bytes_per_compute_unit": 20480,
+      "active_commit_capture_cycle": 7,
+      "capture_cycle_index_exposed_by_control_rtl": true,
+      "capture_buffer_rtl_implemented": true,
+      "active_execution_operand_rtl_implemented": true,
+      "output_result_staging_rtl_implemented": false,
+      "physical_macro_selection_frozen": false
     }
   }
 }

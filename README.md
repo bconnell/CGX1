@@ -99,6 +99,7 @@ The critical software-visible and multi-tile contracts are now defined rather th
 | Chiplet fabric | Central coherent I/O die; directory coherence; 7.2 TB/s aggregate read payload budget | [Chiplet Fabric](docs/CHIPLET_FABRIC.md) |
 | Virtual memory | 57-bit GPU VA; 4 KiB/64 KiB/2 MiB pages; replayable faults; ATS/PASID optional | [Virtual Memory](docs/VIRTUAL_MEMORY.md) |
 | Scheduling | 64 resident hardware queue contexts; 8 priorities; bounded preemption/reset escalation | [Scheduling and Preemption](docs/SCHEDULING_PREEMPTION.md) |
+| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state | [Power Management](docs/POWER_MANAGEMENT.md) |
 
 These values are design targets. They do not represent fabricated silicon capability or measured application performance.
 
@@ -127,6 +128,7 @@ The complete engineering document set is listed in the [Documentation Index](doc
 | Chiplet Fabric | Tile links, coherence, bandwidth budget, reliability and QoS | [Open](docs/CHIPLET_FABRIC.md) |
 | Virtual Memory | GPU address spaces, pages, faults, residency, ATS/PASID integration | [Open](docs/VIRTUAL_MEMORY.md) |
 | Scheduling and Preemption | Queue model, priorities, preemption and reset containment | [Open](docs/SCHEDULING_PREEMPTION.md) |
+| Power Management | Per-tile DVFS, gating, board-budget enforcement and safe transition ordering | [Open](docs/POWER_MANAGEMENT.md) |
 | Project Status | What is implemented, modeled, planned, or not yet built | [Open](docs/STATUS.md) |
 | Mechanical Design | Card and dock dimensions, selected prototype components, packing assumptions | [Open](docs/MECHANICAL_DESIGN.md) |
 | Electrical Interface | Slot power, 48 V input, isolation, fallback behavior, interlocks | [Open](docs/ELECTRICAL_INTERFACE.md) |
@@ -143,7 +145,7 @@ The complete engineering document set is listed in the [Documentation Index](doc
 
 ## Build and test
 
-A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, and firmware tests.
+A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, power-management policy tests, and firmware tests.
 
 ```text
 cmake -S . -B build

@@ -25,6 +25,7 @@ This directory contains the public engineering documentation for CGX 1. The docu
 | [Chiplet Fabric](CHIPLET_FABRIC.md) | Tile topology, coherence, bandwidth budget, reliability and QoS | You are designing package links or cache coherence |
 | [Virtual Memory](VIRTUAL_MEMORY.md) | GPU address spaces, page tables, faults, residency and optional ATS/PASID | You are implementing memory management |
 | [Scheduling and Preemption](SCHEDULING_PREEMPTION.md) | Hardware queues, priorities, preemption, watchdog and reset domains | You are implementing command processing or recovery |
+| [Power Management](POWER_MANAGEMENT.md) | Per-tile DVFS, gating, board budgets, transitions and fault isolation | You are implementing tile power policy or controller logic |
 
 ## Prototype documents
 

@@ -78,6 +78,14 @@ $l1Shared = Format-Number $architecture.cache.l1_shared_kb_per_compute_unit
 $l2PerTile = Format-Number $architecture.cache.l2_mb_per_tile
 $l2Total = Format-Number $architecture.cache.l2_total_mb
 $packageCache = Format-Number $architecture.cache.package_cache_mb
+$computeTiles = Format-Number $architecture.silicon.compute_tiles
+$pmVoltageMin = ([double]$architecture.power_management.core_voltage_target_range_v.min).ToString("0.00", $invariant)
+$pmVoltageMax = ([double]$architecture.power_management.core_voltage_target_range_v.max).ToString("0.00", $invariant)
+$p0TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P0
+$p1TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P1
+$p2TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P2
+$p3TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P3
+$p4TileCap = [string]$architecture.power_management.max_tile_state_by_board_state.P4
 
 Require-Literal "README.md" ("| Card PCB | **$length " + $multiply + " $height mm** |")
 Require-Literal "README.md" "| Installed thickness | **$thickness mm, dual slot** |"
@@ -134,6 +142,13 @@ Require-Literal "source/model/model.hpp" "kL2MbPerTile = $l2PerTile;"
 Require-Literal "source/model/model.hpp" "kL2TotalMb = $l2Total;"
 Require-Literal "source/model/model.hpp" "kPackageCacheMb = $packageCache;"
 Require-Literal "source/isa/cgx1_isa.hpp" "InstructionClass::Extended"
+Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
+Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
+Require-Literal "source/power/cgx1_power_management.hpp" "P1SlotEco:   return $($slotEco).0;"
+Require-Literal "source/power/cgx1_power_management.hpp" "P2SlotMax:   return $($slotMax).0;"
+Require-Literal "source/power/cgx1_power_management.hpp" "P3DockQuiet: return $($dockQuiet).0;"
+Require-Literal "source/power/cgx1_power_management.hpp" "P4DockFull:  return $($fullPower).0;"
+Require-Literal "docs/POWER_MANAGEMENT.md" "0.55 V to 0.90 V"
 
 Require-Literal "docs/THERMAL_POWER.md" "| **Total** | **$fullPower W** |"
 Require-Literal "docs/MECHANICAL_DESIGN.md" ("The revised dock target is **$dockLength " + $multiply + " $dockWidth " + $multiply + " $dockHeight mm**.")
@@ -143,7 +158,46 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l1Shared KB combined L1/shared memo
 Require-Literal "docs/ENGINEERING_SPEC.md" "$l2PerTile MB L2 slice per compute tile."
 Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
+Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
+if ([bool]$architecture.power_management.full_hbm_availability_in_p0_claimed) {
+    Add-Finding "design/cgx1_architecture.json: full HBM availability must not be claimed in P0 before characterization"
+}
+if (-not [bool]$architecture.power_management.hysteresis_required) {
+    Add-Finding "design/cgx1_architecture.json: power-management hysteresis is required"
+}
+if ([bool]$architecture.power_management.hysteresis_timing_frozen) {
+    Add-Finding "design/cgx1_architecture.json: hysteresis timing must remain unfrozen until characterization"
+}
+if (-not [bool]$architecture.power_management.emergency_isolation_may_bypass_orderly_drain) {
+    Add-Finding "design/cgx1_architecture.json: emergency isolation must retain authority over orderly drain"
+}
+if ([bool]$architecture.power_management.emergency_isolation_preserves_unfinished_work) {
+    Add-Finding "design/cgx1_architecture.json: unfinished work must not be claimed preserved across emergency isolation"
+}
+if ([bool]$architecture.power_management.tile_states.T0.scheduler_eligible -or
+    [bool]$architecture.power_management.tile_states.T1.scheduler_eligible -or
+    [bool]$architecture.power_management.tile_states.T2.scheduler_eligible -or
+    -not [bool]$architecture.power_management.tile_states.T3.scheduler_eligible -or
+    -not [bool]$architecture.power_management.tile_states.T4.scheduler_eligible -or
+    -not [bool]$architecture.power_management.tile_states.T5.scheduler_eligible) {
+    Add-Finding "design/cgx1_architecture.json: tile scheduler eligibility does not match the power-management contract"
+}
+if ([bool]$architecture.power_management.fixed_active_tile_count_by_board_state) {
+    Add-Finding "design/cgx1_architecture.json: board states must not encode a fixed active tile count"
+}
+if ([bool]$architecture.power_management.vf_curve_frozen) {
+    Add-Finding "design/cgx1_architecture.json: V/F curve must remain unfrozen until characterization"
+}
+if (-not [bool]$architecture.power_management.independent_tile_dvfs_target) {
+    Add-Finding "design/cgx1_architecture.json: independent per-tile DVFS target is required"
+}
+if ($p0TileCap -ne "T2" -or $p1TileCap -ne "T3" -or $p2TileCap -ne "T4" -or $p3TileCap -ne "T5" -or $p4TileCap -ne "T5") {
+    Add-Finding "design/cgx1_architecture.json: board-state tile caps do not match the power-management contract"
+}
+if ($pmVoltageMin -ne "0.55" -or $pmVoltageMax -ne "0.90") {
+    Add-Finding "design/cgx1_architecture.json: power-management voltage target range does not match the engineering specification"
+}
 if (([int]$architecture.cache.l2_mb_per_tile * [int]$architecture.silicon.compute_tiles) -ne [int]$architecture.cache.l2_total_mb) {
     Add-Finding "design/cgx1_architecture.json: L2 total does not match per-tile cache capacity"
 }

@@ -1,6 +1,6 @@
 # Scheduling and Preemption
 
-[Documentation index](README.md) · [ISA and execution model](ISA.md) · [Virtual memory](VIRTUAL_MEMORY.md) · [Chiplet fabric](CHIPLET_FABRIC.md)
+[Documentation index](README.md) · [ISA and execution model](ISA.md) · [Virtual memory](VIRTUAL_MEMORY.md) · [Chiplet fabric](CHIPLET_FABRIC.md) · [Power management](POWER_MANAGEMENT.md)
 
 ## Queue architecture
 
@@ -57,8 +57,10 @@ A graphics or compute hang should not immediately discard unrelated work if an e
 
 ## Power-state behavior
 
-P0-P2 may expose fewer active compute tiles or lower residency limits than docked modes. The scheduler discovers the eligible resources from firmware rather than assuming all four tiles are always active.
+P0-P4 define board power envelopes, not fixed active-tile counts. The power-management controller publishes an eligible-tile mask, and the scheduler must not dispatch to a tile outside that mask.
 
-Transition into a lower-power state drains or preempts work from a tile before that tile is power-gated.
+For an orderly reduction in available capacity, the scheduler stops new dispatch and drains or preempts work at an allowed boundary before the tile can enter retention/off. Dirty coherent state must be resolved before orderly power gating.
 
-Emergency thermal/dock faults retain authority to drop immediately to the safe P0 behavior defined by the power controller.
+Emergency thermal/dock faults retain authority to drop immediately to the safe P0 behavior defined by the board safety controller. Emergency isolation may discard unfinished work when an orderly drain cannot complete.
+
+See [Power Management](POWER_MANAGEMENT.md).

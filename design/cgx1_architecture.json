@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -261,5 +261,80 @@
     "l2_total_mb": 64,
     "package_cache_mb": 512,
     "package_cache_role": "stacked SRAM victim/cache target"
+  },
+  "power_management": {
+    "board_state_authority": "firmware safety controller",
+    "tile_policy_authority": "I/O-die power management controller",
+    "independent_tile_dvfs_target": true,
+    "fixed_active_tile_count_by_board_state": false,
+    "core_voltage_target_range_v": {
+      "min": 0.55,
+      "max": 0.9
+    },
+    "vf_curve_frozen": false,
+    "vf_curve_status": "uncharacterized; exact voltage/frequency operating points require timing, power, process, and silicon characterization",
+    "tile_states": {
+      "T0": {
+        "name": "off",
+        "scheduler_eligible": false,
+        "state_retained": false
+      },
+      "T1": {
+        "name": "retention",
+        "scheduler_eligible": false,
+        "state_retained": true
+      },
+      "T2": {
+        "name": "idle",
+        "scheduler_eligible": false,
+        "state_retained": true
+      },
+      "T3": {
+        "name": "eco",
+        "scheduler_eligible": true,
+        "state_retained": true
+      },
+      "T4": {
+        "name": "nominal",
+        "scheduler_eligible": true,
+        "state_retained": true
+      },
+      "T5": {
+        "name": "boost",
+        "scheduler_eligible": true,
+        "state_retained": true
+      }
+    },
+    "max_tile_state_by_board_state": {
+      "P0": "T2",
+      "P1": "T3",
+      "P2": "T4",
+      "P3": "T5",
+      "P4": "T5"
+    },
+    "board_budget_invariant": "authorized non-tile power plus authorized per-tile power must not exceed the active P-state board limit",
+    "hbm_power_policy_independent_of_tile_count": true,
+    "package_cache_power_policy_independent_of_tile_count": true,
+    "full_hbm_availability_in_p0_claimed": false,
+    "hysteresis_required": true,
+    "hysteresis_timing_frozen": false,
+    "orderly_power_down_requires": [
+      "stop new dispatch",
+      "drain or preempt work",
+      "resolve dirty coherent state",
+      "remove scheduler eligibility",
+      "gate clocks",
+      "assert isolation before retention/off"
+    ],
+    "orderly_power_up_requires": [
+      "establish power",
+      "establish required voltage",
+      "stabilize clocks",
+      "release isolation",
+      "join coherence",
+      "publish scheduler eligibility"
+    ],
+    "emergency_isolation_may_bypass_orderly_drain": true,
+    "emergency_isolation_preserves_unfinished_work": false
   }
 }

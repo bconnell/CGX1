@@ -1,6 +1,6 @@
 # Thermal and Power Design
 
-[Documentation index](README.md) · [Mechanical design](MECHANICAL_DESIGN.md) · [Electrical interface](ELECTRICAL_INTERFACE.md) · [Prototype build](PROTOTYPE_BUILD.md)
+[Documentation index](README.md) · [Mechanical design](MECHANICAL_DESIGN.md) · [Electrical interface](ELECTRICAL_INTERFACE.md) · [Power management](POWER_MANAGEMENT.md) · [Prototype build](PROTOTYPE_BUILD.md)
 
 ## Full power budget
 
@@ -15,6 +15,8 @@
 | **Total** | **360 W** | **P4 sustained board target** |
 
 The 450 W value is an electrical transient design ceiling, not a sustained thermal target.
+
+The 230 W compute-tile line is a P4 architecture budget for all four tiles together, not a fixed per-tile allocation. [Power Management](POWER_MANAGEMENT.md) permits the internal controller to distribute authorized tile budget dynamically while keeping the total board request inside the active P-state limit.
 
 ## 48 V input
 

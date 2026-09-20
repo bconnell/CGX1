@@ -18,6 +18,7 @@
 - coherent chiplet-fabric protocol and bandwidth budget;
 - virtual-memory/page-fault architecture;
 - queue scheduling, preemption and reset containment model;
+- per-tile DVFS, clock/power-gating architecture and executable policy/invariant model;
 - validation and repository integrity checks.
 
 ## P0 manufacturing package
@@ -60,7 +61,9 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- characterize finer-than-workgroup preemption cost before adding it to the baseline.
+- characterize finer-than-workgroup preemption cost before adding it to the baseline;
+- characterize real per-tile V/F curves, leakage, transition latency, and controller hysteresis;
+- implement and verify the I/O-die power manager, tile isolation, retention, clock gating, and power-gating RTL.
 
 ## Custom silicon
 

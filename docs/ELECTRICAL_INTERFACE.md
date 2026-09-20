@@ -1,6 +1,6 @@
 # Electrical Interface
 
-[Documentation index](README.md) · [Engineering specification](ENGINEERING_SPEC.md) · [Thermal and power](THERMAL_POWER.md) · [Validation](VALIDATION.md)
+[Documentation index](README.md) · [Engineering specification](ENGINEERING_SPEC.md) · [Thermal and power](THERMAL_POWER.md) · [Power management](POWER_MANAGEMENT.md) · [Validation](VALIDATION.md)
 
 ## Power sources
 
@@ -74,6 +74,12 @@ Engineering boards should measure:
 - pump speed;
 - card fan speed;
 - radiator fan speed.
+
+## Internal allocation boundary
+
+This document defines the external and board-level electrical limits. [Power Management](POWER_MANAGEMENT.md) defines how compute-tile capacity is allocated inside those limits.
+
+The internal power manager cannot promote the board into a higher P-state. It receives the already-permitted state from the firmware safety controller and must keep authorized non-tile plus per-tile budgets within that board limit.
 
 ## Reference implementation
 

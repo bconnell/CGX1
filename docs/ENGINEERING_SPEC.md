@@ -177,6 +177,16 @@ If external 48 V or valid coolant flow is lost in P3/P4, the reference controlle
 
 See [Electrical Interface](ELECTRICAL_INTERFACE.md).
 
+### 5.1 Internal power management
+
+P0-P4 remain board-level electrical and safety envelopes. They do not prescribe a fixed active compute-tile count.
+
+The I/O-die power-management controller targets independent per-tile DVFS, clock gating, and whole-tile retention/off states inside the active P-state budget. The scheduler uses a power-manager eligibility mask rather than manipulating rails directly.
+
+Exact tile voltage/frequency points are not frozen. The architecture retains the 0.55 V to 0.90 V GPU-core target range and the 2.65/2.80 GHz clock targets, but a real V/F curve requires physical timing, power, process, and silicon characterization.
+
+See [Power Management](POWER_MANAGEMENT.md).
+
 ## 6. Voltage regulation
 
 The high power input uses 48 V to reduce cable current. A separate certified AC/DC supply creates the 48 V rail. The thermal dock handles low voltage distribution and monitoring. The card uses intermediate conversion followed by point of load rails.

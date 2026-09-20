@@ -16,11 +16,25 @@ try {
         -FilePath "powershell.exe" `
         -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
         -WorkingDirectory $repoRoot
-    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted a deliberately inconsistent architecture file." }
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted a deliberately inconsistent mechanical target." }
     if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "expected value is missing") {
-        throw "Design consistency negative control did not report a mismatch."
+        throw "Mechanical design consistency negative control did not report a mismatch."
     }
-    Write-Host "[pass] Design consistency negative control was rejected."
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.power_management.fixed_active_tile_count_by_board_state = $true
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted a deliberately invalid power-management contract." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "must not encode a fixed active tile count") {
+        throw "Power-management design consistency negative control did not report the expected invariant."
+    }
+
+    Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {
     if (Test-Path -LiteralPath $probePath -PathType Leaf) { Remove-Item -LiteralPath $probePath -Force }

@@ -1,0 +1,3 @@
+add_executable(cgx1_power_management_tests tests.cpp)
+target_include_directories(cgx1_power_management_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_power_management_checks COMMAND cgx1_power_management_tests)

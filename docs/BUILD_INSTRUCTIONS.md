@@ -17,17 +17,18 @@ Define and verify:
 - raster/texture/back-end behavior against [Graphics Pipeline](GRAPHICS_PIPELINE.md) and [Texture and Compression](TEXTURE_COMPRESSION.md);
 - display and media block interfaces;
 - firmware mailbox and telemetry registers;
-- reset, power, fault, and recovery behavior.
+- reset, power, fault, and recovery behavior against [Power Management](POWER_MANAGEMENT.md).
 
 ## 2. Implement and verify logic
 
 1. Implement scalar/vector issue, register files, arithmetic, matrix engines, load/store, texture, ray traversal, raster functions, and local caches.
 2. Implement package fabric and coherent cache controllers.
 3. Implement command processors, hardware queues, preemption, memory protection, and reset handling.
-4. Integrate licensed or independently verified high speed PHY and codec blocks where appropriate.
-5. Build constrained random verification around interfaces and state transitions.
-6. Add formal properties for deadlock freedom, coherence invariants, privilege boundaries, reset behavior, and fault containment.
-7. Run compute, shader, memory, and command processor conformance workloads against pre silicon models.
+4. Implement the I/O-die power manager, tile clock gating, isolation, retention, and power-gating controls against [Power Management](POWER_MANAGEMENT.md).
+5. Integrate licensed or independently verified high speed PHY and codec blocks where appropriate.
+6. Build constrained random verification around interfaces and state transitions.
+7. Add formal properties for deadlock freedom, coherence invariants, privilege boundaries, reset behavior, power sequencing, and fault containment.
+8. Run compute, shader, memory, and command processor conformance workloads against pre silicon models.
 
 The public SystemVerilog directory is a top level state scaffold. It is not full GPU RTL.
 
@@ -73,6 +74,7 @@ Prototype dimensions and selected components are in [Mechanical Design](MECHANIC
 9. Enter P3 before attempting P4.
 10. Remove external 48 V and verify fallback to P0 without increased slot demand.
 11. Characterize each rail before performance work.
+12. Characterize tile V/F points, gating transitions, retention behavior, and hysteresis before enabling automatic performance policy.
 
 ## 7. Driver bring up
 

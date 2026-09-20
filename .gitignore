@@ -1,0 +1,55 @@
+# Build and validation output
+/build/
+/out/
+/Testing/
+/CMakeFiles/
+_deps/
+cmake-build-*/
+CMakeCache.txt
+CTestTestfile.cmake
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# IDE and local workspace state
+/.vs/
+/.vscode/
+.idea/
+*.suo
+*.user
+*.VC.db
+*.VC.opendb
+
+# Compiled output and logs
+*.exe
+*.dll
+*.lib
+*.obj
+*.o
+*.pdb
+*.ilk
+*.log
+*.tmp
+*.temp
+*.cache
+*.bak
+*.orig
+
+# Local environment, credentials, and signing material
+.env
+.env.*
+*.pfx
+*.p12
+*.pem
+*.key
+*.snk
+
+# Local evidence and scratch output
+/evidence/
+/scratch/
+*.trace
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store

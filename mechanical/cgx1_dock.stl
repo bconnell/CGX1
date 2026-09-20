@@ -1,0 +1,86 @@
+solid cgx1_dock_envelope
+facet normal 0 0 -1
+ outer loop
+  vertex 0 0 0
+  vertex 310 210 0
+  vertex 310 0 0
+ endloop
+endfacet
+facet normal 0 0 -1
+ outer loop
+  vertex 0 0 0
+  vertex 0 210 0
+  vertex 310 210 0
+ endloop
+endfacet
+facet normal 0 0 1
+ outer loop
+  vertex 0 0 75
+  vertex 310 0 75
+  vertex 310 210 75
+ endloop
+endfacet
+facet normal 0 0 1
+ outer loop
+  vertex 0 0 75
+  vertex 310 210 75
+  vertex 0 210 75
+ endloop
+endfacet
+facet normal 0 -1 0
+ outer loop
+  vertex 0 0 0
+  vertex 310 0 0
+  vertex 310 0 75
+ endloop
+endfacet
+facet normal 0 -1 0
+ outer loop
+  vertex 0 0 0
+  vertex 310 0 75
+  vertex 0 0 75
+ endloop
+endfacet
+facet normal 0 1 0
+ outer loop
+  vertex 0 210 0
+  vertex 310 210 75
+  vertex 310 210 0
+ endloop
+endfacet
+facet normal 0 1 0
+ outer loop
+  vertex 0 210 0
+  vertex 0 210 75
+  vertex 310 210 75
+ endloop
+endfacet
+facet normal -1 0 0
+ outer loop
+  vertex 0 0 0
+  vertex 0 0 75
+  vertex 0 210 75
+ endloop
+endfacet
+facet normal -1 0 0
+ outer loop
+  vertex 0 0 0
+  vertex 0 210 75
+  vertex 0 210 0
+ endloop
+endfacet
+facet normal 1 0 0
+ outer loop
+  vertex 310 0 0
+  vertex 310 210 0
+  vertex 310 210 75
+ endloop
+endfacet
+facet normal 1 0 0
+ outer loop
+  vertex 310 0 0
+  vertex 310 210 75
+  vertex 310 0 75
+ endloop
+endfacet
+endsolid cgx1_dock_envelope

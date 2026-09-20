@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+scripts/*.ps1 linguist-detectable=false
+*.png binary
+*.stl binary

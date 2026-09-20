@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use or discuss the CGX 1 design, cite this repository and its design engineer."
+title: "CGX 1 Compact GPU Engineering Design"
+type: software
+authors:
+  - family-names: Connell
+    given-names: Brandon
+    email: brandon@brandonconnell.com
+    website: "https://www.linkedin.com/in/brandon-c-b317a81b/"
+repository-code: "https://github.com/bconnell/CGX1"
+url: "https://github.com/bconnell/CGX1"
+license: MIT

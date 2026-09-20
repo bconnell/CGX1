@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "name": "CGX 1",
+  "status": "engineering architecture target",
+  "design_engineer": {
+    "name": "Brandon Connell",
+    "email": "brandon@brandonconnell.com",
+    "github": "https://github.com/bconnell",
+    "linkedin": "https://www.linkedin.com/in/brandon-c-b317a81b/"
+  },
+  "license": "MIT",
+  "mechanical_mm": {
+    "length": 167.5,
+    "height": 68.5,
+    "thickness": 39.5
+  },
+  "dock_mechanical_mm": {
+    "length": 310.0,
+    "width": 210.0,
+    "height": 75.0
+  },
+  "silicon": {
+    "compute_tiles": 4,
+    "compute_units_per_tile": 50,
+    "compute_units_total": 200,
+    "fp32_lanes_per_compute_unit": 128,
+    "total_fp32_lanes": 25600,
+    "matrix_engines_per_compute_unit": 4,
+    "ray_engines_per_compute_unit": 1,
+    "rop_target": 256,
+    "peak_clock_ghz": 2.8,
+    "sustained_clock_target_ghz": 2.65,
+    "peak_fp32_tflops": 143.36,
+    "preferred_process": "TSMC N2P",
+    "future_process_option": "TSMC A16",
+    "package_target_mm": {
+      "length": 55.0,
+      "width": 55.0
+    }
+  },
+  "memory": {
+    "type": "HBM4",
+    "stacks": 2,
+    "capacity_gb": 72,
+    "capacity_per_stack_gb": 36,
+    "peak_bandwidth_tbps": 6.6,
+    "last_level_cache_mb": 512,
+    "future_capacity_target_gb": 96
+  },
+  "power_w": {
+    "safe_boot": 25,
+    "slot_eco": 45,
+    "slot_max": 70,
+    "dock_quiet": 220,
+    "dock_full": 360,
+    "transient_design_ceiling": 450,
+    "dock_mode_slot_cap": 25,
+    "dock_fault_fallback": 25
+  },
+  "external_power": {
+    "voltage_v": 48,
+    "minimum_current_a": 10,
+    "preferred_current_a": 12,
+    "mains_conversion_location": "external certified AC/DC supply"
+  },
+  "cooling": {
+    "nominal_flow_lpm": 1.5,
+    "radiator_class_mm": 240,
+    "radiator_reference": "Corsair XR5 240",
+    "radiator_mm": {
+      "length": 280.0,
+      "width": 120.0,
+      "thickness": 30.0
+    },
+    "card_fan_reference": "Same Sky CFM-5010B-170-361-22",
+    "card_fan_mm": {
+      "length": 50.0,
+      "width": 50.0,
+      "thickness": 10.0
+    },
+    "dock_pump_reference": "Alphacool ES Reservoir DDCzero 1U with Pump 14571",
+    "dock_pump_mm": {
+      "length": 112.0,
+      "width": 57.0,
+      "height": 41.95
+    },
+    "junction_to_coolant_c_per_w_target": 0.085,
+    "radiator_to_ambient_c_per_w_target": 0.04,
+    "analysis_ambient_c": 35.0,
+    "analysis_junction_c": 81.73
+  },
+  "host_interface": {
+    "pcie_target": "PCIe Gen 6 x16",
+    "backward_compatible_through": "PCIe Gen 3"
+  },
+  "display": {
+    "mini_displayport_2_1b": 3,
+    "usb_c_displayport_alt_mode": 1
+  },
+  "media": {
+    "encode_engines_target": 4,
+    "decode_engines_target": 4,
+    "av1": true
+  },
+  "performance_claims": {
+    "measured_silicon_benchmarks": false,
+    "independent_ai_tops_target": null,
+    "independent_rt_tflops_target": null
+  },
+  "copyright": "Copyright (c) 2026 Brandon Connell"
+}

@@ -9,6 +9,8 @@ The public RTL currently contains two limited, separately testable control bound
 
 The matrix control module does **not** implement FP16, BF16, FP8, or INT8 arithmetic. It also does not implement the physical VGPR storage macros, matrix staging memories, cross-lane data wiring, or the general compute-unit scoreboard needed to interlock ordinary non-matrix instructions.
 
+The matrix issue interface uses payload-dependent backpressure. The producer presents opcode and register bases with `issue_valid`; `issue_ready` may remain low while those presented registers depend on an older pending matrix destination. A dependency stall is not an illegal instruction, so `illegal_issue` remains reserved for malformed opcode, active-mask, or register-layout input.
+
 The matrix controller is checked by `source/rtl/tests/cgx1_matrix_pipeline_control_tb.sv`. The testbench verifies invalid issue rejection, the 8/16/8 stage schedule, exact capture/writeback addresses, source/destination completion timing, conflict-free bank classes, matrix-to-matrix RAW/WAW dependency stalls, and a three-operation independent steady stream with a 16-cycle issue interval.
 
 Run the RTL gate with:

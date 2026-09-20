@@ -135,10 +135,9 @@ module cgx1_matrix_pipeline_control_tb;
     );
         begin
             @(negedge clk);
-            while (!issue_ready) begin
-                @(negedge clk);
-            end
 
+            // Ready is allowed to depend on the presented register payload
+            // because pending-destination hazards are instruction-specific.
             issue_opcode = opcode;
             issue_d_base = d_base;
             issue_a_base = a_base;
@@ -149,6 +148,14 @@ module cgx1_matrix_pipeline_control_tb;
             #1;
             if (!issue_legal) begin
                 $fatal(1, "legal matrix issue was rejected");
+            end
+
+            while (!issue_ready) begin
+                @(negedge clk);
+                #1;
+                if (!issue_legal) begin
+                    $fatal(1, "legal matrix issue became statically illegal while stalled");
+                end
             end
 
             @(posedge clk);

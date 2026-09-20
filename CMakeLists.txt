@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 enable_testing()
 
 add_subdirectory(source/model)
+add_subdirectory(source/isa)
 
 add_executable(cgx1_firmware_tests
     source/firmware/cgx1_power.c

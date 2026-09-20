@@ -8,11 +8,13 @@ This document describes the path from the public architecture package to custom 
 
 Define and verify:
 
-- compute tile to I/O die fabric;
+- compute tile to I/O die fabric against [Chiplet Fabric](CHIPLET_FABRIC.md);
 - HBM4 controller and PHY boundary;
-- cache coherence behavior;
-- command processor and queue model;
-- PCIe BAR and address translation behavior;
+- cache coherence behavior against the package directory model;
+- command processor and queue ABI against [Scheduling and Preemption](SCHEDULING_PREEMPTION.md);
+- PCIe BAR and address translation behavior against [Virtual Memory](VIRTUAL_MEMORY.md);
+- shader execution against [ISA and Execution Model](ISA.md);
+- raster/texture/back-end behavior against [Graphics Pipeline](GRAPHICS_PIPELINE.md) and [Texture and Compression](TEXTURE_COMPRESSION.md);
 - display and media block interfaces;
 - firmware mailbox and telemetry registers;
 - reset, power, fault, and recovery behavior.

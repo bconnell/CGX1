@@ -62,6 +62,18 @@ $peakClock = ([double]$architecture.silicon.peak_clock_ghz).ToString("0.00", $in
 $fp32 = ([double]$architecture.silicon.peak_fp32_tflops).ToString("0.00", $invariant)
 $memory = ([double]$architecture.memory.peak_bandwidth_tbps).ToString("0.0", $invariant)
 $vram = Format-Number $architecture.memory.capacity_gb
+$wave = Format-Number $architecture.execution_model.native_wave_size
+$simdPartitions = Format-Number $architecture.execution_model.simd_partitions_per_compute_unit
+$lanesPerSimd = Format-Number $architecture.execution_model.lanes_per_simd_partition
+$texturePerTile = Format-Number $architecture.texture_subsystem.texture_blocks_per_tile
+$textureTotal = Format-Number $architecture.texture_subsystem.texture_blocks_total
+$textureSamples = Format-Number $architecture.texture_subsystem.bilinear_samples_per_block_per_cycle
+$rasterPerTile = Format-Number $architecture.graphics_pipeline.raster_partitions_per_tile
+$ropPerTile = Format-Number $architecture.graphics_pipeline.rop_lanes_per_tile
+$fabricRead = Format-Number $architecture.chiplet_fabric.aggregate_read_payload_target_tbps
+$queueContexts = Format-Number $architecture.scheduler.resident_hardware_queue_contexts
+$priorityLevels = Format-Number $architecture.scheduler.priority_levels
+$preferredPage = Format-Number $architecture.virtual_memory.preferred_vram_page_bytes
 
 Require-Literal "README.md" ("| Card PCB | **$length " + $multiply + " $height mm** |")
 Require-Literal "README.md" "| Installed thickness | **$thickness mm, dual slot** |"
@@ -101,12 +113,37 @@ Require-Literal "source/model/model.hpp" "kTargetPeakFp32Tflops = $fp32;"
 Require-Literal "source/model/model.hpp" "kTargetMemoryTbps = $memory;"
 Require-Literal "source/model/model.hpp" "kTargetBoardPowerWatts = $($fullPower).0;"
 Require-Literal "source/model/model.hpp" "kTargetVramGb = $($vram).0;"
+Require-Literal "source/model/model.hpp" "kNativeWaveSize = $wave;"
+Require-Literal "source/model/model.hpp" "kSimdPartitionsPerCu = $simdPartitions;"
+Require-Literal "source/model/model.hpp" "kLanesPerSimdPartition = $lanesPerSimd;"
+Require-Literal "source/model/model.hpp" "kTextureBlocksPerTile = $texturePerTile;"
+Require-Literal "source/model/model.hpp" "kTextureBlocksTotal = $textureTotal;"
+Require-Literal "source/model/model.hpp" "kBilinearSamplesPerTextureBlockPerCycle = $textureSamples;"
+Require-Literal "source/model/model.hpp" "kRasterPartitionsPerTile = $rasterPerTile;"
+Require-Literal "source/model/model.hpp" "kRopLanesPerTile = $ropPerTile;"
+Require-Literal "source/model/model.hpp" "kFabricAggregateReadTbps = $fabricRead;"
+Require-Literal "source/model/model.hpp" "kResidentHardwareQueueContexts = $queueContexts;"
+Require-Literal "source/model/model.hpp" "kSchedulerPriorityLevels = $priorityLevels;"
+Require-Literal "source/model/model.hpp" "kPreferredVramPageBytes = $preferredPage;"
+Require-Literal "source/isa/cgx1_isa.hpp" "InstructionClass::Extended"
 
 Require-Literal "docs/THERMAL_POWER.md" "| **Total** | **$fullPower W** |"
 Require-Literal "docs/MECHANICAL_DESIGN.md" ("The revised dock target is **$dockLength " + $multiply + " $dockWidth " + $multiply + " $dockHeight mm**.")
 Require-Literal "docs/ELECTRICAL_INTERFACE.md" "returns directly to **P0 Safe Boot**"
 Require-Literal "docs/STATUS.md" "$fp32 TFLOPS"
 
+if (([int]$architecture.execution_model.simd_partitions_per_compute_unit * [int]$architecture.execution_model.lanes_per_simd_partition) -ne [int]$architecture.silicon.fp32_lanes_per_compute_unit) {
+    Add-Finding "design/cgx1_architecture.json: SIMD partition product must equal FP32 lanes per compute unit"
+}
+if (([int]$architecture.texture_subsystem.texture_blocks_per_tile * [int]$architecture.silicon.compute_tiles) -ne [int]$architecture.texture_subsystem.texture_blocks_total) {
+    Add-Finding "design/cgx1_architecture.json: texture block total does not match per-tile count"
+}
+if (([int]$architecture.graphics_pipeline.rop_lanes_per_tile * [int]$architecture.silicon.compute_tiles) -ne [int]$architecture.silicon.rop_target) {
+    Add-Finding "design/cgx1_architecture.json: ROP lane total does not match silicon ROP target"
+}
+if ([double]$architecture.chiplet_fabric.aggregate_read_payload_target_tbps -lt [double]$architecture.memory.peak_bandwidth_tbps) {
+    Add-Finding "design/cgx1_architecture.json: fabric read target is below HBM4 peak bandwidth target"
+}
 if ($dockFallback -ne $safeBoot) {
     Add-Finding "design/cgx1_architecture.json: dock fault fallback must equal Safe Boot power"
 }

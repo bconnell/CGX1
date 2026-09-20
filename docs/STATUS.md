@@ -9,6 +9,12 @@ CGX 1 is an engineering architecture and prototype program. No custom CGX 1 ASIC
 | Area | Current state | Evidence in this repository |
 |---|---|---|
 | Architecture | Defined target | [Engineering Specification](ENGINEERING_SPEC.md) and [machine readable design file](../design/cgx1_architecture.json) |
+| ISA/execution model | Defined architecture + executable base encoder/decoder | [ISA](ISA.md) and [source/isa](../source/isa/) |
+| Graphics pipeline | Defined architecture target | [Graphics Pipeline](GRAPHICS_PIPELINE.md) |
+| Texture/compression | Defined architecture target | [Texture and Compression](TEXTURE_COMPRESSION.md) |
+| Chiplet fabric/coherence | Defined architecture target; physical lane map not frozen | [Chiplet Fabric](CHIPLET_FABRIC.md) |
+| Virtual memory | Defined architecture target | [Virtual Memory](VIRTUAL_MEMORY.md) |
+| Scheduling/preemption | Defined architecture target | [Scheduling and Preemption](SCHEDULING_PREEMPTION.md) |
 | Mechanical envelope | Defined target | OpenSCAD card/dock sources, SVG blueprint, STL envelope models, [Mechanical Design](MECHANICAL_DESIGN.md) |
 | Analytical model | Executable | FP32 arithmetic, coolant rise, junction estimate, power efficiency, fit calculations |
 | Power state controller | Executable reference | C implementation and fault state tests |

@@ -15,6 +15,17 @@ This directory contains the public engineering documentation for CGX 1. The docu
 | [Thermal and Power Design](THERMAL_POWER.md) | Full power budget, coolant calculation, thermal targets | You are sizing cooling or power delivery |
 | [Architecture BOM](BOM.md) | Package, PCB, power, cooling, I/O requirements | You are translating architecture into hardware |
 
+## Architecture definition
+
+| Document | Scope | Start here when |
+|---|---|---|
+| [ISA and Execution Model](ISA.md) | Native wave model, registers, instruction encoding, ordering, faults | You are writing RTL, an assembler, compiler or debugger |
+| [Graphics Pipeline](GRAPHICS_PIPELINE.md) | Multi-tile geometry, rasterization, render ownership, depth and presentation | You are implementing the graphics front/back end |
+| [Texture and Compression](TEXTURE_COMPRESSION.md) | Samplers, filtering, format decode and lossless surface compression | You are implementing texture or memory-bandwidth logic |
+| [Chiplet Fabric](CHIPLET_FABRIC.md) | Tile topology, coherence, bandwidth budget, reliability and QoS | You are designing package links or cache coherence |
+| [Virtual Memory](VIRTUAL_MEMORY.md) | GPU address spaces, page tables, faults, residency and optional ATS/PASID | You are implementing memory management |
+| [Scheduling and Preemption](SCHEDULING_PREEMPTION.md) | Hardware queues, priorities, preemption, watchdog and reset domains | You are implementing command processing or recovery |
+
 ## Prototype documents
 
 | Document | Scope | Start here when |

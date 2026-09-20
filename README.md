@@ -6,7 +6,7 @@
 
 **167.5 mm card length · 72 GB HBM4 baseline · 6.6 TB/s target bandwidth · 143.36 TFLOPS target · 360 W dock mode**
 
-[Engineering Specification](docs/ENGINEERING_SPEC.md) · [Documentation Index](docs/README.md) · [Prototype Build](docs/PROTOTYPE_BUILD.md) · [Procurement](docs/PROTOTYPE_PROCUREMENT.md) · [Validation](docs/VALIDATION.md)
+[Engineering Specification](docs/ENGINEERING_SPEC.md) · [ISA](docs/ISA.md) · [Graphics Pipeline](docs/GRAPHICS_PIPELINE.md) · [Documentation Index](docs/README.md) · [Validation](docs/VALIDATION.md)
 
 **Design Engineer:** [Brandon Connell](https://github.com/bconnell) · [LinkedIn](https://www.linkedin.com/in/brandon-c-b317a81b/) · [Email](mailto:brandon@brandonconnell.com)  
 Copyright © 2026 Brandon Connell · [MIT License](LICENSE)
@@ -86,6 +86,22 @@ If dock power or valid coolant flow is lost in P3 or P4, the reference controlle
 | Display target | 3 × Mini DisplayPort 2.1b + USB C DisplayPort Alt Mode | Final PHY and compliance work remains |
 | Media target | 4 encode + 4 decode engines, AV1 | Architecture target |
 
+## Architecture definition
+
+The critical software-visible and multi-tile contracts are now defined rather than left to later RTL work:
+
+| Area | Current architecture decision | Document |
+|---|---|---|
+| Execution | Native wave32; four SIMD32 partitions per CU; 32-bit base ISA with extension word | [ISA](docs/ISA.md) |
+| Graphics | One logical GPU; 16 raster partitions; dynamic 32 × 32 pixel macro-tile ownership | [Graphics Pipeline](docs/GRAPHICS_PIPELINE.md) |
+| Texture | 100 texture blocks; four bilinear samples/block/cycle arithmetic target | [Texture and Compression](docs/TEXTURE_COMPRESSION.md) |
+| Compression | Lossless 256-byte surface blocks; no guaranteed compression ratio | [Texture and Compression](docs/TEXTURE_COMPRESSION.md) |
+| Chiplet fabric | Central coherent I/O die; directory coherence; 7.2 TB/s aggregate read payload budget | [Chiplet Fabric](docs/CHIPLET_FABRIC.md) |
+| Virtual memory | 57-bit GPU VA; 4 KiB/64 KiB/2 MiB pages; replayable faults; ATS/PASID optional | [Virtual Memory](docs/VIRTUAL_MEMORY.md) |
+| Scheduling | 64 resident hardware queue contexts; 8 priorities; bounded preemption/reset escalation | [Scheduling and Preemption](docs/SCHEDULING_PREEMPTION.md) |
+
+These values are design targets. They do not represent fabricated silicon capability or measured application performance.
+
 ## Prototype path
 
 The first physical prototype does not require custom GPU silicon. **P0** is a dimensionally accurate electrothermal card and external dock used to validate fit, power distribution, coolant routing, control firmware, and a 360 W thermal load. **P1** adds a shared programmable HBM accelerator to the bench for PCIe, memory traffic, control, and software experiments.
@@ -105,6 +121,12 @@ The complete engineering document set is listed in the [Documentation Index](doc
 | Document | What it contains | Link |
 |---|---|---|
 | Engineering Specification | Card, package, silicon, memory, power, display, media, reliability | [Open](docs/ENGINEERING_SPEC.md) |
+| ISA and Execution Model | Wave model, registers, instruction classes, memory ordering and faults | [Open](docs/ISA.md) |
+| Graphics Pipeline | Multi-tile geometry, raster, ownership, depth and presentation flow | [Open](docs/GRAPHICS_PIPELINE.md) |
+| Texture and Compression | Sampler organization and lossless surface compression | [Open](docs/TEXTURE_COMPRESSION.md) |
+| Chiplet Fabric | Tile links, coherence, bandwidth budget, reliability and QoS | [Open](docs/CHIPLET_FABRIC.md) |
+| Virtual Memory | GPU address spaces, pages, faults, residency, ATS/PASID integration | [Open](docs/VIRTUAL_MEMORY.md) |
+| Scheduling and Preemption | Queue model, priorities, preemption and reset containment | [Open](docs/SCHEDULING_PREEMPTION.md) |
 | Project Status | What is implemented, modeled, planned, or not yet built | [Open](docs/STATUS.md) |
 | Mechanical Design | Card and dock dimensions, selected prototype components, packing assumptions | [Open](docs/MECHANICAL_DESIGN.md) |
 | Electrical Interface | Slot power, 48 V input, isolation, fallback behavior, interlocks | [Open](docs/ELECTRICAL_INTERFACE.md) |

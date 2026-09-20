@@ -16,6 +16,12 @@ int main()
     std::cout << "CGX 1 analytical engineering model\n\n";
     std::cout << "Peak FP32 target: " << Fp32PeakTflops(kTargetFp32Lanes, kTargetPeakClockGhz) << " TFLOPS\n";
     std::cout << "Peak memory bandwidth target: " << kTargetMemoryTbps << " TB/s\n";
+    std::cout << "Native wave size: " << kNativeWaveSize << " lanes\n";
+    std::cout << "Texture block target: " << kTextureBlocksTotal << "\n";
+    std::cout << "Peak bilinear sampler arithmetic: "
+              << TexturePeakGtex(kTextureBlocksTotal, kBilinearSamplesPerTextureBlockPerCycle, kTargetPeakClockGhz)
+              << " Gsamples/s\n";
+    std::cout << "Fabric read bandwidth budget: " << kFabricAggregateReadTbps << " TB/s\n";
     std::cout << "VRAM baseline: " << kTargetVramGb << " GB\n";
     std::cout << "Board power target: " << kTargetBoardPowerWatts << " W\n";
     std::cout << "Peak FP32 per watt arithmetic: " << PeakFp32PerWatt(kTargetPeakFp32Tflops, kTargetBoardPowerWatts) << " TFLOPS/W\n";

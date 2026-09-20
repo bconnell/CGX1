@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -15,9 +15,9 @@
     "thickness": 39.5
   },
   "dock_mechanical_mm": {
-    "length": 310.0,
-    "width": 210.0,
-    "height": 75.0
+    "length": 310,
+    "width": 210,
+    "height": 75
   },
   "silicon": {
     "compute_tiles": 4,
@@ -34,8 +34,8 @@
     "preferred_process": "TSMC N2P",
     "future_process_option": "TSMC A16",
     "package_target_mm": {
-      "length": 55.0,
-      "width": 55.0
+      "length": 55,
+      "width": 55
     }
   },
   "memory": {
@@ -68,25 +68,25 @@
     "radiator_class_mm": 240,
     "radiator_reference": "Corsair XR5 240",
     "radiator_mm": {
-      "length": 280.0,
-      "width": 120.0,
-      "thickness": 30.0
+      "length": 280,
+      "width": 120,
+      "thickness": 30
     },
     "card_fan_reference": "Same Sky CFM-5010B-170-361-22",
     "card_fan_mm": {
-      "length": 50.0,
-      "width": 50.0,
-      "thickness": 10.0
+      "length": 50,
+      "width": 50,
+      "thickness": 10
     },
     "dock_pump_reference": "Alphacool ES Reservoir DDCzero 1U with Pump 14571",
     "dock_pump_mm": {
-      "length": 112.0,
-      "width": 57.0,
+      "length": 112,
+      "width": 57,
       "height": 41.95
     },
     "junction_to_coolant_c_per_w_target": 0.085,
     "radiator_to_ambient_c_per_w_target": 0.04,
-    "analysis_ambient_c": 35.0,
+    "analysis_ambient_c": 35,
     "analysis_junction_c": 81.73
   },
   "host_interface": {
@@ -107,5 +107,152 @@
     "independent_ai_tops_target": null,
     "independent_rt_tflops_target": null
   },
-  "copyright": "Copyright (c) 2026 Brandon Connell"
+  "copyright": "Copyright (c) 2026 Brandon Connell",
+  "execution_model": {
+    "native_wave_size": 32,
+    "paired_wave64_supported": true,
+    "simd_partitions_per_compute_unit": 4,
+    "lanes_per_simd_partition": 32,
+    "vector_registers_per_thread": 256,
+    "scalar_registers_per_wave": 128,
+    "predicate_registers_per_wave": 16,
+    "instruction_encoding": "32-bit base, optional 32-bit extension word",
+    "instruction_classes": [
+      "scalar",
+      "vector",
+      "memory",
+      "control",
+      "sync_atomic",
+      "texture",
+      "matrix",
+      "ray",
+      "conversion",
+      "system"
+    ],
+    "memory_scopes": [
+      "subgroup",
+      "workgroup",
+      "device",
+      "system"
+    ],
+    "fault_classes": [
+      "illegal_instruction",
+      "protection",
+      "page_fault",
+      "ecc_poison",
+      "watchdog"
+    ]
+  },
+  "graphics_pipeline": {
+    "logical_device_count": 1,
+    "raster_partitions_per_tile": 4,
+    "raster_partitions_total": 16,
+    "rop_lanes_per_tile": 64,
+    "render_macro_tile_px": {
+      "width": 32,
+      "height": 32
+    },
+    "native_mesh_task_pipeline": true,
+    "legacy_stage_lowering": true,
+    "hierarchical_z": true,
+    "msaa_samples_target": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "ownership_model": "dynamic screen-space macro-tile ownership"
+  },
+  "texture_subsystem": {
+    "texture_blocks_per_tile": 25,
+    "texture_blocks_total": 100,
+    "compute_units_per_texture_block": 2,
+    "bilinear_samples_per_block_per_cycle": 4,
+    "peak_bilinear_samples_gtex_s": 1120,
+    "max_anisotropy": 16,
+    "format_targets": [
+      "BC1-BC7",
+      "ETC2/EAC",
+      "ASTC LDR"
+    ],
+    "cache_policy": "read-only sampler cache backed by tile L2"
+  },
+  "surface_compression": {
+    "lossless_only": true,
+    "block_bytes": 256,
+    "color_modes": [
+      "raw",
+      "constant_color",
+      "delta"
+    ],
+    "depth_stencil_compression": true,
+    "fast_clear_metadata": true,
+    "guaranteed_ratio": null,
+    "atomic_storage_policy": "fall back to uncompressed blocks when required for correctness"
+  },
+  "chiplet_fabric": {
+    "topology": "central I/O die with four coherent compute-tile links",
+    "physical_reference": "UCIe 3.0 preferred for die-to-die PHY and management",
+    "ucie_compliance_claimed": false,
+    "coherence_granule_bytes": 64,
+    "tile_l2_policy": "write-back",
+    "package_cache_directory": true,
+    "no_broadcast_snoop": true,
+    "per_tile_read_payload_target_tbps": 1.8,
+    "aggregate_read_payload_target_tbps": 7.2,
+    "aggregate_write_payload_target_tbps": 3.6,
+    "traffic_classes": [
+      "request",
+      "response",
+      "data",
+      "snoop",
+      "management"
+    ],
+    "crc_retry": true,
+    "poison_propagation": true,
+    "priority_management_events": true,
+    "fast_throttle_emergency_shutdown": true,
+    "physical_lane_mapping_frozen": false
+  },
+  "virtual_memory": {
+    "virtual_address_bits": 57,
+    "physical_address_bits_target": 52,
+    "page_sizes_bytes": [
+      4096,
+      65536,
+      2097152
+    ],
+    "preferred_vram_page_bytes": 65536,
+    "sparse_resource_granule_bytes": 65536,
+    "per_process_address_spaces": true,
+    "replayable_page_faults": true,
+    "ats_optional": true,
+    "pri_optional": true,
+    "pasid_optional": true,
+    "pasid_bits_max": 20,
+    "ats_pasid_required_for_basic_operation": false,
+    "protection_domains": [
+      "process",
+      "kernel",
+      "firmware"
+    ]
+  },
+  "scheduler": {
+    "global_queue_manager": "I/O die",
+    "per_tile_dispatch_scheduler": true,
+    "resident_hardware_queue_contexts": 64,
+    "priority_levels": 8,
+    "software_queue_count": "OS/runtime virtualized",
+    "scheduling_policy": "weighted fair scheduling with aging",
+    "power_aware_tile_placement": true,
+    "mandatory_compute_preemption": "workgroup boundary",
+    "mandatory_graphics_preemption": "draw/dispatch packet boundary",
+    "finer_wave_preemption": "future target after state-save cost is characterized",
+    "reset_escalation": [
+      "engine",
+      "tile",
+      "device"
+    ],
+    "starvation_prevention": true
+  }
 }

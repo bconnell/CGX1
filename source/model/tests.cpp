@@ -29,6 +29,25 @@ int main()
     const double fp32PerWatt = PeakFp32PerWatt(143.36, 360.0);
     assert(fp32PerWatt > 0.398 && fp32PerWatt < 0.399);
 
+    static_assert(kSimdPartitionsPerCu * kLanesPerSimdPartition == 128);
+    static_assert(kNativeWaveSize == 32);
+    static_assert(kTextureBlocksPerTile * kComputeTiles == kTextureBlocksTotal);
+    static_assert(kResidentHardwareQueueContexts == 64);
+    static_assert(kSchedulerPriorityLevels == 8);
+    static_assert(kPreferredVramPageBytes == 65536);
+
+    const double texturePeak = TexturePeakGtex(
+        kTextureBlocksTotal,
+        kBilinearSamplesPerTextureBlockPerCycle,
+        kTargetPeakClockGhz);
+    assert(std::abs(texturePeak - 1120.0) < 0.001);
+
+    assert(TotalRasterPartitions(kComputeTiles, kRasterPartitionsPerTile) == 16);
+    assert(TotalRopLanes(kComputeTiles, kRopLanesPerTile) == 256);
+
+    const double fabricHeadroom = FabricReadHeadroom(kFabricAggregateReadTbps, kTargetMemoryTbps);
+    assert(fabricHeadroom > 1.09 && fabricHeadroom < 1.10);
+
     bool rejectedZeroFlow = false;
     try
     {

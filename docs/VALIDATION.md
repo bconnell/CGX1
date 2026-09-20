@@ -27,11 +27,27 @@ The C++ model verifies:
 - low profile card envelope;
 - coolant temperature rise from power and flow;
 - analytical junction estimate from stated thermal resistance targets;
-- FP32 per watt arithmetic.
+- FP32 per watt arithmetic;
+- SIMD partition-to-lane consistency;
+- texture-block totals and peak bilinear sampler arithmetic;
+- raster-partition and ROP-lane totals;
+- chiplet-fabric read-bandwidth budget relative to HBM4;
+- queue/priorities and preferred VRAM page constants.
 
 The analytical model does not produce application speedup claims.
 
-## 3. Firmware
+## 3. ISA reference
+
+The executable ISA test verifies:
+
+- base 32-bit field encode/decode round trip;
+- instruction-class recognition;
+- scalar register bounds;
+- full 8-bit vector register addressing.
+
+This validates the public field contract only. It is not a shader core or ISA conformance suite.
+
+## 4. Firmware
 
 Reference firmware tests cover:
 
@@ -47,15 +63,17 @@ Reference firmware tests cover:
 
 The dock fault tests also verify that the fallback does not request a 70 W slot state.
 
-## 4. RTL boundary
+## 5. RTL boundary
 
 The public RTL currently covers top level power state gating and tile enable behavior. It does not implement or verify a complete GPU pipeline, cache fabric, HBM controller, display engine, media engine, PCIe controller, shader ISA, or production security design.
 
 Future RTL work needs unit, integration, constrained random, formal, FPGA, and emulation work appropriate to each block.
 
+The critical architecture contracts are defined in [ISA](ISA.md), [Graphics Pipeline](GRAPHICS_PIPELINE.md), [Texture and Compression](TEXTURE_COMPRESSION.md), [Chiplet Fabric](CHIPLET_FABRIC.md), [Virtual Memory](VIRTUAL_MEMORY.md), and [Scheduling and Preemption](SCHEDULING_PREEMPTION.md). RTL must match those contracts or update them and their tests in the same revision.
+
 The power state scaffold must keep the reported state and tile enable state consistent. A dock fault reports P0 and disables compute tiles.
 
-## 5. Mechanical validation
+## 6. Mechanical validation
 
 Before P0 acceptance:
 
@@ -72,7 +90,7 @@ Before P0 acceptance:
 - inspect mounting pressure and PCB bending;
 - pressure and leak test the cooling assembly.
 
-## 6. P0 electrothermal validation
+## 7. P0 electrothermal validation
 
 P0 measures:
 
@@ -89,7 +107,7 @@ P0 measures:
 
 Use [Test Record Template](TEST_RECORD_TEMPLATE.md) for each repeatable configuration.
 
-## 7. P1 surrogate validation
+## 8. P1 surrogate validation
 
 P1 results must identify the surrogate hardware. Alveo U50 measurements cannot be labeled as CGX performance.
 
@@ -102,7 +120,7 @@ P1 can provide evidence for:
 - selected RTL blocks;
 - early compiler/API experiments.
 
-## 8. Future silicon validation
+## 9. Future silicon validation
 
 A fabricated CGX device requires separate evidence for:
 
@@ -121,7 +139,7 @@ A fabricated CGX device requires separate evidence for:
 - long duration workloads;
 - application and game compatibility.
 
-## 9. Reporting results
+## 10. Reporting results
 
 Every published result should identify whether it is:
 

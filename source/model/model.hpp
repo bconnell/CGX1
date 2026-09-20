@@ -32,9 +32,51 @@ inline constexpr double kTargetMemoryTbps = 6.6;
 inline constexpr double kTargetBoardPowerWatts = 360.0;
 inline constexpr double kTargetVramGb = 72.0;
 
+inline constexpr int kComputeTiles = 4;
+inline constexpr int kSimdPartitionsPerCu = 4;
+inline constexpr int kLanesPerSimdPartition = 32;
+inline constexpr int kNativeWaveSize = 32;
+inline constexpr int kTextureBlocksPerTile = 25;
+inline constexpr int kTextureBlocksTotal = 100;
+inline constexpr int kBilinearSamplesPerTextureBlockPerCycle = 4;
+inline constexpr int kRasterPartitionsPerTile = 4;
+inline constexpr int kRopLanesPerTile = 64;
+inline constexpr double kFabricAggregateReadTbps = 7.2;
+inline constexpr int kResidentHardwareQueueContexts = 64;
+inline constexpr int kSchedulerPriorityLevels = 8;
+inline constexpr int kPreferredVramPageBytes = 65536;
+
 inline double Fp32PeakTflops(double lanes, double clockGhz)
 {
     return lanes * 2.0 * clockGhz / 1000.0;
+}
+
+inline double TexturePeakGtex(int blocks, int samplesPerBlockPerCycle, double clockGhz)
+{
+    if (blocks <= 0 || samplesPerBlockPerCycle <= 0 || clockGhz <= 0.0)
+    {
+        throw std::invalid_argument("texture throughput inputs must be positive");
+    }
+    return static_cast<double>(blocks) * static_cast<double>(samplesPerBlockPerCycle) * clockGhz;
+}
+
+inline double FabricReadHeadroom(double fabricTbps, double memoryTbps)
+{
+    if (fabricTbps <= 0.0 || memoryTbps <= 0.0)
+    {
+        throw std::invalid_argument("bandwidth inputs must be positive");
+    }
+    return fabricTbps / memoryTbps;
+}
+
+inline int TotalRasterPartitions(int tiles, int perTile)
+{
+    return tiles * perTile;
+}
+
+inline int TotalRopLanes(int tiles, int perTile)
+{
+    return tiles * perTile;
 }
 
 inline double CoolantRiseC(double watts, double litersPerMinute)

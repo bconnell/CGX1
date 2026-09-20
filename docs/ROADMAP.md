@@ -12,6 +12,12 @@
 - top level RTL state scaffold;
 - prototype procurement and cost planning;
 - software implementation plan;
+- native wave32 ISA and executable base instruction encoder/decoder;
+- multi-tile graphics pipeline and render ownership model;
+- texture block and lossless surface-compression architecture;
+- coherent chiplet-fabric protocol and bandwidth budget;
+- virtual-memory/page-fault architecture;
+- queue scheduling, preemption and reset containment model;
 - validation and repository integrity checks.
 
 ## P0 manufacturing package
@@ -44,6 +50,17 @@
 - prototype command, telemetry, memory movement, and selected RTL blocks;
 - establish reproducible host software tests;
 - keep surrogate results labeled as surrogate measurements.
+
+## Architecture implementation
+
+- implement the complete ISA semantics and assembler/disassembler;
+- build an instruction-level emulator and shader execution tests;
+- implement command processor and queue packet ABI;
+- implement page tables, translation caches and replayable-fault model;
+- implement tile coherence protocol and fabric transaction model;
+- implement texture sampling and compression reference models;
+- implement primitive binning, raster ownership and back-end ordering models;
+- characterize finer-than-workgroup preemption cost before adding it to the baseline.
 
 ## Custom silicon
 

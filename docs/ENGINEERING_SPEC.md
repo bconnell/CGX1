@@ -105,6 +105,40 @@ The package level cache is intended to reduce HBM traffic and reduce sensitivity
 
 Samsung currently publishes HBM4 capacities through 36 GB on 12 layers at up to 3.3 TB/s per stack, with 16 layer configurations extending to 48 GB. See [Public Sources](SOURCES.md).
 
+### 3.5 Execution model
+
+Each compute unit contains four SIMD32 partitions, giving the existing 128 FP32 lanes per CU. Native wave size is 32 lanes. The first instruction contract uses a 32-bit base word and an optional 32-bit extension word.
+
+See [ISA and Execution Model](ISA.md).
+
+### 3.6 Graphics and texture organization
+
+The four compute tiles form one logical GPU. Each tile targets 25 texture blocks, four raster partitions and 64 color/depth result lanes. Render work uses dynamic 32 × 32 pixel macro-tile ownership so ordered render-target updates can remain local to one tile while active.
+
+The texture target is 100 blocks total at four bilinear sample results per block per cycle under the simple cache-resident arithmetic case. At 2.80 GHz this is a 1,120 Gsamples/s arithmetic ceiling, not a guaranteed application rate.
+
+See [Graphics Pipeline](GRAPHICS_PIPELINE.md) and [Texture and Compression](TEXTURE_COMPRESSION.md).
+
+### 3.7 Chiplet fabric
+
+The central I/O/cache die maintains directory coherence across four write-back tile L2 caches. Aggregate tile read payload budget is 7.2 TB/s so the fabric target does not undercut the 6.6 TB/s HBM4 peak before cache effects.
+
+UCIe 3.0 is the preferred die-to-die PHY/management reference. UCIe compliance and physical lane counts are not currently claimed.
+
+See [Chiplet Fabric](CHIPLET_FABRIC.md).
+
+### 3.8 Virtual memory
+
+The architecture targets 57-bit GPU virtual addresses, 4 KiB/64 KiB/2 MiB pages, 64 KiB preferred VRAM pages and replayable page faults. PCIe ATS, PRI and PASID are optional host accelerators; basic operation does not require them.
+
+See [Virtual Memory](VIRTUAL_MEMORY.md).
+
+### 3.9 Scheduling and preemption
+
+The first scheduler target provides 64 resident hardware queue contexts, eight priorities, power-aware placement and weighted fair scheduling with aging. Mandatory preemption is workgroup-boundary for compute and draw/dispatch-packet boundary for graphics. Recovery escalates engine, tile, then device reset.
+
+See [Scheduling and Preemption](SCHEDULING_PREEMPTION.md).
+
 ## 4. Host interface
 
 ### 4.1 PCIe

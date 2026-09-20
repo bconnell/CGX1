@@ -73,9 +73,23 @@ Accessed September 20, 2026 unless otherwise noted.
 21. **JLCPCB assembly pricing reference.** Obtain a new quote from final manufacturing files before ordering.  
     https://jlcpcb.com/help/article/pcb-assembly-price
 
+## Architecture standards references
+
+22. **UCIe Consortium UCIe 3.0 specification overview.** UCIe 3.0 adds 48 GT/s and 64 GT/s data rates, priority sideband packets, fast throttle/emergency shutdown and expanded management features.  
+    https://www.uciexpress.org/specifications
+
+23. **Khronos Vulkan Roadmap 2026.** Defines the 2026 roadmap milestone for newer mid/high-end devices and lists features including fragment shading rate, shader clock, compute shader derivatives, cooperative matrix and presentation extensions.  
+    https://github.khronos.org/Vulkan-Site/spec/latest/appendices/roadmap.html
+
+24. **PCI-SIG Process Address Space ID (PASID).** Defines the 20-bit PASID field and process-address-space identification model.  
+    https://pcisig.com/PCIExpress/ECN/Base/ProcessAddressSpaceID
+
+25. **PCI-SIG PASID Translation.** Defines PASID use with address translation services and page request behavior.  
+    https://pcisig.com/PCIExpress/ECN/Base/PASIDTranslation
+
 ## Repository tooling reference
 
-22. **actions/checkout v7.0.1.** Repository workflow is pinned to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.  
+26. **actions/checkout v7.0.1.** Repository workflow is pinned to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.  
     https://github.com/actions/checkout/releases/tag/v7.0.1
 
 Retail listings are sourcing references, not endorsements or guarantees of future availability.

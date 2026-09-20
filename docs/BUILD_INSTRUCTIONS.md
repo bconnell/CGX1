@@ -31,7 +31,7 @@ Define and verify:
 7. Add formal properties for deadlock freedom, coherence invariants, privilege boundaries, reset behavior, power sequencing, and fault containment.
 8. Run compute, shader, memory, and command processor conformance workloads against pre silicon models.
 
-The public SystemVerilog directory is a top level state scaffold. It is not full GPU RTL.
+The public SystemVerilog directory contains limited control RTL for board power state behavior and matrix pipeline scheduling. It is not full GPU RTL. Run `./scripts/validate_rtl.sh` with Icarus Verilog installed to execute the current matrix control testbench.
 
 ## 3. Physical design
 

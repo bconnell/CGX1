@@ -1,0 +1,39 @@
+name: RTL CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/rtl-ci.yml"
+      - "scripts/validate_rtl.sh"
+      - "source/rtl/**"
+      - "source/matrix/cgx1_matrix_architecture.hpp"
+      - "source/matrix/cgx1_matrix_pipeline.hpp"
+      - "source/matrix/cgx1_matrix_banking.hpp"
+      - "design/cgx1_architecture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rtl-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends iverilog
+
+      - name: Run RTL validation
+        run: ./scripts/validate_rtl.sh

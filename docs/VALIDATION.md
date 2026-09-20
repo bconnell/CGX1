@@ -109,9 +109,9 @@ The dock fault tests also verify that the fallback does not request a 70 W slot 
 
 ## 7. RTL boundary
 
-The public RTL currently covers top level power state gating and tile enable behavior. It does not implement or verify a complete GPU pipeline, cache fabric, HBM controller, display engine, media engine, PCIe controller, shader ISA, or production security design.
+The public RTL currently covers top-level power-state/tile-enable behavior and the matrix pipeline control schedule. The matrix RTL controller validates issue legality, capture/execute/writeback sequencing, VGPR addresses, source release, destination completion, bank-class conflict freedom, and 16-cycle steady-state reissue behavior. It does not implement the matrix arithmetic datapath, physical VGPR macros, staging memories, or a complete GPU pipeline.
 
-Future RTL work needs unit, integration, constrained random, formal, FPGA, and emulation work appropriate to each block.
+RTL control simulation is run with Icarus Verilog in SystemVerilog 2012 mode through `scripts/validate_rtl.sh` and the path-scoped Ubuntu RTL CI workflow. Future RTL work still needs arithmetic unit tests, integration, constrained random, formal, synthesis, FPGA/emulation, and implementation work appropriate to each block.
 
 The critical architecture contracts are defined in [ISA](ISA.md), [Graphics Pipeline](GRAPHICS_PIPELINE.md), [Texture and Compression](TEXTURE_COMPRESSION.md), [Chiplet Fabric](CHIPLET_FABRIC.md), [Virtual Memory](VIRTUAL_MEMORY.md), and [Scheduling and Preemption](SCHEDULING_PREEMPTION.md). RTL must match those contracts or update them and their tests in the same revision.
 

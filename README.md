@@ -155,6 +155,14 @@ cmake --build build --config Release
 ctest --test-dir build --output-on-failure -C Release
 ```
 
+Matrix pipeline control RTL has a separate simulator gate:
+
+~~~bash
+./scripts/validate_rtl.sh
+~~~
+
+It requires Icarus Verilog. The workflow installs Icarus on Ubuntu and runs only when RTL or its matrix architecture inputs change.
+
 The complete Windows repository gate can be run locally with:
 
 ```powershell

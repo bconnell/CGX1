@@ -38,4 +38,4 @@ The check includes card dimensions, dock dimensions, selected card fan thickness
 
 Major repository gates include an executable negative control. Each test creates a scoped invalid input, requires the validator to reject it, verifies the expected finding, and removes the temporary input in a `finally` block.
 
-Build and validation output remains under ignored `build/` and `out/` paths. The checks do not reset, clean, rewrite history, or delete unrelated repository state.
+Build and validation output remains under ignored `build/` and `out/` paths. The Windows repository workflow and path-scoped Ubuntu RTL workflow do not publish build artifacts. External actions remain pinned to full commit hashes. The checks do not reset, clean, rewrite history, or delete unrelated repository state.

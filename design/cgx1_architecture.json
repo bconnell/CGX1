@@ -110,7 +110,6 @@
   "copyright": "Copyright (c) 2026 Brandon Connell",
   "execution_model": {
     "native_wave_size": 32,
-    "paired_wave64_supported": true,
     "simd_partitions_per_compute_unit": 4,
     "lanes_per_simd_partition": 32,
     "vector_registers_per_thread": 256,
@@ -141,7 +140,8 @@
       "page_fault",
       "ecc_poison",
       "watchdog"
-    ]
+    ],
+    "paired_wave64_target": true
   },
   "graphics_pipeline": {
     "logical_device_count": 1,
@@ -200,7 +200,6 @@
     "no_broadcast_snoop": true,
     "per_tile_read_payload_target_tbps": 1.8,
     "aggregate_read_payload_target_tbps": 7.2,
-    "aggregate_write_payload_target_tbps": 3.6,
     "traffic_classes": [
       "request",
       "response",
@@ -212,7 +211,9 @@
     "poison_propagation": true,
     "priority_management_events": true,
     "fast_throttle_emergency_shutdown": true,
-    "physical_lane_mapping_frozen": false
+    "physical_lane_mapping_frozen": false,
+    "aggregate_write_payload_provisional_tbps": 3.6,
+    "physical_mapping_status": "unproven; must close target payload after protocol overhead, PHY power, bump-map, and package-routing analysis"
   },
   "virtual_memory": {
     "virtual_address_bits": 57,

@@ -143,7 +143,7 @@ The complete engineering document set is listed in the [Documentation Index](doc
 
 ## Build and test
 
-A standard CMake toolchain is sufficient for the current analytical model and firmware tests.
+A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, and firmware tests.
 
 ```text
 cmake -S . -B build

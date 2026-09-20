@@ -64,7 +64,7 @@
 
 ## Custom silicon
 
-- define ISA and shader execution model;
+- implement the defined ISA and shader execution model in verified RTL and software;
 - complete compute, raster, ray, cache, fabric, memory, display, media, security, and debug RTL;
 - complete verification and FPGA/emulation work;
 - select licensed PHY and codec IP;

@@ -45,7 +45,7 @@ Base word:
 
 The three 8-bit operand fields can address the 256-entry vector namespace directly. Scalar formats validate the operand against the smaller scalar namespace. Control, branch, immediate, and memory formats reinterpret operand fields as specified by their instruction class.
 
-Class value 15 is reserved for extended encodings. The public executable encoder/decoder in [`source/isa/cgx1_isa.hpp`](../source/isa/cgx1_isa.hpp) implements this base field contract.
+The 4-bit opcode is a major opcode within its class. Class value 15 is reserved for encodings that need an expanded opcode space or other extended format. The base encoder rejects undefined classes and opcode values outside 0-15 rather than silently aliasing them. The public executable encoder/decoder in [`source/isa/cgx1_isa.hpp`](../source/isa/cgx1_isa.hpp) implements this base field contract.
 
 ## Instruction classes
 

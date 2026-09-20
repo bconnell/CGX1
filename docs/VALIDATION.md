@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware and analytical model tests.
+- executable firmware, analytical-model, and ISA-reference tests.
 
 ## 2. Analytical model
 

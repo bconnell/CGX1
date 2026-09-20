@@ -33,9 +33,9 @@ Targets:
 |---|---:|
 | I/O/cache die to each compute tile | 1.8 TB/s payload read capacity |
 | Aggregate read payload to four tiles | 7.2 TB/s |
-| Aggregate compute-tile write payload | 3.6 TB/s |
+| Aggregate compute-tile write payload | 3.6 TB/s provisional budget |
 
-These are architecture bandwidth budgets, not measured UCIe throughput claims. Physical mapping must demonstrate the required payload after protocol overhead before it is accepted.
+These are architecture bandwidth budgets, not measured UCIe throughput claims. The 1.8 TB/s per-tile target must not be read as a claim that one UCIe module can carry it. Final module/lane count is a package-design proof obligation. Physical mapping must demonstrate the required payload after protocol overhead, PHY power, bump-map area, and package routing before it is accepted. The 3.6 TB/s aggregate write figure is provisional until graphics/compute traffic traces justify or replace it.
 
 ## Coherence
 

@@ -31,10 +31,33 @@ struct BaseInstruction
     std::uint8_t source1;
 };
 
+inline constexpr bool IsDefinedClass(InstructionClass value)
+{
+    const auto raw = static_cast<std::uint8_t>(value);
+    return raw <= static_cast<std::uint8_t>(InstructionClass::System)
+        || value == InstructionClass::Extended;
+}
+
+inline constexpr bool IsValidOpcode(std::uint8_t opcode)
+{
+    return opcode < 16U;
+}
+
+inline constexpr bool IsValidBaseInstruction(const BaseInstruction& instruction)
+{
+    return IsDefinedClass(instruction.instructionClass)
+        && IsValidOpcode(instruction.opcode);
+}
+
 inline constexpr std::uint32_t EncodeBase(const BaseInstruction& instruction)
 {
+    if (!IsValidBaseInstruction(instruction))
+    {
+        throw std::invalid_argument("invalid CGX 1 base instruction");
+    }
+
     return (static_cast<std::uint32_t>(instruction.instructionClass) << 28U)
-        | ((static_cast<std::uint32_t>(instruction.opcode) & 0x0FU) << 24U)
+        | (static_cast<std::uint32_t>(instruction.opcode) << 24U)
         | (static_cast<std::uint32_t>(instruction.destination) << 16U)
         | (static_cast<std::uint32_t>(instruction.source0) << 8U)
         | static_cast<std::uint32_t>(instruction.source1);
@@ -51,21 +74,14 @@ inline constexpr BaseInstruction DecodeBase(std::uint32_t word)
     };
 }
 
-inline constexpr bool IsDefinedClass(InstructionClass value)
-{
-    const auto raw = static_cast<std::uint8_t>(value);
-    return raw <= static_cast<std::uint8_t>(InstructionClass::System)
-        || value == InstructionClass::Extended;
-}
-
-inline constexpr bool IsValidScalarRegister(std::uint8_t index)
+inline constexpr bool IsValidScalarRegister(std::uint16_t index)
 {
     return index < 128U;
 }
 
-inline constexpr bool IsValidVectorRegister(std::uint8_t)
+inline constexpr bool IsValidVectorRegister(std::uint16_t index)
 {
-    return true;
+    return index < 256U;
 }
 
 } // namespace cgx1::isa

@@ -40,13 +40,12 @@ Each of four compute tiles contains:
 - 64 aggregate color/depth result lanes;
 - a 16 MB tile L2 slice.
 
-Device totals are therefore:
+Tile-L2 capacity is intentionally not frozen yet. Device totals are therefore:
 
 - 200 compute units;
 - 100 texture blocks;
 - 16 raster partitions;
 - 256 color/depth result lanes;
-- 64 MB aggregate tile L2.
 
 A result lane is an architectural back-end lane, not a frame-rate claim. Actual rate depends on format, blending, depth/stencil state, compression, samples, cache behavior and memory traffic.
 

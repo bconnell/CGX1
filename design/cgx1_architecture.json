@@ -1,5 +1,5 @@
 {
-  "schema_version": 10,
+  "schema_version": 11,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -474,7 +474,9 @@
       "pending_destination_waw_interlock": true,
       "matrix_to_matrix_war_possible_at_minimum_issue_interval": false,
       "general_compute_unit_scoreboard_integrated": false,
-      "ordinary_vector_source_write_interlock_implemented": false
+      "ordinary_vector_source_write_interlock_implemented": true,
+      "ordinary_vector_pending_destination_read_interlock_implemented": true,
+      "ordinary_vector_pending_destination_write_interlock_implemented": true
     },
     "pipeline_control_rtl": {
       "implemented": true,
@@ -484,7 +486,8 @@
       "cross_lane_data_path_implemented": false,
       "timing_closure_validated": false,
       "operand_staging_rtl_implemented": true,
-      "physical_staging_storage_validated": false
+      "physical_staging_storage_validated": false,
+      "accepted_register_bases_exposed": true
     },
     "staging_storage": {
       "capture_buffer_bytes": 2048,
@@ -498,6 +501,27 @@
       "active_execution_operand_rtl_implemented": true,
       "output_result_staging_rtl_implemented": false,
       "physical_macro_selection_frozen": false
+    },
+    "wave_vgpr_scoreboard": {
+      "status": "per-wave VGPR hazard and matrix-port conflict logic implemented in executable reference and RTL; multi-wave CU integration remains open",
+      "scope": "one wave context",
+      "register_count": 256,
+      "tracks_matrix_source_reservations": true,
+      "tracks_matrix_destination_reservations": true,
+      "ordinary_raw_check": true,
+      "ordinary_waw_check": true,
+      "ordinary_war_check": true,
+      "capture_read_port_conflict_check": true,
+      "writeback_write_port_conflict_check": true,
+      "same_cycle_matrix_reservation_visible_to_ordinary_issue": true,
+      "reference_model_implemented": true,
+      "rtl_implemented": true,
+      "simulation_exercised": true,
+      "ordinary_issue_pipeline_integrated": false,
+      "resident_wave_identity_integrated": false,
+      "multi_wave_storage_organization_frozen": false,
+      "accepted_register_bases_latched_by_pipeline_control": true,
+      "reservation_event_source": "registered issue acceptance with controller-latched D/A/B bases"
     }
   }
 }

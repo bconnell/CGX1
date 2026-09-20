@@ -17,3 +17,7 @@ add_test(NAME cgx1_matrix_banking_checks COMMAND cgx1_matrix_banking_tests)
 add_executable(cgx1_matrix_staging_tests staging_tests.cpp)
 target_include_directories(cgx1_matrix_staging_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME cgx1_matrix_staging_checks COMMAND cgx1_matrix_staging_tests)
+
+add_executable(cgx1_matrix_scoreboard_tests scoreboard_tests.cpp)
+target_include_directories(cgx1_matrix_scoreboard_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_matrix_scoreboard_checks COMMAND cgx1_matrix_scoreboard_tests)

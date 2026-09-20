@@ -87,6 +87,19 @@ try {
     }
 
     $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.matrix_engine.matrix_to_matrix_dependencies.ordinary_vector_source_write_interlock_implemented = $false
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted a disabled ordinary vector WAR interlock." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "ordinary vector WAR interlock logic must remain implemented") {
+        throw "Matrix per-wave scoreboard negative control did not report the expected invariant."
+    }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
     $architecture.matrix_engine.staging_storage.active_execution_operand_bytes = 1024
     $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
 

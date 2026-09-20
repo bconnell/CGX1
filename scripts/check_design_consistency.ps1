@@ -200,6 +200,9 @@ Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "localparam integer
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "localparam logic [2:0] MATRIX_SOURCE_A_BANK_CLASS = 3'd$matrixSourceABankClass;"
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "localparam logic [2:0] MATRIX_SOURCE_B_BANK_CLASS = 3'd$matrixSourceBBankClass;"
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic       issue_dependency_hazard,"
+Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [7:0] issue_accepted_d_base,"
+Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [7:0] issue_accepted_a_base,"
+Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [7:0] issue_accepted_b_base,"
 Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "MatrixDependsOnPendingDestination("
 Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "kWaveRegisterBits ="
 Require-Literal "source/matrix/cgx1_matrix_staging.hpp" "kMatrixActiveExecutionOperandBytes ="
@@ -207,6 +210,13 @@ Require-Literal "source/matrix/cgx1_matrix_staging.hpp" "kMatrixLogicalPipelineS
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [2:0] capture_cycle_index,"
 Require-Literal "source/rtl/cgx1_matrix_operand_staging.sv" "output logic [4095:0] active_a_words,"
 Require-Literal "source/rtl/cgx1_matrix_operand_staging.sv" "output logic [8191:0] active_c_words"
+Require-Literal "source/matrix/cgx1_matrix_scoreboard.hpp" "kMatrixScoreboardRegisterCount = 256U;"
+Require-Literal "source/matrix/cgx1_matrix_scoreboard.hpp" "EvaluateOrdinaryIssueAgainstMatrix("
+Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "input  logic [7:0]   matrix_accepted_d_base,"
+Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "input  logic [7:0]   matrix_accepted_a_base,"
+Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "input  logic [7:0]   matrix_accepted_b_base,"
+Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "input  logic [255:0] ordinary_read_mask,"
+Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "output logic         ordinary_ready,"
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
@@ -226,8 +236,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 10) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 10 for the matrix operand-staging contract"
+if ([int]$architecture.schema_version -ne 11) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 11 for the per-wave matrix scoreboard contract"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -325,8 +335,45 @@ if ([bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.matrix_to_ma
 if ([bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.general_compute_unit_scoreboard_integrated) {
     Add-Finding "design/cgx1_architecture.json: general compute-unit scoreboard integration must remain unclaimed"
 }
-if ([bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.ordinary_vector_source_write_interlock_implemented) {
-    Add-Finding "design/cgx1_architecture.json: ordinary vector source-write interlock must remain unclaimed"
+if (-not [bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.ordinary_vector_source_write_interlock_implemented) {
+    Add-Finding "design/cgx1_architecture.json: ordinary vector WAR interlock logic must remain implemented"
+}
+if (-not [bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.ordinary_vector_pending_destination_read_interlock_implemented) {
+    Add-Finding "design/cgx1_architecture.json: ordinary vector RAW interlock logic must remain implemented"
+}
+if (-not [bool]$architecture.matrix_engine.matrix_to_matrix_dependencies.ordinary_vector_pending_destination_write_interlock_implemented) {
+    Add-Finding "design/cgx1_architecture.json: ordinary vector WAW interlock logic must remain implemented"
+}
+
+if ([string]$architecture.matrix_engine.wave_vgpr_scoreboard.scope -ne "one wave context" -or
+    [int]$architecture.matrix_engine.wave_vgpr_scoreboard.register_count -ne 256) {
+    Add-Finding "design/cgx1_architecture.json: matrix per-wave scoreboard scope must remain one 256-VGPR wave context"
+}
+if (-not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.tracks_matrix_source_reservations -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.tracks_matrix_destination_reservations -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.ordinary_raw_check -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.ordinary_waw_check -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.ordinary_war_check -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.capture_read_port_conflict_check -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.writeback_write_port_conflict_check) {
+    Add-Finding "design/cgx1_architecture.json: matrix per-wave scoreboard hazard coverage is incomplete"
+}
+if (-not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.same_cycle_matrix_reservation_visible_to_ordinary_issue -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.reference_model_implemented -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.rtl_implemented -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: matrix per-wave scoreboard implementation status is incomplete"
+}
+
+if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.accepted_register_bases_exposed -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.accepted_register_bases_latched_by_pipeline_control -or
+    [string]$architecture.matrix_engine.wave_vgpr_scoreboard.reservation_event_source -ne "registered issue acceptance with controller-latched D/A/B bases") {
+    Add-Finding "design/cgx1_architecture.json: matrix scoreboard reservation must use controller-latched accepted register bases"
+}
+if ([bool]$architecture.matrix_engine.wave_vgpr_scoreboard.ordinary_issue_pipeline_integrated -or
+    [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_identity_integrated -or
+    [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.multi_wave_storage_organization_frozen) {
+    Add-Finding "design/cgx1_architecture.json: matrix per-wave scoreboard must not claim unfinished CU integration"
 }
 if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.implemented -or
     -not [bool]$architecture.matrix_engine.pipeline_control_rtl.simulation_exercised -or

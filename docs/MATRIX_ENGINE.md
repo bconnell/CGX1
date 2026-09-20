@@ -348,11 +348,23 @@ Issue logic tracks the entire D/C destination range as pending until writeback c
 
 The matrix pipeline controller performs matrix-to-matrix dependency checks against every older in-flight matrix destination. A new matrix instruction stalls when either source range overlaps an older pending D/C range (RAW) or when its tied C/D range overlaps an older pending D/C range (WAW plus the tied-accumulator read dependency). A dependency stall is not an illegal-instruction fault; issue resumes after the older destination completes.
 
-Matrix-to-matrix WAR does not require a separate interlock at the frozen minimum issue interval because A/B capture ends after 8 cycles while another matrix instruction cannot issue sooner than 16 cycles. That statement applies only between matrix instructions. Ordinary vector or other compute-unit instructions that could overwrite matrix sources still require the general compute-unit scoreboard to honor source release.
+Matrix-to-matrix WAR does not require a separate interlock at the frozen minimum issue interval because A/B capture ends after 8 cycles while another matrix instruction cannot issue sooner than 16 cycles.
 
-A and B are captured during the eight-cycle capture stage; once capture completes, later non-matrix instructions may overwrite those source registers without affecting the in-flight matrix operation, after the general scoreboard observes source release.
+A separate per-wave VGPR scoreboard now tracks matrix source reservations until source release and matrix destination reservations until destination completion. For an ordinary VGPR instruction in the same wave, it reports:
 
-Independent waves and independent instructions may make progress while a matrix result is pending, subject to normal SIMD, dependency, and register-file scheduling constraints.
+- RAW when an ordinary read overlaps a pending matrix destination;
+- WAW when an ordinary write overlaps a pending matrix destination;
+- WAR when an ordinary write overlaps a matrix source that is still being captured;
+- read-port conflict while matrix capture owns the two whole-wave read ports;
+- write-port conflict while matrix writeback owns the whole-wave write port.
+
+An ordinary read of an unrelated register is not blocked merely because matrix writeback is active, and an unrelated write is not blocked merely because matrix capture is active. The scoreboard reports only the data or port conflicts defined above.
+
+The scoreboard block is scoped to one wave context. Its reservation event uses the matrix controller's registered acceptance pulse together with controller-latched D/A/B register bases, so the producer may change the live issue payload after the handshake without changing the reservation. Resident-wave identity, arbitration among multiple wave contexts, and connection to a real ordinary vector issue pipeline remain future compute-unit integration work.
+
+A and B are captured during the eight-cycle capture stage; once source release has been recorded, later non-matrix instructions may overwrite those source registers without affecting the in-flight matrix operation.
+
+Independent waves and independent instructions may make progress while a matrix result is pending, subject to the future multi-wave scheduler and register-file arbitration rules.
 
 ## MX formats
 
@@ -385,6 +397,10 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/rtl/cgx1_matrix_operand_staging.sv](../source/rtl/cgx1_matrix_operand_staging.sv) and its SystemVerilog testbench implement and simulate the same capture-to-active transfer. The output-result slot, arithmetic datapath, and physical storage macro implementation remain open work.
 
+[source/matrix/cgx1_matrix_scoreboard.hpp](../source/matrix/cgx1_matrix_scoreboard.hpp) and [source/matrix/scoreboard_tests.cpp](../source/matrix/scoreboard_tests.cpp) validate the 256-VGPR per-wave reservation model, exhaustive single-register ordinary RAW/WAW/WAR behavior, source release, destination completion, multiple independent pending matrix destinations, and matrix read/write-port conflicts.
+
+[source/rtl/cgx1_matrix_wave_scoreboard.sv](../source/rtl/cgx1_matrix_wave_scoreboard.sv) and its integration testbench connect the scoreboard to the existing matrix pipeline controller events and simulate the same-wave ordinary issue decisions. The test does not implement an ordinary vector execution pipe or multi-wave scheduler.
+
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
 ## Remaining implementation work
@@ -394,7 +410,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - implement the 16 × 16 product/accumulator datapath and dual 8-bit paths;
-- integrate the implemented input/active operand staging with the arithmetic datapath; implement output-result staging and the general compute-unit scoreboard path for ordinary vector/scalar dependency interlocks;
+- integrate the implemented input/active operand staging with the arithmetic datapath; implement output-result staging; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;
 - measure timing, area, and power against the compute-unit budget;

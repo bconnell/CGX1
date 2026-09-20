@@ -124,7 +124,7 @@ The complete engineering document set is listed in the [Documentation Index](doc
 |---|---|---|
 | Engineering Specification | Card, package, silicon, memory, power, display, media, reliability | [Open](docs/ENGINEERING_SPEC.md) |
 | ISA and Execution Model | Wave model, registers, instruction classes, memory ordering and faults | [Open](docs/ISA.md) |
-| Matrix Engine Architecture | Numeric contract, physical tile shapes, wave32 fragment mapping, ISA opcodes, banking, dependency control, pipeline timing, and dense rate targets | [Open](docs/MATRIX_ENGINE.md) |
+| Matrix Engine Architecture | Numeric contract, physical tile shapes, wave32 fragment mapping, ISA opcodes, banking, operand staging, per-wave scoreboard, pipeline timing, and dense rate targets | [Open](docs/MATRIX_ENGINE.md) |
 | Graphics Pipeline | Multi-tile geometry, raster, ownership, depth and presentation flow | [Open](docs/GRAPHICS_PIPELINE.md) |
 | Texture and Compression | Sampler organization and lossless surface compression | [Open](docs/TEXTURE_COMPRESSION.md) |
 | Chiplet Fabric | Tile links, coherence, bandwidth budget, reliability and QoS | [Open](docs/CHIPLET_FABRIC.md) |

@@ -68,6 +68,10 @@ The matrix-pipeline executable test verifies that one wave32 VGPR transfer is 1,
 
 The matrix-banking executable test verifies eight modulo-8 bank classes, A base class 0, distinct B base class 4, exact A/B alias broadcast, C/D bank separation, and exhaustively checks every valid destination/A/B base-register combination for capture-cycle conflicts under a single-matrix-access-per-bank-class rule.
 
+The matrix-staging executable test verifies the 2,048-byte capture set, separate 2,048-byte active execution operand set, ordered eight-cycle capture, cycle-7 commit, and preservation of the active set while the next capture is incomplete.
+
+The matrix-scoreboard executable test verifies a 256-VGPR per-wave reservation state, all single-register ordinary RAW/WAW/WAR outcomes across the full register namespace, source release, destination completion, multiple independent pending destinations, exact A/B alias handling, and read/write-port conflict reporting. The RTL integration test additionally changes the live issue register inputs after acceptance and verifies that scoreboard state is created from the controller-latched accepted bases.
+
 The matrix-staging executable test verifies 2,048-byte capture and active operand sets, cycle-7 commit, sequential capture ordering, a 1,024-byte logical output-slot requirement, and preservation of active operands while the next capture buffer is overwritten.
 
 These references validate the architecture contract, logical register-interface schedule, and bank-class conflict rules. They do not validate physical VGPR macros, matrix RTL, timing closure, area/power characterization, compiler integration, or measured performance.

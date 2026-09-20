@@ -11,6 +11,9 @@ module cgx1_matrix_pipeline_control (
     output logic       issue_legal,
     output logic       issue_dependency_hazard,
     output logic       issue_accepted,
+    output logic [7:0] issue_accepted_d_base,
+    output logic [7:0] issue_accepted_a_base,
+    output logic [7:0] issue_accepted_b_base,
     output logic       illegal_issue,
 
     input  logic [3:0] issue_opcode,
@@ -182,6 +185,10 @@ module cgx1_matrix_pipeline_control (
         issue_ready = issue_structural_ready && !issue_dependency_hazard;
         issue_fire = issue_valid && issue_ready && issue_legal;
         invalid_fire = issue_valid && issue_structural_ready && !issue_legal;
+
+        issue_accepted_d_base = decode_d_q;
+        issue_accepted_a_base = decode_a_q;
+        issue_accepted_b_base = decode_b_q;
 
         decode_active = decode_valid_q;
         capture_active = capture_valid_q;

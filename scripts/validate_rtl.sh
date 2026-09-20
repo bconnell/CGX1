@@ -37,4 +37,17 @@ iverilog \
 echo "==> Run matrix operand staging RTL"
 vvp build/rtl/cgx1_matrix_operand_staging_tb.vvp
 
+echo "==> Compile per-wave matrix scoreboard RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_matrix_wave_scoreboard_tb \
+    -o build/rtl/cgx1_matrix_wave_scoreboard_tb.vvp \
+    source/rtl/cgx1_matrix_pipeline_control.sv \
+    source/rtl/cgx1_matrix_wave_scoreboard.sv \
+    source/rtl/tests/cgx1_matrix_wave_scoreboard_tb.sv
+
+echo "==> Run per-wave matrix scoreboard RTL"
+vvp build/rtl/cgx1_matrix_wave_scoreboard_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

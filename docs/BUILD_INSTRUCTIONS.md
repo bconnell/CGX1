@@ -14,7 +14,7 @@ Define and verify:
 - command processor and queue ABI against [Scheduling and Preemption](SCHEDULING_PREEMPTION.md);
 - PCIe BAR and address translation behavior against [Virtual Memory](VIRTUAL_MEMORY.md);
 - shader execution against [ISA and Execution Model](ISA.md);
-- matrix numeric behavior, tile shape, wave32 fragment mapping, register contract, capture/writeback schedule, modulo-8 bank-class placement, capture/active operand staging, Matrix opcodes, reduction order, issue interval, and latency against [Matrix Engine Architecture](MATRIX_ENGINE.md);
+- matrix numeric behavior, tile shape, wave32 fragment mapping, register contract, capture/writeback schedule, modulo-8 bank-class placement, capture/active operand staging, output-result staging, per-wave scoreboard behavior, Matrix opcodes, reduction order, issue interval, and latency against [Matrix Engine Architecture](MATRIX_ENGINE.md);
 - raster/texture/back-end behavior against [Graphics Pipeline](GRAPHICS_PIPELINE.md) and [Texture and Compression](TEXTURE_COMPRESSION.md);
 - display and media block interfaces;
 - firmware mailbox and telemetry registers;
@@ -31,7 +31,7 @@ Define and verify:
 7. Add formal properties for deadlock freedom, coherence invariants, privilege boundaries, reset behavior, power sequencing, and fault containment.
 8. Run compute, shader, memory, and command processor conformance workloads against pre silicon models.
 
-The public SystemVerilog directory contains limited control RTL for board power state behavior and matrix pipeline scheduling. It is not full GPU RTL. Run `./scripts/validate_rtl.sh` with Icarus Verilog installed to execute the current matrix control testbench.
+The public SystemVerilog directory contains limited control/storage RTL for board power state behavior, matrix pipeline scheduling, matrix staging, and per-wave VGPR hazard tracking. It is not full GPU RTL. Run `./scripts/validate_rtl.sh` with Icarus Verilog installed to execute the current matrix control testbench.
 
 ## 3. Physical design
 

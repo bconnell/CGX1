@@ -23,6 +23,7 @@ module cgx1_matrix_pipeline_control_tb;
     logic [2:0] capture_cycle_index;
     logic execute_active;
     logic writeback_active;
+    logic [2:0] writeback_cycle_index;
     logic rf_read_valid;
     logic [7:0] rf_read_addr0;
     logic [7:0] rf_read_addr1;
@@ -61,6 +62,7 @@ module cgx1_matrix_pipeline_control_tb;
         .capture_cycle_index(capture_cycle_index),
         .execute_active(execute_active),
         .writeback_active(writeback_active),
+        .writeback_cycle_index(writeback_cycle_index),
         .rf_read_valid(rf_read_valid),
         .rf_read_addr0(rf_read_addr0),
         .rf_read_addr1(rf_read_addr1),
@@ -243,6 +245,15 @@ module cgx1_matrix_pipeline_control_tb;
 
                 if (rf_write_addr !== (8'd32 + i)) begin
                     $fatal(1, "writeback address mismatch at cycle %0d", i);
+                end
+
+                if (writeback_cycle_index !== i[2:0]) begin
+                    $fatal(
+                        1,
+                        "writeback cycle index mismatch: got %0d expected %0d",
+                        writeback_cycle_index,
+                        i
+                    );
                 end
 
                 if ((i == 7) != destination_complete_valid) begin

@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -487,7 +487,9 @@
       "timing_closure_validated": false,
       "operand_staging_rtl_implemented": true,
       "physical_staging_storage_validated": false,
-      "accepted_register_bases_exposed": true
+      "accepted_register_bases_exposed": true,
+      "writeback_cycle_index_exposed": true,
+      "output_result_staging_rtl_implemented": true
     },
     "staging_storage": {
       "capture_buffer_bytes": 2048,
@@ -499,8 +501,13 @@
       "capture_cycle_index_exposed_by_control_rtl": true,
       "capture_buffer_rtl_implemented": true,
       "active_execution_operand_rtl_implemented": true,
-      "output_result_staging_rtl_implemented": false,
-      "physical_macro_selection_frozen": false
+      "output_result_staging_rtl_implemented": true,
+      "physical_macro_selection_frozen": false,
+      "result_writeback_order_enforced": true,
+      "result_slot_overwrite_rejected": true,
+      "result_slot_release_writeback_cycle": 7,
+      "writeback_cycle_index_exposed_by_control_rtl": true,
+      "result_source_arithmetic_datapath_integrated": false
     },
     "wave_vgpr_scoreboard": {
       "status": "per-wave VGPR hazard and matrix-port conflict logic implemented in executable reference and RTL; multi-wave CU integration remains open",

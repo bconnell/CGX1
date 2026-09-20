@@ -208,6 +208,7 @@ Require-Literal "source/matrix/cgx1_matrix_pipeline.hpp" "kWaveRegisterBits ="
 Require-Literal "source/matrix/cgx1_matrix_staging.hpp" "kMatrixActiveExecutionOperandBytes ="
 Require-Literal "source/matrix/cgx1_matrix_staging.hpp" "kMatrixLogicalPipelineStorageBytesPerEngine ="
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [2:0] capture_cycle_index,"
+Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [2:0] writeback_cycle_index,"
 Require-Literal "source/rtl/cgx1_matrix_operand_staging.sv" "output logic [4095:0] active_a_words,"
 Require-Literal "source/rtl/cgx1_matrix_operand_staging.sv" "output logic [8191:0] active_c_words"
 Require-Literal "source/matrix/cgx1_matrix_scoreboard.hpp" "kMatrixScoreboardRegisterCount = 256U;"
@@ -217,6 +218,8 @@ Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "input  logic [7:0] 
 Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "input  logic [7:0]   matrix_accepted_b_base,"
 Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "input  logic [255:0] ordinary_read_mask,"
 Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "output logic         ordinary_ready,"
+Require-Literal "source/matrix/cgx1_matrix_result_staging.hpp" "struct MatrixResultStagingState"
+Require-Literal "source/rtl/cgx1_matrix_result_staging.sv" "output logic [1023:0] rf_write_data"
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
@@ -236,8 +239,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 11) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 11 for the per-wave matrix scoreboard contract"
+if ([int]$architecture.schema_version -ne 12) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 12 for the matrix output-result staging contract"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -377,7 +380,9 @@ if ([bool]$architecture.matrix_engine.wave_vgpr_scoreboard.ordinary_issue_pipeli
 }
 if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.implemented -or
     -not [bool]$architecture.matrix_engine.pipeline_control_rtl.simulation_exercised -or
-    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.operand_staging_rtl_implemented) {
+    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.operand_staging_rtl_implemented -or
+    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.output_result_staging_rtl_implemented -or
+    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.writeback_cycle_index_exposed) {
     Add-Finding "design/cgx1_architecture.json: matrix control/staging RTL implementation and simulation status must remain enabled"
 }
 if ([bool]$architecture.matrix_engine.pipeline_control_rtl.arithmetic_datapath_implemented -or
@@ -404,9 +409,20 @@ if ([int]$architecture.matrix_engine.staging_storage.active_commit_capture_cycle
     -not [bool]$architecture.matrix_engine.staging_storage.active_execution_operand_rtl_implemented) {
     Add-Finding "design/cgx1_architecture.json: matrix capture-to-active staging RTL contract is incomplete"
 }
-if ([bool]$architecture.matrix_engine.staging_storage.output_result_staging_rtl_implemented -or
-    [bool]$architecture.matrix_engine.staging_storage.physical_macro_selection_frozen) {
-    Add-Finding "design/cgx1_architecture.json: matrix output staging or physical storage macro must remain unclaimed"
+if (-not [bool]$architecture.matrix_engine.staging_storage.output_result_staging_rtl_implemented) {
+    Add-Finding "design/cgx1_architecture.json: matrix output-result staging RTL must remain implemented"
+}
+if (-not [bool]$architecture.matrix_engine.staging_storage.result_writeback_order_enforced -or
+    -not [bool]$architecture.matrix_engine.staging_storage.result_slot_overwrite_rejected -or
+    [int]$architecture.matrix_engine.staging_storage.result_slot_release_writeback_cycle -ne 7 -or
+    -not [bool]$architecture.matrix_engine.staging_storage.writeback_cycle_index_exposed_by_control_rtl) {
+    Add-Finding "design/cgx1_architecture.json: matrix output-result staging order/release contract is incomplete"
+}
+if ([bool]$architecture.matrix_engine.staging_storage.result_source_arithmetic_datapath_integrated) {
+    Add-Finding "design/cgx1_architecture.json: matrix arithmetic result source integration must remain unclaimed"
+}
+if ([bool]$architecture.matrix_engine.staging_storage.physical_macro_selection_frozen) {
+    Add-Finding "design/cgx1_architecture.json: matrix physical storage macro must remain unclaimed"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

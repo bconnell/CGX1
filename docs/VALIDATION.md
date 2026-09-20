@@ -70,6 +70,8 @@ The matrix-banking executable test verifies eight modulo-8 bank classes, A base 
 
 The matrix-staging executable test verifies the 2,048-byte capture set, separate 2,048-byte active execution operand set, ordered eight-cycle capture, cycle-7 commit, and preservation of the active set while the next capture is incomplete.
 
+The matrix-result-staging executable test verifies the 1,024-byte eight-register result slot, rejection of a second load while occupied, ordered writeback cycles 0 through 7, release after the final cycle, and safe slot reuse.
+
 The matrix-scoreboard executable test verifies a 256-VGPR per-wave reservation state, all single-register ordinary RAW/WAW/WAR outcomes across the full register namespace, source release, destination completion, multiple independent pending destinations, exact A/B alias handling, and read/write-port conflict reporting. The RTL integration test additionally changes the live issue register inputs after acceptance and verifies that scoreboard state is created from the controller-latched accepted bases.
 
 The matrix-staging executable test verifies 2,048-byte capture and active operand sets, cycle-7 commit, sequential capture ordering, a 1,024-byte logical output-slot requirement, and preservation of active operands while the next capture buffer is overwritten.

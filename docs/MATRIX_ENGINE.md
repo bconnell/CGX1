@@ -210,7 +210,9 @@ The logical per-engine pipeline storage target is:
 | **Logical total per engine** | **5,120** |
 | **Logical total per CU, four engines** | **20,480** |
 
-The output result slot remains a logical pipeline requirement in this phase; output staging RTL is not yet implemented. The reference operand-staging RTL implements the capture buffer and active-execution operand set using synthesizable registers. This does not select or validate physical SRAM/register-file macros, routing, timing, area, or power.
+The 1,024-byte output result slot now has an executable reference model and synthesizable staging RTL. It accepts one completed eight-register wave result set, presents one 1,024-bit wave register per writeback cycle in offsets 0 through 7, rejects overwrite while occupied, and releases the slot after writeback cycle 7. The matrix pipeline controller exposes the authoritative writeback-cycle index used by this contract.
+
+The input/active and output staging blocks use synthesizable registers as reference implementations. They do not select or validate physical SRAM/register-file macros, routing, timing, area, or power. The arithmetic datapath that produces the completed result set is still not implemented.
 
 The matrix pipeline controller exposes its capture-cycle index so the staging block receives the same authoritative cycle position used for register-address generation.
 
@@ -401,6 +403,10 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/rtl/cgx1_matrix_wave_scoreboard.sv](../source/rtl/cgx1_matrix_wave_scoreboard.sv) and its integration testbench connect the scoreboard to the existing matrix pipeline controller events and simulate the same-wave ordinary issue decisions. The test does not implement an ordinary vector execution pipe or multi-wave scheduler.
 
+[source/matrix/cgx1_matrix_result_staging.hpp](../source/matrix/cgx1_matrix_result_staging.hpp) and [source/matrix/result_staging_tests.cpp](../source/matrix/result_staging_tests.cpp) validate the 1,024-byte output slot, occupied-slot rejection, ordered writeback consumption, cycle-7 release, and reuse after drain.
+
+[source/rtl/cgx1_matrix_result_staging.sv](../source/rtl/cgx1_matrix_result_staging.sv) and its SystemVerilog testbench implement and simulate the same eight-register result slot and ordered writeback data selection. Result generation remains outside this block.
+
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
 ## Remaining implementation work
@@ -410,7 +416,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - implement the 16 × 16 product/accumulator datapath and dual 8-bit paths;
-- integrate the implemented input/active operand staging with the arithmetic datapath; implement output-result staging; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
+- integrate the implemented input/active and output-result staging with the arithmetic datapath; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;
 - measure timing, area, and power against the compute-unit budget;

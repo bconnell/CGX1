@@ -62,9 +62,9 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- integrate the validated matrix control, input/active staging, output-result staging, and per-wave scoreboard RTL with arithmetic execution against the frozen tile, fragment, register, opcode, reduction-order, and issue-interval contracts;
+- integrate the validated matrix control, staging, per-wave scoreboard, and signed INT8 arithmetic RTL against the frozen tile, fragment, register, opcode, reduction-order, and issue-interval contracts;
 - implement physical VGPR storage/macros for the validated eight bank classes and two-read/one-write whole-wave schedule, plus the fixed lane/register-offset delivery network into matrix staging;
-- connect the per-wave scoreboard to ordinary vector issue and resident-wave identity/arbitration; implement arithmetic RTL, timing, area, and power validation; revise the timing target if physical evidence cannot close it;
+- implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics; connect the per-wave scoreboard to ordinary vector issue and resident-wave identity/arbitration; integrate INT8 results with output staging; validate timing, area, and power; revise timing targets if physical evidence cannot close them;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;
 - characterize finer-than-workgroup preemption cost before adding it to the baseline;
 - characterize real per-tile V/F curves, leakage, transition latency, and controller hysteresis;

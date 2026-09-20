@@ -22,6 +22,7 @@ module cgx1_matrix_pipeline_control_tb;
     logic capture_active;
     logic [2:0] capture_cycle_index;
     logic execute_active;
+    logic [4:0] execute_cycle_index;
     logic writeback_active;
     logic [2:0] writeback_cycle_index;
     logic rf_read_valid;
@@ -61,6 +62,7 @@ module cgx1_matrix_pipeline_control_tb;
         .capture_active(capture_active),
         .capture_cycle_index(capture_cycle_index),
         .execute_active(execute_active),
+        .execute_cycle_index(execute_cycle_index),
         .writeback_active(writeback_active),
         .writeback_cycle_index(writeback_cycle_index),
         .rf_read_valid(rf_read_valid),
@@ -232,6 +234,15 @@ module cgx1_matrix_pipeline_control_tb;
                 #1;
                 if (!execute_active || rf_read_valid || rf_write_valid) begin
                     $fatal(1, "execute stage timing mismatch at cycle %0d", i);
+                end
+
+                if (execute_cycle_index !== i[4:0]) begin
+                    $fatal(
+                        1,
+                        "execute cycle index mismatch: got %0d expected %0d",
+                        execute_cycle_index,
+                        i
+                    );
                 end
             end
 

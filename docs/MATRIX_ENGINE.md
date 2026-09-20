@@ -276,6 +276,22 @@ This fixes the reduction order for one CGX 1 matrix instruction. It does not req
 
 INT8 uses the same even-K and odd-K split, with signed INT32 accumulation. Each product is exact in INT32. Each chain and the final combine use two's-complement modulo `2^32` arithmetic.
 
+### INT8 execution RTL
+
+The signed INT8 M16N16K32 path now has an executable reference implementation and a SystemVerilog arithmetic implementation.
+
+The implementation consumes the canonical 4-register A fragment, 4-register B fragment, and 8-register signed INT32 C fragment already defined by this architecture. Over the 16 execution cycles, each output processes two K terms per cycle:
+
+- the even-K chain starts from C;
+- the odd-K chain starts from zero;
+- both chains use exact signed 8 × 8 products represented in signed INT32;
+- all accumulator additions wrap modulo `2^32`;
+- execution cycle 15 combines the two chains modulo `2^32` and produces the canonical eight-register result fragment.
+
+The reference and RTL tests cover full-tile patterned data, signed extreme inputs, canonical fragment packing, execution-cycle ordering, result-valid timing, and explicit 32-bit wraparound.
+
+This is functional arithmetic RTL only. It does not establish achievable clock frequency, physical multiplier organization, area, power, or the 2.65/2.80 GHz clock targets. FP16, BF16, and FP8 arithmetic RTL remain unimplemented because their frozen contract requires FP32 fused multiply-add semantics; those paths will not be represented by a non-fused multiply/add substitute.
+
 ## Floating-point format behavior
 
 FP16 uses IEEE 754 binary16 representation and special-value behavior.
@@ -407,6 +423,10 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/rtl/cgx1_matrix_result_staging.sv](../source/rtl/cgx1_matrix_result_staging.sv) and its SystemVerilog testbench implement and simulate the same eight-register result slot and ordered writeback data selection. Result generation remains outside this block.
 
+[source/matrix/cgx1_matrix_int8_execution.hpp](../source/matrix/cgx1_matrix_int8_execution.hpp) and [source/matrix/int8_execution_tests.cpp](../source/matrix/int8_execution_tests.cpp) implement and validate the signed INT8 M16N16K32 execution contract, canonical operand/result mapping, 16-cycle even/odd reduction, and modulo-`2^32` behavior.
+
+[source/rtl/cgx1_matrix_int8_execution.sv](../source/rtl/cgx1_matrix_int8_execution.sv) and its SystemVerilog testbench implement the same functional INT8 arithmetic boundary. Until the exact revision passes the RTL simulation gate, the machine-readable architecture file records simulation evidence separately from implementation status.
+
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
 ## Remaining implementation work
@@ -415,7 +435,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
-- implement the 16 × 16 product/accumulator datapath and dual 8-bit paths;
+- complete FP16/BF16/FP8 arithmetic datapaths with the frozen FP32-FMA semantics; the signed INT8 arithmetic boundary is implemented functionally;
 - integrate the implemented input/active and output-result staging with the arithmetic datapath; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;

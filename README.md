@@ -93,7 +93,7 @@ The critical software-visible and multi-tile contracts are now defined rather th
 | Area | Current architecture decision | Document |
 |---|---|---|
 | Execution | Native wave32; four SIMD32 partitions per CU; 32-bit base ISA with extension word | [ISA](docs/ISA.md) |
-| Matrix engines | Four engines per CU; wave32; M16N16K16 FP16/BF16 and M16N16K32 FP8/INT8; fixed fragment map, 16-cycle issue target, bank-safe control RTL, input/output staging, and per-wave VGPR scoreboard | [Matrix Engine Architecture](docs/MATRIX_ENGINE.md) |
+| Matrix engines | Four engines per CU; wave32; M16N16K16 FP16/BF16 and M16N16K32 FP8/INT8; fixed fragment map, 16-cycle issue target, staging/scoreboard RTL, and signed INT8 arithmetic RTL | [Matrix Engine Architecture](docs/MATRIX_ENGINE.md) |
 | Graphics | One logical GPU; 16 raster partitions; dynamic 32 × 32 pixel macro-tile ownership | [Graphics Pipeline](docs/GRAPHICS_PIPELINE.md) |
 | Texture | 100 texture blocks; four bilinear samples/block/cycle arithmetic target | [Texture and Compression](docs/TEXTURE_COMPRESSION.md) |
 | Compression | Lossless 256-byte surface blocks; no guaranteed compression ratio | [Texture and Compression](docs/TEXTURE_COMPRESSION.md) |
@@ -147,7 +147,7 @@ The complete engineering document set is listed in the [Documentation Index](doc
 
 ## Build and test
 
-A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, matrix numeric, physical-architecture, register-interface, banking, input/output staging, and scoreboard tests, power-management policy tests, and firmware tests.
+A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, matrix numeric, physical-architecture, register-interface, banking, input/output staging, scoreboard, and INT8 arithmetic tests, power-management policy tests, and firmware tests.
 
 ```text
 cmake -S . -B build

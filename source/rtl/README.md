@@ -2,15 +2,16 @@
 
 [Documentation index](../../docs/README.md) · [Matrix engine architecture](../../docs/MATRIX_ENGINE.md) · [Electrical interface](../../docs/ELECTRICAL_INTERFACE.md) · [Validation](../../docs/VALIDATION.md)
 
-The public RTL currently contains five limited, separately testable boundaries:
+The public RTL currently contains six limited, separately testable boundaries:
 
 - `cgx1_top.sv` covers board power-state gating and compute-tile enable behavior.
 - `cgx1_matrix_pipeline_control.sv` covers matrix instruction legality, decode/capture/execute/writeback sequencing, VGPR address generation, source-release events, destination-complete events, 16-cycle reissue control, and matrix-to-matrix RAW/WAW interlocks against older pending destinations.
 - `cgx1_matrix_operand_staging.sv` implements the 2 KB capture buffer and separate 2 KB active-execution operand set, with commit on capture cycle 7.
 - `cgx1_matrix_wave_scoreboard.sv` tracks one wave's matrix source/destination VGPR reservations and reports ordinary-instruction RAW/WAW/WAR hazards plus matrix VGPR-port conflicts. Reservations use the pipeline controller's latched accepted register bases rather than live post-handshake issue inputs.
 - `cgx1_matrix_result_staging.sv` implements the 1 KB eight-register output-result slot and returns one 1,024-bit wave register for each ordered writeback cycle.
+- `cgx1_matrix_int8_execution.sv` implements the functional signed INT8 M16N16K32 arithmetic path over the frozen 16-cycle execution schedule.
 
-The matrix RTL does **not** implement FP16, BF16, FP8, or INT8 arithmetic. It also does not implement physical VGPR/storage macros, cross-lane arithmetic delivery wiring, resident-wave identity/arbitration, or an ordinary vector execution pipeline. The per-wave scoreboard logic exists, but it is not yet a complete multi-wave compute-unit scheduler.
+The matrix RTL implements signed INT8 arithmetic only. FP16, BF16, and FP8 arithmetic remain unimplemented because their contract requires FP32 fused multiply-add semantics. Physical VGPR/storage macros, physical arithmetic decomposition, resident-wave identity/arbitration, and an ordinary vector execution pipeline also remain open. The per-wave scoreboard logic exists, but it is not yet a complete multi-wave compute-unit scheduler.
 
 The matrix issue interface uses payload-dependent backpressure. The producer presents opcode and register bases with `issue_valid`; `issue_ready` may remain low while those presented registers depend on an older pending matrix destination. A dependency stall is not an illegal instruction, so `illegal_issue` remains reserved for malformed opcode, active-mask, or register-layout input.
 
@@ -21,6 +22,8 @@ The operand staging block is checked by `source/rtl/tests/cgx1_matrix_operand_st
 The per-wave scoreboard is checked by `source/rtl/tests/cgx1_matrix_wave_scoreboard_tb.sv`. That integration test wires the scoreboard to the matrix pipeline controller's reservation/release/completion events and verifies ordinary RAW/WAW/WAR decisions, capture read-port conflicts, writeback write-port conflicts, and safe unrelated accesses.
 
 The output-result staging block is checked by `source/rtl/tests/cgx1_matrix_result_staging_tb.sv`. That test verifies complete result loading, ordered eight-cycle writeback data selection, the final consumed pulse, slot release, and safe reuse.
+
+The signed INT8 arithmetic block is checked by `source/rtl/tests/cgx1_matrix_int8_execution_tb.sv`. The testbench covers canonical full-tile fragment mapping, patterned signed data, signed extremes, 16 execution cycles, cycle-15 result validity, and explicit modulo-`2^32` overflow. Its simulation-evidence status is recorded separately in the machine-readable architecture file.
 
 Run the RTL gate with:
 

@@ -209,6 +209,7 @@ Require-Literal "source/matrix/cgx1_matrix_staging.hpp" "kMatrixActiveExecutionO
 Require-Literal "source/matrix/cgx1_matrix_staging.hpp" "kMatrixLogicalPipelineStorageBytesPerEngine ="
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [2:0] capture_cycle_index,"
 Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [2:0] writeback_cycle_index,"
+Require-Literal "source/rtl/cgx1_matrix_pipeline_control.sv" "output logic [4:0] execute_cycle_index,"
 Require-Literal "source/rtl/cgx1_matrix_operand_staging.sv" "output logic [4095:0] active_a_words,"
 Require-Literal "source/rtl/cgx1_matrix_operand_staging.sv" "output logic [8191:0] active_c_words"
 Require-Literal "source/matrix/cgx1_matrix_scoreboard.hpp" "kMatrixScoreboardRegisterCount = 256U;"
@@ -220,6 +221,8 @@ Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "input  logic [255:0
 Require-Literal "source/rtl/cgx1_matrix_wave_scoreboard.sv" "output logic         ordinary_ready,"
 Require-Literal "source/matrix/cgx1_matrix_result_staging.hpp" "struct MatrixResultStagingState"
 Require-Literal "source/rtl/cgx1_matrix_result_staging.sv" "output logic [1023:0] rf_write_data"
+Require-Literal "source/matrix/cgx1_matrix_int8_execution.hpp" "struct MatrixInt8ExecutionState"
+Require-Literal "source/rtl/cgx1_matrix_int8_execution.sv" "module cgx1_matrix_int8_execution"
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
@@ -239,8 +242,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 12) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 12 for the matrix output-result staging contract"
+if ([int]$architecture.schema_version -ne 13) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 13 for the signed INT8 matrix arithmetic contract"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -423,6 +426,38 @@ if ([bool]$architecture.matrix_engine.staging_storage.result_source_arithmetic_d
 }
 if ([bool]$architecture.matrix_engine.staging_storage.physical_macro_selection_frozen) {
     Add-Finding "design/cgx1_architecture.json: matrix physical storage macro must remain unclaimed"
+}
+
+if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.execute_cycle_index_exposed) {
+    Add-Finding "design/cgx1_architecture.json: matrix execute-cycle index must remain exposed by control RTL"
+}
+if (-not [bool]$architecture.matrix_engine.arithmetic_rtl.int8_m16n16k32_implemented -or
+    -not [bool]$architecture.matrix_engine.arithmetic_rtl.int8_two_k_terms_per_cycle -or
+    [int]$architecture.matrix_engine.arithmetic_rtl.int8_execution_cycles -ne 16 -or
+    -not [bool]$architecture.matrix_engine.arithmetic_rtl.canonical_fragment_mapping_used -or
+    -not [bool]$architecture.matrix_engine.arithmetic_rtl.reference_model_implemented -or
+    -not [bool]$architecture.matrix_engine.arithmetic_rtl.rtl_implemented -or
+    -not [bool]$architecture.matrix_engine.arithmetic_rtl.rtl_testbench_implemented) {
+    Add-Finding "design/cgx1_architecture.json: signed INT8 matrix arithmetic implementation contract is incomplete"
+}
+if ([string]$architecture.matrix_engine.arithmetic_rtl.int8_accumulation -ne "two signed INT32 modulo-2^32 chains with even K initialized from C and odd K initialized from zero; final modulo-2^32 combine") {
+    Add-Finding "design/cgx1_architecture.json: signed INT8 matrix accumulation contract changed"
+}
+if ([string]$architecture.matrix_engine.arithmetic_rtl.result_word_format -ne "eight whole-wave signed INT32 result registers") {
+    Add-Finding "design/cgx1_architecture.json: signed INT8 matrix result format changed"
+}
+if ([bool]$architecture.matrix_engine.arithmetic_rtl.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: signed INT8 RTL simulation evidence must remain false until the exact published revision passes RTL CI"
+}
+if ([bool]$architecture.matrix_engine.arithmetic_rtl.fp16_rtl_implemented -or
+    [bool]$architecture.matrix_engine.arithmetic_rtl.bf16_rtl_implemented -or
+    [bool]$architecture.matrix_engine.arithmetic_rtl.fp8_rtl_implemented) {
+    Add-Finding "design/cgx1_architecture.json: floating matrix arithmetic must remain unimplemented until FP32-FMA RTL exists"
+}
+if ([bool]$architecture.matrix_engine.arithmetic_rtl.timing_closure_validated -or
+    [bool]$architecture.matrix_engine.arithmetic_rtl.area_validated -or
+    [bool]$architecture.matrix_engine.arithmetic_rtl.power_validated) {
+    Add-Finding "design/cgx1_architecture.json: INT8 arithmetic physical implementation evidence must remain unclaimed"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

@@ -72,6 +72,8 @@ The matrix-staging executable test verifies the 2,048-byte capture set, separate
 
 The matrix-result-staging executable test verifies the 1,024-byte eight-register result slot, rejection of a second load while occupied, ordered writeback cycles 0 through 7, release after the final cycle, and safe slot reuse.
 
+The matrix-INT8-execution executable test verifies M16N16K32 signed INT8 arithmetic over 16 execution cycles, canonical A/B/C/D fragment mapping, two K terms per output per cycle, the frozen even/odd signed INT32 reduction order, signed extreme inputs, and explicit modulo-`2^32` overflow.
+
 The matrix-scoreboard executable test verifies a 256-VGPR per-wave reservation state, all single-register ordinary RAW/WAW/WAR outcomes across the full register namespace, source release, destination completion, multiple independent pending destinations, exact A/B alias handling, and read/write-port conflict reporting. The RTL integration test additionally changes the live issue register inputs after acceptance and verifies that scoreboard state is created from the controller-latched accepted bases.
 
 The matrix-staging executable test verifies 2,048-byte capture and active operand sets, cycle-7 commit, sequential capture ordering, a 1,024-byte logical output-slot requirement, and preservation of active operands while the next capture buffer is overwritten.

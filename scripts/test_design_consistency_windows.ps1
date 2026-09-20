@@ -125,6 +125,19 @@ try {
         throw "Matrix output-result staging negative control did not report the expected invariant."
     }
 
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.matrix_engine.arithmetic_rtl.fp16_rtl_implemented = $true
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted unsupported floating matrix arithmetic RTL." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "floating matrix arithmetic must remain unimplemented") {
+        throw "Matrix INT8-only arithmetic negative control did not report the expected invariant."
+    }
+
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

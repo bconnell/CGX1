@@ -1,5 +1,5 @@
 {
-  "schema_version": 12,
+  "schema_version": 13,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -489,7 +489,8 @@
       "physical_staging_storage_validated": false,
       "accepted_register_bases_exposed": true,
       "writeback_cycle_index_exposed": true,
-      "output_result_staging_rtl_implemented": true
+      "output_result_staging_rtl_implemented": true,
+      "execute_cycle_index_exposed": true
     },
     "staging_storage": {
       "capture_buffer_bytes": 2048,
@@ -529,6 +530,25 @@
       "multi_wave_storage_organization_frozen": false,
       "accepted_register_bases_latched_by_pipeline_control": true,
       "reservation_event_source": "registered issue acceptance with controller-latched D/A/B bases"
+    },
+    "arithmetic_rtl": {
+      "status": "signed INT8 matrix execution implemented in executable reference and RTL; floating matrix arithmetic remains unimplemented",
+      "int8_m16n16k32_implemented": true,
+      "int8_two_k_terms_per_cycle": true,
+      "int8_execution_cycles": 16,
+      "int8_accumulation": "two signed INT32 modulo-2^32 chains with even K initialized from C and odd K initialized from zero; final modulo-2^32 combine",
+      "canonical_fragment_mapping_used": true,
+      "result_word_format": "eight whole-wave signed INT32 result registers",
+      "reference_model_implemented": true,
+      "rtl_implemented": true,
+      "rtl_testbench_implemented": true,
+      "simulation_exercised": false,
+      "fp16_rtl_implemented": false,
+      "bf16_rtl_implemented": false,
+      "fp8_rtl_implemented": false,
+      "timing_closure_validated": false,
+      "area_validated": false,
+      "power_validated": false
     }
   }
 }

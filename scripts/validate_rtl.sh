@@ -62,4 +62,16 @@ iverilog \
 echo "==> Run matrix output-result staging RTL"
 vvp build/rtl/cgx1_matrix_result_staging_tb.vvp
 
+echo "==> Compile matrix INT8 execution RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_matrix_int8_execution_tb \
+    -o build/rtl/cgx1_matrix_int8_execution_tb.vvp \
+    source/rtl/cgx1_matrix_int8_execution.sv \
+    source/rtl/tests/cgx1_matrix_int8_execution_tb.sv
+
+echo "==> Run matrix INT8 execution RTL"
+vvp build/rtl/cgx1_matrix_int8_execution_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

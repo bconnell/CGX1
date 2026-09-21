@@ -268,6 +268,28 @@ module cgx1_matrix_int8_resident_engine_tb;
             $fatal(1, "resident-wave round-robin acceptance order mismatch");
         end
 
+        // During wave 1's pending D64 window, only wave 1 sees the RAW hazard.
+        timeout = 0;
+        while (!resident_wave_busy[1] || rf_read_valid || rf_write_valid) begin
+            @(negedge clk);
+            #1;
+            timeout = timeout + 1;
+            if (timeout > 24) begin
+                $fatal(1, "did not reach wave 1 execute window");
+            end
+        end
+        set_one_read(1, 64);
+        #1;
+        if (!ordinary_raw_hazard || ordinary_ready) begin
+            $fatal(1, "wave 1 pending destination was not enforced");
+        end
+        set_one_read(0, 64);
+        #1;
+        if (ordinary_raw_hazard || !ordinary_ready) begin
+            $fatal(1, "wave 0 falsely inherited wave 1 destination state");
+        end
+        clear_ordinary();
+
         // Queue a same-wave dependency on wave 0's still-pending D32.
         set_request(0, 1'b1, 8'd96, 8'd32, 8'd36);
         matrix_request_valid[0] = 1'b1;
@@ -292,28 +314,6 @@ module cgx1_matrix_int8_resident_engine_tb;
         #1;
         @(negedge clk);
         matrix_request_valid[0] = 1'b0;
-
-        // During wave 1's pending D64 window, only wave 1 sees the RAW hazard.
-        timeout = 0;
-        while (!resident_wave_busy[1] || rf_read_valid || rf_write_valid) begin
-            @(negedge clk);
-            #1;
-            timeout = timeout + 1;
-            if (timeout > 24) begin
-                $fatal(1, "did not reach wave 1 execute window");
-            end
-        end
-        set_one_read(1, 64);
-        #1;
-        if (!ordinary_raw_hazard || ordinary_ready) begin
-            $fatal(1, "wave 1 pending destination was not enforced");
-        end
-        set_one_read(0, 64);
-        #1;
-        if (ordinary_raw_hazard || !ordinary_ready) begin
-            $fatal(1, "wave 0 falsely inherited wave 1 destination state");
-        end
-        clear_ordinary();
 
         timeout = 0;
         while (|resident_wave_busy) begin

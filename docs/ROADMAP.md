@@ -62,9 +62,9 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- connect the parameterized resident-wave signed INT8 boundary to physical resident-wave VGPR storage and the ordinary vector execution datapath while preserving the frozen tile, fragment, register, opcode, reduction-order, and issue-interval contracts;
-- implement physical VGPR storage/macros for the validated eight bank classes and two-read/one-write whole-wave schedule, plus the fixed lane/register-offset delivery network into matrix staging;
-- implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics; complete physical resident-wave storage and ordinary vector execution integration; validate timing, area, and power; revise timing targets if physical evidence cannot close them;
+- implement pooled resident-wave VGPR allocation RTL from the executable [VGPR pool reference](VGPR_POOL.md), including Reserved-to-Active validity invalidation, row/bank translation, and allocation-range enforcement without freezing resident-wave occupancy prematurely;
+- connect pooled banked storage to the resident-wave matrix capture/writeback path, then implement the ordinary vector execution datapath and shared VGPR access arbitration while preserving matrix hazard and port-ownership rules;
+- select implementation storage macros for the validated eight-bank organization, implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics, and validate timing, area, and power; revise timing targets if physical evidence cannot close them;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;
 - characterize finer-than-workgroup preemption cost before adding it to the baseline;
 - characterize real per-tile V/F curves, leakage, transition latency, and controller hysteresis;

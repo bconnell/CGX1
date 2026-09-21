@@ -140,4 +140,112 @@ iverilog \
 echo "==> Run resident-wave signed INT8 matrix-engine RTL"
 vvp build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp
 
+
+echo "==> Compile privileged pooled VGPR restore mapping RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_pooled_vgpr_restore_mapper_tb \
+    -o build/rtl/cgx1_pooled_vgpr_restore_mapper_tb.vvp \
+    source/rtl/cgx1_pooled_vgpr_restore_mapper.sv \
+    source/rtl/tests/cgx1_pooled_vgpr_restore_mapper_tb.sv
+echo "==> Run privileged pooled VGPR restore mapping RTL"
+vvp build/rtl/cgx1_pooled_vgpr_restore_mapper_tb.vvp
+
+echo "==> Compile pooled matrix VGPR preflight RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_matrix_vgpr_preflight_tb \
+    -o build/rtl/cgx1_matrix_vgpr_preflight_tb.vvp \
+    source/rtl/cgx1_matrix_vgpr_allocation_guard.sv \
+    source/rtl/cgx1_matrix_vgpr_preflight.sv \
+    source/rtl/tests/cgx1_matrix_vgpr_preflight_tb.sv
+echo "==> Run pooled matrix VGPR preflight RTL"
+vvp build/rtl/cgx1_matrix_vgpr_preflight_tb.vvp
+
+echo "==> Compile pooled resident-wave VGPR allocator RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_resident_wave_vgpr_allocator_tb \
+    -o build/rtl/cgx1_resident_wave_vgpr_allocator_tb.vvp \
+    source/rtl/cgx1_pooled_vgpr_mapper.sv \
+    source/rtl/cgx1_matrix_vgpr_allocation_guard.sv \
+    source/rtl/cgx1_resident_wave_vgpr_allocator.sv \
+    source/rtl/tests/cgx1_resident_wave_vgpr_allocator_tb.sv
+echo "==> Run pooled resident-wave VGPR allocator RTL"
+vvp build/rtl/cgx1_resident_wave_vgpr_allocator_tb.vvp
+
+echo "==> Compile pooled VGPR storage RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_pooled_vgpr_storage_tb \
+    -o build/rtl/cgx1_pooled_vgpr_storage_tb.vvp \
+    source/rtl/cgx1_pooled_vgpr_storage.sv \
+    source/rtl/tests/cgx1_pooled_vgpr_storage_tb.sv
+echo "==> Run pooled VGPR storage RTL"
+vvp build/rtl/cgx1_pooled_vgpr_storage_tb.vvp
+
+echo "==> Compile pooled matrix VGPR frontend RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_matrix_pooled_vgpr_frontend_tb \
+    -o build/rtl/cgx1_matrix_pooled_vgpr_frontend_tb.vvp \
+    source/rtl/cgx1_pooled_vgpr_mapper.sv \
+    source/rtl/cgx1_matrix_vgpr_allocation_guard.sv \
+    source/rtl/cgx1_matrix_vgpr_preflight.sv \
+    source/rtl/cgx1_matrix_pooled_vgpr_frontend.sv \
+    source/rtl/tests/cgx1_matrix_pooled_vgpr_frontend_tb.sv
+echo "==> Run pooled matrix VGPR frontend RTL"
+vvp build/rtl/cgx1_matrix_pooled_vgpr_frontend_tb.vvp
+
+echo "==> Compile pooled VGPR matrix subsystem RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_pooled_vgpr_matrix_subsystem_tb \
+    -o build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp \
+    source/rtl/cgx1_pooled_vgpr_mapper.sv \
+    source/rtl/cgx1_pooled_vgpr_restore_mapper.sv \
+    source/rtl/cgx1_matrix_vgpr_allocation_guard.sv \
+    source/rtl/cgx1_matrix_vgpr_preflight.sv \
+    source/rtl/cgx1_matrix_request_preflight_array.sv \
+    source/rtl/cgx1_resident_wave_vgpr_allocator.sv \
+    source/rtl/cgx1_pooled_vgpr_storage.sv \
+    source/rtl/cgx1_pooled_vgpr_matrix_subsystem.sv \
+    source/rtl/tests/cgx1_pooled_vgpr_matrix_subsystem_tb.sv
+echo "==> Run pooled VGPR matrix subsystem RTL"
+vvp build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp
+
+echo "==> Compile pooled resident-wave INT8 integration RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_matrix_int8_pooled_resident_engine_tb \
+    -o build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp \
+    source/rtl/cgx1_matrix_pipeline_control.sv \
+    source/rtl/cgx1_matrix_operand_staging.sv \
+    source/rtl/cgx1_matrix_int8_execution.sv \
+    source/rtl/cgx1_matrix_result_staging.sv \
+    source/rtl/cgx1_matrix_int8_path.sv \
+    source/rtl/cgx1_matrix_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_arbiter.sv \
+    source/rtl/cgx1_matrix_int8_resident_engine.sv \
+    source/rtl/cgx1_pooled_vgpr_mapper.sv \
+    source/rtl/cgx1_pooled_vgpr_restore_mapper.sv \
+    source/rtl/cgx1_matrix_vgpr_allocation_guard.sv \
+    source/rtl/cgx1_matrix_vgpr_preflight.sv \
+    source/rtl/cgx1_matrix_request_preflight_array.sv \
+    source/rtl/cgx1_resident_wave_vgpr_allocator.sv \
+    source/rtl/cgx1_pooled_vgpr_storage.sv \
+    source/rtl/cgx1_pooled_vgpr_matrix_subsystem.sv \
+    source/rtl/cgx1_matrix_int8_pooled_resident_engine.sv \
+    source/rtl/tests/cgx1_matrix_int8_pooled_resident_engine_tb.sv
+echo "==> Run pooled resident-wave INT8 integration RTL"
+vvp build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

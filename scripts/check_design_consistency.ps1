@@ -254,8 +254,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 17) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 17 for the resident-wave VGPR storage boundary"
+if ([int]$architecture.schema_version -ne 18) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 18 for the pooled resident-wave VGPR RTL boundary"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -578,14 +578,54 @@ if (-not [bool]$architecture.matrix_engine.vgpr_storage_rtl.implemented -or
     -not [bool]$architecture.matrix_engine.vgpr_storage_rtl.rtl_testbench_implemented) {
     Add-Finding "design/cgx1_architecture.json: resident-wave VGPR storage RTL contract is incomplete"
 }
-if ([bool]$architecture.matrix_engine.vgpr_storage_rtl.simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: resident-wave VGPR storage simulation evidence must remain false until exact-revision RTL CI passes"
+if (-not [bool]$architecture.matrix_engine.vgpr_storage_rtl.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave VGPR storage simulation evidence must remain recorded after its exact-revision RTL CI pass"
 }
 if ([bool]$architecture.matrix_engine.vgpr_storage_rtl.physical_macro_selected -or
     [bool]$architecture.matrix_engine.vgpr_storage_rtl.timing_closure_validated -or
     [bool]$architecture.matrix_engine.vgpr_storage_rtl.area_validated -or
     [bool]$architecture.matrix_engine.vgpr_storage_rtl.power_validated) {
     Add-Finding "design/cgx1_architecture.json: VGPR storage RTL must not claim foundry macro, timing, area, or power validation"
+}
+
+
+Require-Literal "source/rtl/cgx1_pooled_vgpr_mapper.sv" "module cgx1_pooled_vgpr_mapper"
+Require-Literal "source/rtl/cgx1_resident_wave_vgpr_allocator.sv" "module cgx1_resident_wave_vgpr_allocator"
+Require-Literal "source/rtl/cgx1_pooled_vgpr_storage.sv" "module cgx1_pooled_vgpr_storage"
+Require-Literal "source/rtl/cgx1_matrix_request_preflight_array.sv" "module cgx1_matrix_request_preflight_array"
+Require-Literal "source/rtl/cgx1_pooled_vgpr_matrix_subsystem.sv" "module cgx1_pooled_vgpr_matrix_subsystem"
+Require-Literal "source/rtl/cgx1_matrix_int8_pooled_resident_engine.sv" "module cgx1_matrix_int8_pooled_resident_engine"
+
+if (-not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.implemented -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.exact_register_count_enforced -or
+    [int]$architecture.matrix_engine.pooled_vgpr_rtl.physical_row_register_granularity -ne 8 -or
+    [int]$architecture.matrix_engine.pooled_vgpr_rtl.bank_classes -ne 8 -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.resident_wave_slot_count_parameterized -or
+    [bool]$architecture.matrix_engine.pooled_vgpr_rtl.resident_wave_slot_count_frozen -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.physical_row_capacity_parameterized -or
+    [bool]$architecture.matrix_engine.pooled_vgpr_rtl.physical_row_capacity_frozen -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.serialized_validity_invalidation -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.round_robin_invalidation_selection -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.privileged_reserved_restore -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.active_release_requires_quiescence -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.resident_matrix_busy_blocks_release -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.same_wave_restore_blocks_activation -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.runtime_preflight_preserves_controller_illegal_authority -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.matrix_capture_connected -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.matrix_writeback_connected -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.resident_int8_engine_connected -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.rtl_testbenches_implemented) {
+    Add-Finding "design/cgx1_architecture.json: pooled resident-wave VGPR RTL contract is incomplete"
+}
+if ([bool]$architecture.matrix_engine.pooled_vgpr_rtl.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: pooled resident-wave VGPR simulation evidence must remain false until the exact published revision passes RTL CI"
+}
+if ([bool]$architecture.matrix_engine.pooled_vgpr_rtl.ordinary_vector_execution_datapath_integrated -or
+    [bool]$architecture.matrix_engine.pooled_vgpr_rtl.physical_macro_selected -or
+    [bool]$architecture.matrix_engine.pooled_vgpr_rtl.timing_closure_validated -or
+    [bool]$architecture.matrix_engine.pooled_vgpr_rtl.area_validated -or
+    [bool]$architecture.matrix_engine.pooled_vgpr_rtl.power_validated) {
+    Add-Finding "design/cgx1_architecture.json: pooled VGPR RTL must not claim unfinished vector or physical implementation evidence"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

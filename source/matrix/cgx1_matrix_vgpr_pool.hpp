@@ -574,7 +574,81 @@ public:
         std::uint8_t sourceABase,
         std::uint8_t sourceBBase) const
     {
-        if (!storage.MatrixPreflight(
+        if (!pool.MatrixFragmentsFit(
+                waveSlot,
+                destinationBase,
+                sourceABase,
+                sourceBBase))
+        {
+            return false;
+        }
+
+        try
+        {
+            for (std::uint32_t offset = 0U;
+                 offset < kMatrixSourceRegistersPerLane;
+                 ++offset)
+            {
+                if (!IsInitialized(
+                        pool,
+                        waveSlot,
+                        static_cast<std::uint8_t>(sourceABase + offset))
+                    || !IsInitialized(
+                        pool,
+                        waveSlot,
+                        static_cast<std::uint8_t>(sourceBBase + offset)))
+                {
+                    return false;
+                }
+            }
+
+            for (std::uint32_t offset = 0U;
+                 offset < kMatrixAccumulatorRegistersPerLane;
+                 ++offset)
+            {
+                if (!IsInitialized(
+                        pool,
+                        waveSlot,
+                        static_cast<std::uint8_t>(destinationBase + offset)))
+                {
+                    return false;
+                }
+            }
+        }
+        catch (const std::exception&)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+private:
+    using PhysicalRow =
+        std::array<
+            PooledWaveRegister,
+            kVgprRegistersPerPhysicalRow>;
+
+    std::vector<PhysicalRow> registers_;
+    std::vector<std::array<bool, kVgprRegistersPerPhysicalRow>> initialized_;
+};
+
+struct MatrixCapturedPooledOperands
+{
+    std::array<PooledWaveRegister, kMatrixSourceRegistersPerLane> sourceA{};
+    std::array<PooledWaveRegister, kMatrixSourceRegistersPerLane> sourceB{};
+    std::array<PooledWaveRegister, kMatrixAccumulatorRegistersPerLane> accumulator{};
+};
+
+inline MatrixCapturedPooledOperands CaptureMatrixOperandsFromPool(
+    const ResidentWaveVgprPool& pool,
+    const PooledVgprStorage& storage,
+    std::uint32_t waveSlot,
+    std::uint8_t destinationBase,
+    std::uint8_t sourceABase,
+    std::uint8_t sourceBBase)
+{
+    if (!storage.MatrixPreflight(
             pool,
             waveSlot,
             destinationBase,
@@ -610,18 +684,13 @@ public:
                 switch (read.fragment)
                 {
                     case MatrixCaptureFragment::A:
-                        captured.sourceA[
-                            read.registerOffset] = value;
+                        captured.sourceA[read.registerOffset] = value;
                         break;
-
                     case MatrixCaptureFragment::B:
-                        captured.sourceB[
-                            read.registerOffset] = value;
+                        captured.sourceB[read.registerOffset] = value;
                         break;
-
                     case MatrixCaptureFragment::Accumulator:
-                        captured.accumulator[
-                            read.registerOffset] = value;
+                        captured.accumulator[read.registerOffset] = value;
                         break;
                 }
             };
@@ -642,24 +711,15 @@ inline void WriteMatrixResultToPool(
     const PooledWaveRegister& value)
 {
     const auto destination =
-        MatrixWritebackRegister(
-            writebackCycle,
-            destinationBase);
+        MatrixWritebackRegister(writebackCycle, destinationBase);
 
-    if (!pool.RegisterRangeFits(
-            waveSlot,
-            destination,
-            1U))
+    if (!pool.RegisterRangeFits(waveSlot, destination, 1U))
     {
         throw std::out_of_range(
             "matrix writeback exceeds the exact active VGPR allocation");
     }
 
-    storage.Write(
-        pool,
-        waveSlot,
-        destination,
-        value);
+    storage.Write(pool, waveSlot, destination, value);
 }
 
 } // namespace cgx1::matrix

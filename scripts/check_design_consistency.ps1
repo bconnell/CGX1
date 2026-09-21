@@ -430,8 +430,8 @@ if (-not [bool]$architecture.matrix_engine.staging_storage.result_source_arithme
     -not [bool]$architecture.matrix_engine.staging_storage.result_cycle0_bypass_rtl_implemented) {
     Add-Finding "design/cgx1_architecture.json: matrix INT8 result-source and cycle-0 bypass integration is incomplete"
 }
-if ([bool]$architecture.matrix_engine.staging_storage.result_cycle0_bypass_simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: integrated cycle-0 bypass simulation evidence must remain false until the exact revision passes RTL CI"
+if (-not [bool]$architecture.matrix_engine.staging_storage.result_cycle0_bypass_simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: cycle-0 result bypass simulation evidence must remain recorded"
 }
 if ([bool]$architecture.matrix_engine.staging_storage.physical_macro_selection_frozen) {
     Add-Finding "design/cgx1_architecture.json: matrix physical storage macro must remain unclaimed"
@@ -482,8 +482,8 @@ if (-not [bool]$architecture.matrix_engine.int8_path_integration.implemented -or
     -not [bool]$architecture.matrix_engine.int8_path_integration.rtl_testbench_implemented) {
     Add-Finding "design/cgx1_architecture.json: integrated signed INT8 path contract is incomplete"
 }
-if ([bool]$architecture.matrix_engine.int8_path_integration.simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: integrated INT8 path simulation evidence must remain false until the exact revision passes RTL CI"
+if (-not [bool]$architecture.matrix_engine.int8_path_integration.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: integrated INT8 path simulation evidence must remain recorded"
 }
 if ([bool]$architecture.matrix_engine.int8_path_integration.physical_timing_validated -or
     [bool]$architecture.matrix_engine.int8_path_integration.physical_area_validated -or

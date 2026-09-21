@@ -26,7 +26,7 @@ The output-result staging block is checked by `source/rtl/tests/cgx1_matrix_resu
 
 The signed INT8 arithmetic block is checked by `source/rtl/tests/cgx1_matrix_int8_execution_tb.sv`. The testbench covers canonical full-tile fragment mapping, patterned signed data, signed extremes, 16 execution cycles, cycle-15 result validity, and explicit modulo-`2^32` overflow. The standalone arithmetic block has passed RTL CI.
 
-The composed INT8 path is checked by `source/rtl/tests/cgx1_matrix_int8_path_tb.sv`. That testbench models architectural wave registers and verifies a full opcode-6 capture, execute, cycle-0 bypass, and eight-register writeback transaction. Exact-revision integration evidence is tracked separately until that candidate passes RTL CI.
+The composed INT8 path is checked by `source/rtl/tests/cgx1_matrix_int8_path_tb.sv`. That testbench models architectural wave registers and verifies a full opcode-6 capture, execute, cycle-0 bypass, and eight-register writeback transaction. The integrated path has passed the repository RTL simulation gate.
 
 Run the RTL gate with:
 

@@ -427,7 +427,7 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/matrix/int8_path_tests.cpp](../source/matrix/int8_path_tests.cpp) composes capture-to-active staging, signed INT8 execution, cycle-0 output bypass, and ordered result drain in the executable reference.
 
-[source/rtl/cgx1_matrix_int8_path.sv](../source/rtl/cgx1_matrix_int8_path.sv) composes the corresponding RTL blocks using controller-provided capture, execute, opcode, and writeback cycle signals. Its integration testbench models the architectural wave register file and verifies a complete opcode-6 capture/execute/writeback transaction. Simulation evidence for this composed path is tracked separately until the exact revision passes RTL CI.
+[source/rtl/cgx1_matrix_int8_path.sv](../source/rtl/cgx1_matrix_int8_path.sv) composes the corresponding RTL blocks using controller-provided capture, execute, opcode, and writeback cycle signals. Its integration testbench models the architectural wave register file and verifies a complete opcode-6 capture/execute/writeback transaction. The composed path has passed the repository RTL simulation gate.
 
 [source/rtl/cgx1_matrix_int8_execution.sv](../source/rtl/cgx1_matrix_int8_execution.sv) and its SystemVerilog testbench implement the same functional INT8 arithmetic boundary. The standalone INT8 arithmetic block has passed the repository RTL simulation gate.
 

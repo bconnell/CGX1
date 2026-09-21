@@ -513,7 +513,7 @@
       "result_cycle0_load_to_writeback_bypass": true,
       "result_cycle0_bypass_reference_model": true,
       "result_cycle0_bypass_rtl_implemented": true,
-      "result_cycle0_bypass_simulation_exercised": false
+      "result_cycle0_bypass_simulation_exercised": true
     },
     "wave_vgpr_scoreboard": {
       "status": "per-wave VGPR hazard and matrix-port conflict logic implemented in executable reference and RTL; multi-wave CU integration remains open",
@@ -556,7 +556,7 @@
       "power_validated": false
     },
     "int8_path_integration": {
-      "status": "functional INT8 path connects capture/active operand staging, 16-cycle arithmetic, cycle-0 result bypass, result staging, and ordered writeback; exact integrated simulation pending for this revision",
+      "status": "functional INT8 path connects capture/active operand staging, 16-cycle arithmetic, cycle-0 result bypass, result staging, and ordered writeback; integrated RTL simulation exercised",
       "implemented": true,
       "controller_capture_cycle_used": true,
       "controller_execute_cycle_used": true,
@@ -567,7 +567,7 @@
       "result_staging_connected": true,
       "cycle0_result_bypass_required": true,
       "rtl_testbench_implemented": true,
-      "simulation_exercised": false,
+      "simulation_exercised": true,
       "physical_timing_validated": false,
       "physical_area_validated": false,
       "physical_power_validated": false

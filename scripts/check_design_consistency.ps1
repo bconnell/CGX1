@@ -394,14 +394,15 @@ if ([bool]$architecture.matrix_engine.wave_vgpr_scoreboard.ordinary_issue_pipeli
     [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_slot_count_frozen) {
     Add-Finding "design/cgx1_architecture.json: resident-wave scoreboard must not claim unfinished physical CU integration"
 }
-if ([bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_router_simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: resident-wave scoreboard simulation evidence must remain false until exact-revision RTL CI passes"
+if (-not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_router_simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave scoreboard simulation evidence must remain true after exact-revision RTL CI passes"
 }
 if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.implemented -or
     -not [bool]$architecture.matrix_engine.pipeline_control_rtl.simulation_exercised -or
     -not [bool]$architecture.matrix_engine.pipeline_control_rtl.operand_staging_rtl_implemented -or
     -not [bool]$architecture.matrix_engine.pipeline_control_rtl.output_result_staging_rtl_implemented -or
-    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.writeback_cycle_index_exposed) {
+    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.writeback_cycle_index_exposed -or
+    -not [bool]$architecture.matrix_engine.pipeline_control_rtl.resident_wave_identity_simulation_exercised) {
     Add-Finding "design/cgx1_architecture.json: matrix control/staging RTL implementation and simulation status must remain enabled"
 }
 if ([bool]$architecture.matrix_engine.pipeline_control_rtl.arithmetic_datapath_implemented -or
@@ -545,8 +546,8 @@ if (-not [bool]$architecture.matrix_engine.int8_resident_engine.implemented -or
     -not [bool]$architecture.matrix_engine.int8_resident_engine.rtl_testbench_implemented) {
     Add-Finding "design/cgx1_architecture.json: resident-wave INT8 engine contract is incomplete"
 }
-if ([bool]$architecture.matrix_engine.int8_resident_engine.simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: resident-wave INT8 simulation evidence must remain false until exact-revision RTL CI passes"
+if (-not [bool]$architecture.matrix_engine.int8_resident_engine.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave INT8 simulation evidence must remain true after exact-revision RTL CI passes"
 }
 if ([bool]$architecture.matrix_engine.int8_resident_engine.ordinary_vector_execution_datapath_integrated -or
     [bool]$architecture.matrix_engine.int8_resident_engine.physical_vgpr_file_implemented -or

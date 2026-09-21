@@ -497,7 +497,7 @@
       "resident_wave_slot_tag_implemented": true,
       "wave_local_dependency_checks": true,
       "resident_wave_slot_count_frozen": false,
-      "resident_wave_identity_simulation_exercised": false
+      "resident_wave_identity_simulation_exercised": true
     },
     "staging_storage": {
       "capture_buffer_bytes": 2048,
@@ -543,7 +543,7 @@
       "reservation_event_source": "registered issue acceptance with controller-latched D/A/B bases",
       "ordinary_issue_admission_integrated": true,
       "resident_wave_router_rtl_implemented": true,
-      "resident_wave_router_simulation_exercised": false,
+      "resident_wave_router_simulation_exercised": true,
       "resident_wave_slot_count_frozen": false
     },
     "arithmetic_rtl": {
@@ -605,7 +605,7 @@
       "power_validated": false
     },
     "int8_resident_engine": {
-      "status": "parameterized resident-wave signed INT8 engine boundary implemented; exact-revision RTL simulation pending",
+      "status": "parameterized resident-wave signed INT8 engine boundary implemented and exercised by RTL simulation",
       "implemented": true,
       "supported_matrix_opcode": "0x6",
       "resident_wave_slot_count_parameterized": true,
@@ -620,7 +620,7 @@
       "physical_vgpr_file_implemented": false,
       "floating_matrix_opcodes_supported": false,
       "rtl_testbench_implemented": true,
-      "simulation_exercised": false,
+      "simulation_exercised": true,
       "timing_closure_validated": false,
       "area_validated": false,
       "power_validated": false

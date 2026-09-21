@@ -2,7 +2,7 @@
 
 [Documentation index](../../docs/README.md) · [Matrix engine architecture](../../docs/MATRIX_ENGINE.md) · [Electrical interface](../../docs/ELECTRICAL_INTERFACE.md) · [Validation](../../docs/VALIDATION.md)
 
-The public RTL currently contains seven limited, separately testable boundaries:
+The public RTL currently contains eight limited, separately testable boundaries:
 
 - `cgx1_top.sv` covers board power-state gating and compute-tile enable behavior.
 - `cgx1_matrix_pipeline_control.sv` covers matrix instruction legality, decode/capture/execute/writeback sequencing, VGPR address generation, source-release events, destination-complete events, 16-cycle reissue control, and matrix-to-matrix RAW/WAW interlocks against older pending destinations.
@@ -11,6 +11,7 @@ The public RTL currently contains seven limited, separately testable boundaries:
 - `cgx1_matrix_result_staging.sv` implements the 1 KB eight-register output-result slot and returns one 1,024-bit wave register for each ordered writeback cycle.
 - `cgx1_matrix_int8_execution.sv` implements the functional signed INT8 M16N16K32 arithmetic path over the frozen 16-cycle execution schedule.
 - `cgx1_matrix_int8_path.sv` composes capture/active staging, opcode-6 INT8 execution, cycle-0 result bypass, result staging, and ordered writeback.
+- `cgx1_matrix_int8_engine_shell.sv` wraps one controller, one per-wave scoreboard, and the INT8 path behind the external whole-wave VGPR interface; it accepts only opcode `0x6` at this boundary.
 
 The matrix RTL implements signed INT8 arithmetic only. FP16, BF16, and FP8 arithmetic remain unimplemented because their contract requires FP32 fused multiply-add semantics. Physical VGPR/storage macros, physical arithmetic decomposition, resident-wave identity/arbitration, and an ordinary vector execution pipeline also remain open. The per-wave scoreboard logic exists, but it is not yet a complete multi-wave compute-unit scheduler.
 
@@ -27,6 +28,8 @@ The output-result staging block is checked by `source/rtl/tests/cgx1_matrix_resu
 The signed INT8 arithmetic block is checked by `source/rtl/tests/cgx1_matrix_int8_execution_tb.sv`. The testbench covers canonical full-tile fragment mapping, patterned signed data, signed extremes, 16 execution cycles, cycle-15 result validity, and explicit modulo-`2^32` overflow. The standalone arithmetic block has passed RTL CI.
 
 The composed INT8 path is checked by `source/rtl/tests/cgx1_matrix_int8_path_tb.sv`. That testbench models architectural wave registers and verifies a full opcode-6 capture, execute, cycle-0 bypass, and eight-register writeback transaction. The integrated path has passed the repository RTL simulation gate.
+
+The one-wave INT8 engine shell is checked by `source/rtl/tests/cgx1_matrix_int8_engine_shell_tb.sv`. That testbench verifies non-INT8 opcode rejection, register reservation/release, ordinary RAW/WAR hazard reporting, and a complete signed INT8 result transaction through the shell's external VGPR interface. Exact shell simulation evidence is recorded only after the candidate passes RTL CI.
 
 Run the RTL gate with:
 

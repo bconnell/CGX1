@@ -429,6 +429,8 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/rtl/cgx1_matrix_int8_path.sv](../source/rtl/cgx1_matrix_int8_path.sv) composes the corresponding RTL blocks using controller-provided capture, execute, opcode, and writeback cycle signals. Its integration testbench models the architectural wave register file and verifies a complete opcode-6 capture/execute/writeback transaction. The composed path has passed the repository RTL simulation gate.
 
+[source/rtl/cgx1_matrix_int8_engine_shell.sv](../source/rtl/cgx1_matrix_int8_engine_shell.sv) wraps one controller, one per-wave scoreboard, and the integrated signed INT8 path behind an external whole-wave VGPR read/write interface. The shell accepts only matrix opcode `0x6` at this boundary, exposes ordinary-instruction RAW/WAW/WAR and port-conflict decisions from the per-wave scoreboard, and deliberately leaves the physical VGPR file, resident-wave arbitration, ordinary vector issue, and floating matrix opcodes outside the block. Its exact-revision simulation evidence is tracked separately until the shell candidate passes RTL CI.
+
 [source/rtl/cgx1_matrix_int8_execution.sv](../source/rtl/cgx1_matrix_int8_execution.sv) and its SystemVerilog testbench implement the same functional INT8 arithmetic boundary. The standalone INT8 arithmetic block has passed the repository RTL simulation gate.
 
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
@@ -440,7 +442,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - complete FP16/BF16/FP8 arithmetic datapaths with the frozen FP32-FMA semantics; the signed INT8 arithmetic boundary is implemented functionally;
-- keep the integrated signed INT8 capture/execute/writeback path aligned with the frozen control contract; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
+- validate the single-engine signed INT8 shell against the frozen control, scoreboard, staging, and arithmetic contracts; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;
 - measure timing, area, and power against the compute-unit budget;

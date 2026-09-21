@@ -20,7 +20,7 @@ CGX 1 is an engineering architecture and prototype program. No custom CGX 1 ASIC
 | Analytical model | Executable | FP32 arithmetic, coolant rise, junction estimate, power efficiency, fit calculations |
 | Power state controller | Executable reference | C implementation and fault state tests |
 | Per-tile power management | Defined architecture + executable policy/invariant model | [Power Management](POWER_MANAGEMENT.md) and [source/power](../source/power/) |
-| RTL | Limited control/storage/arithmetic RTL | Power-state/tile-enable scaffold, matrix control, staging, per-wave VGPR scoreboard, standalone signed INT8 arithmetic, and a signed INT8 end-to-end path validated by the repository RTL simulation gate; FP16/BF16/FP8 arithmetic and physical implementation remain open |
+| RTL | Limited control/storage/arithmetic RTL | Power-state/tile-enable scaffold, matrix control, staging, per-wave VGPR scoreboard, signed INT8 arithmetic, validated INT8 end-to-end path, and an implemented one-wave INT8 engine shell awaiting exact-revision shell simulation; FP16/BF16/FP8 arithmetic and physical implementation remain open |
 | P0 electrothermal prototype | Planned build | [Prototype Build](PROTOTYPE_BUILD.md), [Procurement](PROTOTYPE_PROCUREMENT.md), [Test Record Template](TEST_RECORD_TEMPLATE.md) |
 | P1 programmable surrogate | Planned bench work | AMD Alveo U50 class HBM accelerator reference |
 | Custom PCB schematic/layout | Not implemented | Board constraints exist; schematic, layout, and manufacturing files remain open work |

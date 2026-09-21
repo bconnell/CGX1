@@ -226,6 +226,8 @@ Require-Literal "source/matrix/cgx1_matrix_int8_execution.hpp" "struct MatrixInt
 Require-Literal "source/rtl/cgx1_matrix_int8_execution.sv" "module cgx1_matrix_int8_execution"
 Require-Literal "source/matrix/cgx1_matrix_result_staging.hpp" "LoadAndConsumeMatrixResultCycleZero("
 Require-Literal "source/rtl/cgx1_matrix_int8_path.sv" "module cgx1_matrix_int8_path"
+Require-Literal "source/rtl/cgx1_matrix_int8_engine_shell.sv" "module cgx1_matrix_int8_engine_shell"
+Require-Literal "source/rtl/cgx1_matrix_int8_engine_shell.sv" "localparam logic [3:0] INT8_OPCODE = 4'h6;"
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
 Require-Literal "source/power/cgx1_power_management.hpp" "P0SafeBoot:  return $($safeBoot).0;"
@@ -245,8 +247,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 14) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 14 for the integrated signed INT8 matrix path contract"
+if ([int]$architecture.schema_version -ne 15) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 15 for the single-engine signed INT8 shell contract"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -489,6 +491,34 @@ if ([bool]$architecture.matrix_engine.int8_path_integration.physical_timing_vali
     [bool]$architecture.matrix_engine.int8_path_integration.physical_area_validated -or
     [bool]$architecture.matrix_engine.int8_path_integration.physical_power_validated) {
     Add-Finding "design/cgx1_architecture.json: integrated INT8 path physical evidence must remain unclaimed"
+}
+
+if (-not [bool]$architecture.matrix_engine.int8_engine_shell.implemented -or
+    [string]$architecture.matrix_engine.int8_engine_shell.supported_matrix_opcode -ne "0x6" -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.single_wave_context -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.pipeline_control_connected -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.per_wave_scoreboard_connected -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.int8_path_connected -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.external_vgpr_read_interface -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.external_vgpr_write_interface -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.ordinary_hazard_interface -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.rejects_non_int8_matrix_opcodes -or
+    -not [bool]$architecture.matrix_engine.int8_engine_shell.rtl_testbench_implemented) {
+    Add-Finding "design/cgx1_architecture.json: single-engine INT8 shell contract is incomplete"
+}
+if ([bool]$architecture.matrix_engine.int8_engine_shell.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: INT8 shell simulation evidence must remain false until the exact revision passes RTL CI"
+}
+if ([bool]$architecture.matrix_engine.int8_engine_shell.physical_vgpr_file_implemented -or
+    [bool]$architecture.matrix_engine.int8_engine_shell.resident_wave_arbitration_integrated -or
+    [bool]$architecture.matrix_engine.int8_engine_shell.ordinary_vector_issue_pipeline_integrated -or
+    [bool]$architecture.matrix_engine.int8_engine_shell.floating_matrix_opcodes_supported) {
+    Add-Finding "design/cgx1_architecture.json: INT8 shell must not claim unfinished CU or floating-matrix integration"
+}
+if ([bool]$architecture.matrix_engine.int8_engine_shell.timing_closure_validated -or
+    [bool]$architecture.matrix_engine.int8_engine_shell.area_validated -or
+    [bool]$architecture.matrix_engine.int8_engine_shell.power_validated) {
+    Add-Finding "design/cgx1_architecture.json: INT8 shell physical implementation evidence must remain unclaimed"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

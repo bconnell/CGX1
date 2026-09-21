@@ -1,5 +1,5 @@
 {
-  "schema_version": 14,
+  "schema_version": 15,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -571,6 +571,28 @@
       "physical_timing_validated": false,
       "physical_area_validated": false,
       "physical_power_validated": false
+    },
+    "int8_engine_shell": {
+      "status": "single-engine, single-wave-context INT8 shell implemented; exact-revision shell simulation pending",
+      "implemented": true,
+      "supported_matrix_opcode": "0x6",
+      "single_wave_context": true,
+      "pipeline_control_connected": true,
+      "per_wave_scoreboard_connected": true,
+      "int8_path_connected": true,
+      "external_vgpr_read_interface": true,
+      "external_vgpr_write_interface": true,
+      "ordinary_hazard_interface": true,
+      "rejects_non_int8_matrix_opcodes": true,
+      "rtl_testbench_implemented": true,
+      "simulation_exercised": false,
+      "physical_vgpr_file_implemented": false,
+      "resident_wave_arbitration_integrated": false,
+      "ordinary_vector_issue_pipeline_integrated": false,
+      "floating_matrix_opcodes_supported": false,
+      "timing_closure_validated": false,
+      "area_validated": false,
+      "power_validated": false
     }
   }
 }

@@ -151,6 +151,19 @@ try {
         throw "Integrated INT8 path negative control did not report the expected invariant."
     }
 
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.matrix_engine.int8_engine_shell.floating_matrix_opcodes_supported = $true
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted unsupported floating opcodes in the INT8 engine shell." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "INT8 shell must not claim unfinished CU or floating-matrix integration") {
+        throw "INT8 engine-shell negative control did not report the expected invariant."
+    }
+
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

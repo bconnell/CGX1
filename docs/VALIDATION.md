@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, matrix-staging, matrix-result-staging, matrix-scoreboard, matrix-INT8-execution, matrix-INT8-path, matrix-INT8-engine-shell, matrix-INT8-resident-engine, resident-wave-VGPR-storage, and power-management policy tests.
+- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, matrix-staging, matrix-result-staging, matrix-scoreboard, matrix-INT8-execution, matrix-INT8-path, matrix-INT8-engine-shell, matrix-INT8-resident-engine, resident-wave-VGPR-storage, pooled-VGPR lifecycle/reference, and power-management policy tests. The RTL workflow also compiles and executes pooled restore-mapping, matrix-preflight, allocator, storage, matrix-frontend, pooled-subsystem, and pooled-resident-INT8 testbenches.
 
 ## 2. Analytical model
 

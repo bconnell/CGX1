@@ -62,9 +62,9 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- implement pooled resident-wave VGPR allocation RTL from the executable [VGPR pool reference](VGPR_POOL.md), including Reserved-to-Active validity invalidation, row/bank translation, and allocation-range enforcement without freezing resident-wave occupancy prematurely;
-- connect pooled banked storage to the resident-wave matrix capture/writeback path, then implement the ordinary vector execution datapath and shared VGPR access arbitration while preserving matrix hazard and port-ownership rules;
-- select implementation storage macros for the validated eight-bank organization, implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics, and validate timing, area, and power; revise timing targets if physical evidence cannot close them;
+- obtain exact-revision RTL simulation evidence for the published pooled resident-wave VGPR allocator, storage, matrix preflight, capture/writeback, and resident INT8 integration boundary;
+- implement the ordinary vector execution datapath and shared pooled-VGPR access arbitration while preserving matrix hazard, validity, allocation-lifetime, and port-ownership rules;
+- select implementation storage macros without prematurely freezing resident-wave occupancy, implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics, and validate timing, area, and power; revise timing targets if physical evidence cannot close them;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;
 - characterize finer-than-workgroup preemption cost before adding it to the baseline;
 - characterize real per-tile V/F curves, leakage, transition latency, and controller hysteresis;

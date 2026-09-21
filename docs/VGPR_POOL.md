@@ -1,84 +1,118 @@
-# Resident-Wave VGPR Pool Reference
+# Resident-Wave VGPR Pool
 
 [Documentation index](README.md) · [Matrix engine architecture](MATRIX_ENGINE.md) · [Project status](STATUS.md) · [Roadmap](ROADMAP.md)
 
 ## Scope
 
-The pooled VGPR reference separates the 256-register architectural namespace of a wave from the amount of physical storage assigned to that wave.
+The pooled VGPR design separates a wave's architectural 256-VGPR namespace from the amount of shared physical storage assigned to that wave.
 
-This is an executable implementation reference. It does not freeze resident-wave occupancy, a foundry memory macro, physical register-file capacity, timing, area, or power.
+The earlier per-resident-slot VGPR RTL remains a validated logical storage boundary. It is not the physical allocation architecture.
 
-## Row organization
+The pooled implementation now exists as executable C++ reference code and synthesizable SystemVerilog candidate RTL. The pooled RTL is wired into the repository RTL gate, but exact-revision RTL simulation evidence remains pending until the current published revision passes that gate.
 
-The reference retains the eight modulo-8 matrix bank classes already defined by the matrix architecture.
+Nothing in this boundary freezes resident-wave occupancy, physical register-file capacity, foundry memory macros, timing, area, or power.
 
-An architectural VGPR maps to:
+## Physical row mapping
+
+The eight modulo-8 bank classes remain unchanged:
 
 ```text
 bank = architectural VGPR mod 8
 row  = physical row base + floor(architectural VGPR / 8)
 ```
 
-One physical row therefore represents one register from each of the eight bank classes. Allocation is expressed in rows rather than raw register numbers, so bank selection remains determined by the architectural VGPR index.
+A request for `N` architectural VGPRs consumes `ceil(N / 8)` physical rows. Row rounding controls physical capacity only. The exact requested register count controls legal architectural access.
 
-A request for `N` architectural VGPRs consumes `ceil(N / 8)` physical rows.
+For example, a 9-VGPR allocation occupies two rows, but VGPRs 9 through 15 remain inaccessible.
 
-The current reference uses deterministic first-fit allocation. That policy is executable but is not a frozen production scheduling policy.
+The executable allocator uses deterministic first-fit placement. First-fit is tested behavior, not a frozen production scheduling policy.
 
 ## Allocation lifetime
 
-A resident-wave allocation moves through three states:
+The implemented lifecycle is:
 
-1. **Free**: no physical rows are assigned.
-2. **Reserved**: a contiguous physical-row range is owned by the wave but cannot be addressed by shader or matrix execution.
-3. **Active**: the allocation may be translated and accessed.
+`Free -> Reserved -> sanitized -> optional privileged restore -> Active -> quiescent -> Release`
 
-Reserved rows count as occupied immediately. Activation is permitted only after the storage-validity metadata for the reserved range has been invalidated.
+Reserved rows consume capacity immediately but matrix or shader execution cannot address them.
 
-An active allocation cannot be relocated in place. A different physical range requires release followed by a new reservation.
+Validity metadata is invalidated one row at a time. Invalidation selection rotates across resident waves so one repeatedly recycled low-numbered wave does not monopolize sanitization.
 
-This separation prevents physical-row reuse from exposing the previous owner's register contents.
+Activation is blocked until every row in the reservation has been sanitized. A same-wave privileged restore also blocks activation for that cycle.
 
-## Register initialization
+A sanitized Reserved allocation has an exact-count-bounded privileged restore path for dispatch initialization and future preemption restore work.
 
-Physical data bits are not required to be cleared when rows are reassigned. Per-register initialization state controls visibility.
+Active allocations cannot be relocated in place. Release requires quiescence. In the pooled matrix subsystem, release is also blocked by same-wave matrix execution, visible matrix VGPR read/write traffic, or a pending same-wave restore.
 
-A fresh allocation begins with every register marked uninitialized. Reading an uninitialized register is rejected by the executable reference.
+## Stale-data isolation
 
-For masked ordinary-vector writes, the first nonzero-lane write to a fresh register zero-fills the untouched lanes before applying the lane mask. A zero-lane write remains a no-op and does not initialize the register.
+Physical VGPR data bits do not have to be cleared when rows are reassigned. Per-register validity controls visibility.
 
-This rule prevents stale lane data from becoming visible after physical-row reuse while avoiding a requirement to clear the entire data array before activation.
+A new reservation invalidates validity metadata before activation. A first masked write to an uninitialized register zero-fills untouched lanes before applying the lane mask. A zero-lane write remains a no-op and does not initialize the register.
 
-## Matrix integration
+This prevents a new owner from observing data left by the previous owner without requiring a full data-array clear.
 
-The reference reuses the frozen matrix register layout, bank rules, capture schedule, and writeback-register schedule.
+## Matrix issue preflight
 
-Before matrix capture begins, the complete D, A, and B register spans must fit inside the active wave allocation.
+Runtime pooled-VGPR readiness is separate from architectural matrix legality.
 
-The eight capture cycles use the existing matrix schedule:
+For a legal matrix register layout, issue requires:
 
-- cycles 0 through 3 read one A and one B whole-wave register;
-- cycles 4 through 7 read two C/D whole-wave registers.
+- an Active allocation;
+- D, A, and B spans fully contained by the exact requested VGPR count;
+- initialized A0-A3;
+- initialized B0-B3;
+- initialized C/D0-C/D7.
 
-Exact A/B aliasing is treated as one stored value broadcast to both read results. Two distinct registers in the same bank class are rejected by the pooled-storage reference.
+Preflight is performed independently for each resident wave, preventing one uninitialized request from head-of-line blocking another ready wave.
 
-Matrix writeback uses the existing eight-cycle destination sequence and is subject to the same active-allocation bounds.
+Architecturally illegal matrix register layouts are forwarded to the existing matrix controller rather than converted into pooled-resource stalls. Full-wave legality remains controller-owned as well.
+
+## Matrix data path
+
+The pooled matrix frontend maps the frozen eight-cycle capture and eight-cycle writeback schedules onto physical row/bank addresses.
+
+Exact A/B aliasing maps to one physical address and broadcasts the stored value. Distinct same-bank reads are rejected. Matrix read and write phases remain mutually exclusive under the frozen schedule.
+
+The pooled matrix subsystem combines:
+
+- row allocation;
+- serialized validity invalidation;
+- privileged Reserved restore;
+- exact-count address translation;
+- matrix initialization preflight;
+- pooled data and validity storage;
+- release safety;
+- matrix capture and writeback arbitration.
+
+The pooled resident INT8 wrapper connects this subsystem directly to the existing resident-wave signed INT8 engine. Ordinary vector execution remains outside this boundary.
 
 ## Validation
 
-`source/matrix/vgpr_pool_tests.cpp` checks allocation rounding, exhaustive first-fit behavior for every occupancy pattern of an eight-row pool, Reserved-to-Active invalidation ordering, rejection of pre-activation access, bank preservation, cross-wave storage isolation, matrix allocation bounds, complete matrix capture and writeback, exact source alias broadcast, same-bank conflict rejection, stale-data rejection after row reuse, masked-write sanitization, zero-lane writes, and 20,000 deterministic randomized operations with continuous pool-invariant checking.
+The executable reference suite covers:
 
-The reference was compiled locally with GCC and Clang in C++20 mode using `-Wall -Wextra -Werror -pedantic` before publication.
+- exact-count allocation from 1 through 256 VGPRs;
+- exhaustive first-fit behavior for every occupancy pattern of an eight-row pool;
+- 50,000 deterministic randomized lifecycle operations;
+- serialized sanitization;
+- privileged restore;
+- quiescent release;
+- stale-data isolation;
+- first masked-write zero-fill;
+- zero-lane writes;
+- matrix range and initialization preflight;
+- cross-wave preflight independence;
+- architectural-illegality forwarding;
+- capture/writeback physical row and bank mapping;
+- exact alias broadcast;
+- same-bank conflict rejection;
+- restore/activation, restore/release, release/request, and busy-release arbitration.
 
-## Remaining work
+The local pre-publication gate compiled and ran the executable references with GCC and Clang in C++20 mode, both normally and with `NDEBUG`, using `-Wall -Wextra -Werror -pedantic`.
 
-The next hardware boundary is an RTL implementation of the same lifecycle and translation contract:
+The repository RTL gate now includes behavioral testbenches for pooled restore mapping, matrix preflight, allocation, storage, matrix frontend mapping, the composed pooled subsystem, and the pooled resident INT8 path.
 
-- resident-wave allocation metadata;
-- Reserved-to-Active validity invalidation;
-- architectural VGPR to physical row/bank translation;
-- pooled banked storage;
-- matrix capture and writeback against that storage;
-- shared access arbitration for the ordinary vector datapath.
+## Evidence boundary
 
-SystemVerilog simulation evidence must exist before those items are recorded as implemented.
+The pooled RTL files are implemented and published. Their `simulation_exercised` architecture evidence remains **false** until the exact published revision passes the repository RTL workflow.
+
+Even after RTL simulation passes, this boundary remains logical/synthesizable implementation evidence. It does not select a foundry register-file macro or establish timing closure, area, power, resident-wave occupancy, or fabricated-silicon performance.

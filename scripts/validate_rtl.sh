@@ -108,6 +108,18 @@ iverilog \
 echo "==> Run signed INT8 matrix-engine shell RTL"
 vvp build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp
 
+echo "==> Compile resident-wave VGPR storage RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_resident_wave_vgpr_file_tb \
+    -o build/rtl/cgx1_resident_wave_vgpr_file_tb.vvp \
+    source/rtl/cgx1_resident_wave_vgpr_file.sv \
+    source/rtl/tests/cgx1_resident_wave_vgpr_file_tb.sv
+
+echo "==> Run resident-wave VGPR storage RTL"
+vvp build/rtl/cgx1_resident_wave_vgpr_file_tb.vvp
+
 echo "==> Compile resident-wave signed INT8 matrix-engine RTL"
 iverilog \
     -g2012 \

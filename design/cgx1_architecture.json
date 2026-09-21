@@ -1,5 +1,5 @@
 {
-  "schema_version": 16,
+  "schema_version": 17,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -600,6 +600,30 @@
       "resident_wave_arbitration_integrated": false,
       "ordinary_vector_issue_pipeline_integrated": false,
       "floating_matrix_opcodes_supported": false,
+      "timing_closure_validated": false,
+      "area_validated": false,
+      "power_validated": false
+    },
+    "vgpr_storage_rtl": {
+      "status": "parameterized eight-bank resident-wave VGPR storage RTL implemented; exact-revision RTL simulation pending",
+      "implemented": true,
+      "resident_wave_slot_count_parameterized": true,
+      "resident_wave_slot_count_frozen": false,
+      "architectural_registers_per_wave": 256,
+      "wave_lanes": 32,
+      "lane_word_bits": 32,
+      "wave_register_width_bits": 1024,
+      "bank_classes": 8,
+      "rows_per_bank": 32,
+      "bank_select": "VGPR index modulo 8",
+      "row_select": "VGPR index divided by 8",
+      "read_ports": 2,
+      "write_ports": 1,
+      "exact_alias_broadcast": true,
+      "fixed_lane_order_delivery": true,
+      "rtl_testbench_implemented": true,
+      "simulation_exercised": false,
+      "physical_macro_selected": false,
       "timing_closure_validated": false,
       "area_validated": false,
       "power_validated": false

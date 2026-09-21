@@ -435,14 +435,16 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/rtl/cgx1_matrix_int8_execution.sv](../source/rtl/cgx1_matrix_int8_execution.sv) and its SystemVerilog testbench implement the same functional INT8 arithmetic boundary. The standalone INT8 arithmetic block has passed the repository RTL simulation gate.
 
+[source/rtl/cgx1_resident_wave_vgpr_file.sv](../source/rtl/cgx1_resident_wave_vgpr_file.sv) adds a synthesizable resident-wave VGPR storage organization behind the frozen logical register interface. Each resident wave has 256 architectural VGPRs organized as eight modulo-8 bank classes with 32 rows per bank; each row contains 32 lane words of 32 bits, producing one 1,024-bit whole-wave register. The block provides two whole-wave reads and one whole-wave write, treats an exact A/B alias as broadcast of one stored value, and returns lanes in canonical lane order. This RTL does not select a foundry register-file or SRAM macro and does not establish timing, area, or power closure. Exact-revision simulation evidence remains false until this candidate passes RTL CI.
+
 The executable model is an architecture reference. It is not matrix RTL, timing closure, area estimation, power characterization, or measured hardware performance.
 
 ## Remaining implementation work
 
 The next implementation boundary is matrix RTL and feasibility closure:
 
-- implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
-- implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
+- connect the banked resident-wave VGPR storage RTL to the parameterized resident INT8 engine while preserving the validated eight bank classes and two-read/one-write logical schedule;
+- complete the fixed register-offset delivery path from the banked whole-wave reads into the 2,048-byte engine-local staging structures;
 - complete FP16/BF16/FP8 arithmetic datapaths with the frozen FP32-FMA semantics; the signed INT8 arithmetic boundary is implemented functionally;
 - connect the parameterized resident-wave signed INT8 boundary to physical resident-wave VGPR storage and the ordinary vector execution datapath while preserving the frozen control, scoreboard, staging, and arithmetic contracts;
 - verify exact instruction behavior against the executable reference;

@@ -2,7 +2,7 @@
 
 [Documentation index](../../docs/README.md) · [Matrix engine architecture](../../docs/MATRIX_ENGINE.md) · [Electrical interface](../../docs/ELECTRICAL_INTERFACE.md) · [Validation](../../docs/VALIDATION.md)
 
-The public RTL currently contains eleven limited, separately testable boundaries:
+The public RTL currently contains twelve limited, separately testable boundaries:
 
 - `cgx1_top.sv` covers board power-state gating and compute-tile enable behavior.
 - `cgx1_matrix_pipeline_control.sv` covers matrix instruction legality, decode/capture/execute/writeback sequencing, VGPR address generation, source-release events, destination-complete events, 16-cycle reissue control, and matrix-to-matrix RAW/WAW interlocks against older pending destinations.
@@ -14,9 +14,10 @@ The public RTL currently contains eleven limited, separately testable boundaries
 - `cgx1_matrix_int8_engine_shell.sv` wraps one controller, one per-wave scoreboard, and the INT8 path behind the external whole-wave VGPR interface; it accepts only opcode `0x6` at this boundary.
 - `cgx1_matrix_resident_wave_arbiter.sv` selects parameterized resident-wave matrix requests with round-robin fairness.
 - `cgx1_matrix_resident_wave_scoreboard.sv` routes per-wave reservation state and ordinary issue admission by resident-wave slot.
+- `cgx1_resident_wave_vgpr_file.sv` implements parameterized resident-wave VGPR storage as eight modulo-8 bank classes with 32 rows per bank, 32 lane words per architectural register, two whole-wave read ports, one whole-wave write port, exact-alias broadcast, and fixed lane-order delivery.
 - `cgx1_matrix_int8_resident_engine.sv` composes resident-wave arbitration, wave-tagged pipeline control, signed INT8 execution, per-wave scoreboards, and the external wave-tagged VGPR interface.
 
-The matrix RTL implements signed INT8 arithmetic only. FP16, BF16, and FP8 arithmetic remain unimplemented because their contract requires FP32 fused multiply-add semantics. Resident-wave identity/arbitration and ordinary issue admission now exist in the parameterized INT8 resident-engine boundary. Physical resident-wave VGPR/storage macros, physical arithmetic decomposition, and the ordinary vector execution datapath remain open; this is still not a complete compute-unit scheduler.
+The matrix RTL implements signed INT8 arithmetic only. FP16, BF16, and FP8 arithmetic remain unimplemented because their contract requires FP32 fused multiply-add semantics. Resident-wave identity/arbitration and ordinary issue admission now exist in the parameterized INT8 resident-engine boundary. A synthesizable banked resident-wave VGPR storage organization now exists as a separate RTL boundary, but it is not yet connected to the resident engine and does not select a foundry memory macro or validate timing, area, or power. Physical arithmetic decomposition and the ordinary vector execution datapath remain open; this is still not a complete compute-unit scheduler.
 
 The matrix issue interface uses payload-dependent backpressure. The producer presents opcode and register bases with `issue_valid`; `issue_ready` may remain low while those presented registers depend on an older pending matrix destination. While matrix work remains in flight, missed dependency-blocked opportunities stay aligned to the frozen 16-cycle issue cadence so capture cannot slide into an older writeback window. Once the pipeline drains, a new operation may begin immediately. A dependency stall is not an illegal instruction, so `illegal_issue` remains reserved for malformed opcode, active-mask, or register-layout input.
 
@@ -35,6 +36,8 @@ The composed INT8 path is checked by `source/rtl/tests/cgx1_matrix_int8_path_tb.
 The one-wave INT8 engine shell is checked by `source/rtl/tests/cgx1_matrix_int8_engine_shell_tb.sv`. That testbench verifies non-INT8 opcode rejection, register reservation/release, ordinary RAW/WAR hazard reporting, and a complete signed INT8 result transaction through the shell's external VGPR interface. The single-engine INT8 shell has passed the repository RTL simulation gate.
 
 The resident-wave INT8 boundary is checked by `source/rtl/tests/cgx1_matrix_int8_resident_engine_tb.sv`. The test uses four resident-wave slots to exercise round-robin request selection, wave-local dependency behavior, wave-tagged VGPR transactions, per-wave ordinary hazard admission, and invalid-request tagging. The slot count is parameterized and is not frozen by the test.
+
+The banked resident-wave VGPR storage is checked by `source/rtl/tests/cgx1_resident_wave_vgpr_file_tb.sv`. The test verifies modulo-8 source placement, exact A/B alias broadcast, adjacent C/D reads, identical architectural register numbers in independent resident waves, one-register writeback visibility, and canonical lane ordering on the 1,024-bit whole-wave buses. Exact-revision simulation evidence remains false until this candidate passes RTL CI.
 
 Run the RTL gate with:
 

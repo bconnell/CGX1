@@ -93,6 +93,7 @@ module cgx1_matrix_pipeline_control #(
 
     logic       issue_fire;
     logic       invalid_fire;
+    logic       pipeline_active;
     logic       issue_structural_ready;
     logic       capture_finishing;
     logic       execute_finishing;
@@ -196,7 +197,11 @@ module cgx1_matrix_pipeline_control #(
                     writeback_d_q);
         end
 
-        issue_structural_ready = !decode_valid_q && (issue_cooldown_q == 4'd0);
+        pipeline_active =
+            decode_valid_q || capture_valid_q || execute_valid_q || writeback_valid_q;
+        issue_structural_ready =
+            !pipeline_active
+            || (!decode_valid_q && (issue_cooldown_q == 4'd0));
         issue_ready = issue_structural_ready && !issue_dependency_hazard;
         issue_fire = issue_valid && issue_ready && issue_legal;
         invalid_fire = issue_valid && issue_structural_ready && !issue_legal;
@@ -277,10 +282,19 @@ module cgx1_matrix_pipeline_control #(
         writeback_d_d = writeback_d_q;
         writeback_wave_d = writeback_wave_q;
 
+        // While matrix work remains in flight, issue opportunities stay on the
+        // frozen 16-cycle cadence. A dependency-stalled slot is skipped rather
+        // than accepted on an arbitrary later cycle that could overlap capture
+        // with an older operation's writeback. An idle pipeline may restart
+        // immediately without carrying a stale cooldown.
         if (issue_fire) begin
             issue_cooldown_d = ISSUE_COOLDOWN_RELOAD;
+        end else if (!pipeline_active) begin
+            issue_cooldown_d = 4'd0;
         end else if (issue_cooldown_q != 4'd0) begin
             issue_cooldown_d = issue_cooldown_q - 4'd1;
+        end else begin
+            issue_cooldown_d = ISSUE_COOLDOWN_RELOAD;
         end
 
         if (writeback_valid_q) begin

@@ -227,6 +227,9 @@ Require-Literal "source/rtl/cgx1_matrix_int8_execution.sv" "module cgx1_matrix_i
 Require-Literal "source/matrix/cgx1_matrix_result_staging.hpp" "LoadAndConsumeMatrixResultCycleZero("
 Require-Literal "source/rtl/cgx1_matrix_int8_path.sv" "module cgx1_matrix_int8_path"
 Require-Literal "source/rtl/cgx1_matrix_int8_engine_shell.sv" "module cgx1_matrix_int8_engine_shell"
+Require-Literal "source/rtl/cgx1_matrix_resident_wave_arbiter.sv" "module cgx1_matrix_resident_wave_arbiter"
+Require-Literal "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv" "module cgx1_matrix_resident_wave_scoreboard"
+Require-Literal "source/rtl/cgx1_matrix_int8_resident_engine.sv" "module cgx1_matrix_int8_resident_engine"
 Require-Literal "source/rtl/cgx1_matrix_int8_engine_shell.sv" "localparam logic [3:0] INT8_OPCODE = 4'h6;"
 Require-Literal "docs/MATRIX_ENGINE.md" "The architecture target is therefore one accepted matrix instruction per engine every **$matrixIssueInterval cycles**."
 Require-Literal "source/power/cgx1_power_management.hpp" "kComputeTileCount = $($computeTiles)U;"
@@ -247,8 +250,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 15) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 15 for the single-engine signed INT8 shell contract"
+if ([int]$architecture.schema_version -ne 16) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 16 for the resident-wave signed INT8 boundary"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -381,10 +384,18 @@ if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.accepted_registe
     [string]$architecture.matrix_engine.wave_vgpr_scoreboard.reservation_event_source -ne "registered issue acceptance with controller-latched D/A/B bases") {
     Add-Finding "design/cgx1_architecture.json: matrix scoreboard reservation must use controller-latched accepted register bases"
 }
+if (-not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.ordinary_issue_admission_integrated -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_identity_integrated -or
+    -not [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_router_rtl_implemented) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave matrix scoreboard routing/admission contract is incomplete"
+}
 if ([bool]$architecture.matrix_engine.wave_vgpr_scoreboard.ordinary_issue_pipeline_integrated -or
-    [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_identity_integrated -or
-    [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.multi_wave_storage_organization_frozen) {
-    Add-Finding "design/cgx1_architecture.json: matrix per-wave scoreboard must not claim unfinished CU integration"
+    [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.multi_wave_storage_organization_frozen -or
+    [bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_slot_count_frozen) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave scoreboard must not claim unfinished physical CU integration"
+}
+if ([bool]$architecture.matrix_engine.wave_vgpr_scoreboard.resident_wave_router_simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave scoreboard simulation evidence must remain false until exact-revision RTL CI passes"
 }
 if (-not [bool]$architecture.matrix_engine.pipeline_control_rtl.implemented -or
     -not [bool]$architecture.matrix_engine.pipeline_control_rtl.simulation_exercised -or
@@ -519,6 +530,31 @@ if ([bool]$architecture.matrix_engine.int8_engine_shell.timing_closure_validated
     [bool]$architecture.matrix_engine.int8_engine_shell.area_validated -or
     [bool]$architecture.matrix_engine.int8_engine_shell.power_validated) {
     Add-Finding "design/cgx1_architecture.json: INT8 shell physical implementation evidence must remain unclaimed"
+}
+
+if (-not [bool]$architecture.matrix_engine.int8_resident_engine.implemented -or
+    [string]$architecture.matrix_engine.int8_resident_engine.supported_matrix_opcode -ne "0x6" -or
+    -not [bool]$architecture.matrix_engine.int8_resident_engine.resident_wave_slot_count_parameterized -or
+    [bool]$architecture.matrix_engine.int8_resident_engine.resident_wave_slot_count_frozen -or
+    -not [bool]$architecture.matrix_engine.int8_resident_engine.round_robin_matrix_request_arbiter -or
+    -not [bool]$architecture.matrix_engine.int8_resident_engine.wave_identity_propagated_through_pipeline -or
+    -not [bool]$architecture.matrix_engine.int8_resident_engine.wave_local_matrix_dependency_interlocks -or
+    -not [bool]$architecture.matrix_engine.int8_resident_engine.wave_tagged_external_vgpr_interface -or
+    -not [bool]$architecture.matrix_engine.int8_resident_engine.per_wave_scoreboard_routing -or
+    -not [bool]$architecture.matrix_engine.int8_resident_engine.ordinary_issue_admission_handshake -or
+    -not [bool]$architecture.matrix_engine.int8_resident_engine.rtl_testbench_implemented) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave INT8 engine contract is incomplete"
+}
+if ([bool]$architecture.matrix_engine.int8_resident_engine.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave INT8 simulation evidence must remain false until exact-revision RTL CI passes"
+}
+if ([bool]$architecture.matrix_engine.int8_resident_engine.ordinary_vector_execution_datapath_integrated -or
+    [bool]$architecture.matrix_engine.int8_resident_engine.physical_vgpr_file_implemented -or
+    [bool]$architecture.matrix_engine.int8_resident_engine.floating_matrix_opcodes_supported -or
+    [bool]$architecture.matrix_engine.int8_resident_engine.timing_closure_validated -or
+    [bool]$architecture.matrix_engine.int8_resident_engine.area_validated -or
+    [bool]$architecture.matrix_engine.int8_resident_engine.power_validated) {
+    Add-Finding "design/cgx1_architecture.json: resident-wave INT8 boundary must not claim unfinished physical or floating integration"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit

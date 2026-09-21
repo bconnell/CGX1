@@ -2,11 +2,14 @@
 // Copyright (c) 2026 Brandon Connell
 // Matrix pipeline control only. Arithmetic datapath and physical VGPR macros are separate work.
 
-module cgx1_matrix_pipeline_control (
+module cgx1_matrix_pipeline_control #(
+    parameter integer WAVE_SLOT_WIDTH = 1
+) (
     input  logic       clk,
     input  logic       reset_n,
 
     input  logic       issue_valid,
+    input  logic [WAVE_SLOT_WIDTH-1:0] issue_wave_slot,
     output logic       issue_ready,
     output logic       issue_legal,
     output logic       issue_dependency_hazard,
@@ -14,6 +17,7 @@ module cgx1_matrix_pipeline_control (
     output logic [7:0] issue_accepted_d_base,
     output logic [7:0] issue_accepted_a_base,
     output logic [7:0] issue_accepted_b_base,
+    output logic [WAVE_SLOT_WIDTH-1:0] issue_accepted_wave_slot,
     output logic       illegal_issue,
 
     input  logic [3:0] issue_opcode,
@@ -34,15 +38,19 @@ module cgx1_matrix_pipeline_control (
     output logic       rf_read_valid,
     output logic [7:0] rf_read_addr0,
     output logic [7:0] rf_read_addr1,
+    output logic [WAVE_SLOT_WIDTH-1:0] rf_read_wave_slot,
     output logic       rf_write_valid,
     output logic [7:0] rf_write_addr,
+    output logic [WAVE_SLOT_WIDTH-1:0] rf_write_wave_slot,
 
     output logic       source_release_valid,
     output logic [7:0] source_release_a_base,
     output logic [7:0] source_release_b_base,
+    output logic [WAVE_SLOT_WIDTH-1:0] source_release_wave_slot,
 
     output logic       destination_complete_valid,
-    output logic [7:0] destination_complete_base
+    output logic [7:0] destination_complete_base,
+    output logic [WAVE_SLOT_WIDTH-1:0] destination_complete_wave_slot
 );
 
     localparam integer MATRIX_CAPTURE_CYCLES = 8;
@@ -62,6 +70,7 @@ module cgx1_matrix_pipeline_control (
     logic [7:0] decode_d_q, decode_d_d;
     logic [7:0] decode_a_q, decode_a_d;
     logic [7:0] decode_b_q, decode_b_d;
+    logic [WAVE_SLOT_WIDTH-1:0] decode_wave_q, decode_wave_d;
 
     logic       capture_valid_q, capture_valid_d;
     logic [2:0] capture_cycle_q, capture_cycle_d;
@@ -69,15 +78,18 @@ module cgx1_matrix_pipeline_control (
     logic [7:0] capture_d_q, capture_d_d;
     logic [7:0] capture_a_q, capture_a_d;
     logic [7:0] capture_b_q, capture_b_d;
+    logic [WAVE_SLOT_WIDTH-1:0] capture_wave_q, capture_wave_d;
 
     logic       execute_valid_q, execute_valid_d;
     logic [4:0] execute_cycle_q, execute_cycle_d;
     logic [3:0] execute_opcode_q, execute_opcode_d;
     logic [7:0] execute_d_q, execute_d_d;
+    logic [WAVE_SLOT_WIDTH-1:0] execute_wave_q, execute_wave_d;
 
     logic       writeback_valid_q, writeback_valid_d;
     logic [2:0] writeback_cycle_q, writeback_cycle_d;
     logic [7:0] writeback_d_q, writeback_d_d;
+    logic [WAVE_SLOT_WIDTH-1:0] writeback_wave_q, writeback_wave_d;
 
     logic       issue_fire;
     logic       invalid_fire;
@@ -156,7 +168,7 @@ module cgx1_matrix_pipeline_control (
             && register_layout_legal(issue_d_base, issue_a_base, issue_b_base);
 
         issue_dependency_hazard = 1'b0;
-        if (capture_valid_q) begin
+        if (capture_valid_q && (issue_wave_slot == capture_wave_q)) begin
             issue_dependency_hazard =
                 issue_dependency_hazard
                 || depends_on_pending_destination(
@@ -165,7 +177,7 @@ module cgx1_matrix_pipeline_control (
                     issue_b_base,
                     capture_d_q);
         end
-        if (execute_valid_q) begin
+        if (execute_valid_q && (issue_wave_slot == execute_wave_q)) begin
             issue_dependency_hazard =
                 issue_dependency_hazard
                 || depends_on_pending_destination(
@@ -174,7 +186,7 @@ module cgx1_matrix_pipeline_control (
                     issue_b_base,
                     execute_d_q);
         end
-        if (writeback_valid_q) begin
+        if (writeback_valid_q && (issue_wave_slot == writeback_wave_q)) begin
             issue_dependency_hazard =
                 issue_dependency_hazard
                 || depends_on_pending_destination(
@@ -192,6 +204,7 @@ module cgx1_matrix_pipeline_control (
         issue_accepted_d_base = decode_d_q;
         issue_accepted_a_base = decode_a_q;
         issue_accepted_b_base = decode_b_q;
+        issue_accepted_wave_slot = decode_wave_q;
 
         decode_active = decode_valid_q;
         capture_active = capture_valid_q;
@@ -205,6 +218,7 @@ module cgx1_matrix_pipeline_control (
         rf_read_valid = capture_valid_q;
         rf_read_addr0 = 8'd0;
         rf_read_addr1 = 8'd0;
+        rf_read_wave_slot = capture_wave_q;
 
         if (capture_valid_q) begin
             if (capture_cycle_q < 3'd4) begin
@@ -220,6 +234,7 @@ module cgx1_matrix_pipeline_control (
 
         rf_write_valid = writeback_valid_q;
         rf_write_addr = writeback_d_q + {5'd0, writeback_cycle_q};
+        rf_write_wave_slot = writeback_wave_q;
 
         capture_finishing = capture_valid_q && (capture_cycle_q == MATRIX_CAPTURE_CYCLES - 1);
         execute_finishing = execute_valid_q && (execute_cycle_q == MATRIX_EXECUTE_CYCLES - 1);
@@ -228,9 +243,11 @@ module cgx1_matrix_pipeline_control (
         source_release_valid = capture_finishing;
         source_release_a_base = capture_a_q;
         source_release_b_base = capture_b_q;
+        source_release_wave_slot = capture_wave_q;
 
         destination_complete_valid = writeback_finishing;
         destination_complete_base = writeback_d_q;
+        destination_complete_wave_slot = writeback_wave_q;
 
         issue_cooldown_d = issue_cooldown_q;
 
@@ -239,6 +256,7 @@ module cgx1_matrix_pipeline_control (
         decode_d_d = decode_d_q;
         decode_a_d = decode_a_q;
         decode_b_d = decode_b_q;
+        decode_wave_d = decode_wave_q;
 
         capture_valid_d = capture_valid_q;
         capture_cycle_d = capture_cycle_q;
@@ -246,15 +264,18 @@ module cgx1_matrix_pipeline_control (
         capture_d_d = capture_d_q;
         capture_a_d = capture_a_q;
         capture_b_d = capture_b_q;
+        capture_wave_d = capture_wave_q;
 
         execute_valid_d = execute_valid_q;
         execute_cycle_d = execute_cycle_q;
         execute_opcode_d = execute_opcode_q;
         execute_d_d = execute_d_q;
+        execute_wave_d = execute_wave_q;
 
         writeback_valid_d = writeback_valid_q;
         writeback_cycle_d = writeback_cycle_q;
         writeback_d_d = writeback_d_q;
+        writeback_wave_d = writeback_wave_q;
 
         if (issue_fire) begin
             issue_cooldown_d = ISSUE_COOLDOWN_RELOAD;
@@ -299,6 +320,7 @@ module cgx1_matrix_pipeline_control (
                 capture_d_d = decode_d_q;
                 capture_a_d = decode_a_q;
                 capture_b_d = decode_b_q;
+                capture_wave_d = decode_wave_q;
             end
         end
 
@@ -308,6 +330,7 @@ module cgx1_matrix_pipeline_control (
                 execute_cycle_d = 5'd0;
                 execute_opcode_d = capture_opcode_q;
                 execute_d_d = capture_d_q;
+                execute_wave_d = capture_wave_q;
             end
         end
 
@@ -316,6 +339,7 @@ module cgx1_matrix_pipeline_control (
                 writeback_valid_d = 1'b1;
                 writeback_cycle_d = 3'd0;
                 writeback_d_d = execute_d_q;
+                writeback_wave_d = execute_wave_q;
             end
         end
 
@@ -325,6 +349,7 @@ module cgx1_matrix_pipeline_control (
             decode_d_d = issue_d_base;
             decode_a_d = issue_a_base;
             decode_b_d = issue_b_base;
+            decode_wave_d = issue_wave_slot;
         end
     end
 
@@ -339,6 +364,7 @@ module cgx1_matrix_pipeline_control (
             decode_d_q <= 8'd0;
             decode_a_q <= 8'd0;
             decode_b_q <= 8'd0;
+            decode_wave_q <= '0;
 
             capture_valid_q <= 1'b0;
             capture_cycle_q <= 3'd0;
@@ -346,15 +372,18 @@ module cgx1_matrix_pipeline_control (
             capture_d_q <= 8'd0;
             capture_a_q <= 8'd0;
             capture_b_q <= 8'd0;
+            capture_wave_q <= '0;
 
             execute_valid_q <= 1'b0;
             execute_cycle_q <= 5'd0;
             execute_opcode_q <= 4'd0;
             execute_d_q <= 8'd0;
+            execute_wave_q <= '0;
 
             writeback_valid_q <= 1'b0;
             writeback_cycle_q <= 3'd0;
             writeback_d_q <= 8'd0;
+            writeback_wave_q <= '0;
         end else begin
             issue_cooldown_q <= issue_cooldown_d;
             issue_accepted <= issue_fire;
@@ -365,6 +394,7 @@ module cgx1_matrix_pipeline_control (
             decode_d_q <= decode_d_d;
             decode_a_q <= decode_a_d;
             decode_b_q <= decode_b_d;
+            decode_wave_q <= decode_wave_d;
 
             capture_valid_q <= capture_valid_d;
             capture_cycle_q <= capture_cycle_d;
@@ -372,15 +402,18 @@ module cgx1_matrix_pipeline_control (
             capture_d_q <= capture_d_d;
             capture_a_q <= capture_a_d;
             capture_b_q <= capture_b_d;
+            capture_wave_q <= capture_wave_d;
 
             execute_valid_q <= execute_valid_d;
             execute_cycle_q <= execute_cycle_d;
             execute_opcode_q <= execute_opcode_d;
             execute_d_q <= execute_d_d;
+            execute_wave_q <= execute_wave_d;
 
             writeback_valid_q <= writeback_valid_d;
             writeback_cycle_q <= writeback_cycle_d;
             writeback_d_q <= writeback_d_d;
+            writeback_wave_q <= writeback_wave_d;
         end
     end
 

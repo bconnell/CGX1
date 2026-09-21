@@ -164,6 +164,18 @@ try {
         throw "INT8 engine-shell negative control did not report the expected invariant."
     }
 
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.matrix_engine.int8_resident_engine.physical_vgpr_file_implemented = $true
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted an unvalidated physical VGPR file in the resident-wave INT8 boundary." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "resident-wave INT8 boundary must not claim unfinished physical or floating integration") {
+        throw "Resident-wave INT8 boundary negative control did not report the expected invariant."
+    }
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

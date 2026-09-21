@@ -378,7 +378,7 @@ A separate per-wave VGPR scoreboard now tracks matrix source reservations until 
 
 An ordinary read of an unrelated register is not blocked merely because matrix writeback is active, and an unrelated write is not blocked merely because matrix capture is active. The scoreboard reports only the data or port conflicts defined above.
 
-The scoreboard block is scoped to one wave context. Its reservation event uses the matrix controller's registered acceptance pulse together with controller-latched D/A/B register bases, so the producer may change the live issue payload after the handshake without changing the reservation. Resident-wave identity, arbitration among multiple wave contexts, and connection to a real ordinary vector issue pipeline remain future compute-unit integration work.
+The base scoreboard block remains scoped to one wave context. Its reservation event uses the matrix controller's registered acceptance pulse together with controller-latched D/A/B register bases, so the producer may change the live issue payload after the handshake without changing the reservation. A parameterized resident-wave layer now routes those per-wave scoreboards by scheduler-assigned resident-wave slot. Matrix dependency comparisons are wave-local, so identical VGPR numbers in different resident waves do not create false dependencies. The resident engine also provides an ordinary-instruction admission handshake from the selected wave's RAW/WAW/WAR state and the shared matrix VGPR-port state. Physical resident-wave VGPR storage and the ordinary vector execution datapath remain open.
 
 A and B are captured during the eight-cycle capture stage; once source release has been recorded, later non-matrix instructions may overwrite those source registers without affecting the in-flight matrix operation.
 
@@ -429,7 +429,9 @@ Adding MX requires a defined shared block-scale storage and delivery path, block
 
 [source/rtl/cgx1_matrix_int8_path.sv](../source/rtl/cgx1_matrix_int8_path.sv) composes the corresponding RTL blocks using controller-provided capture, execute, opcode, and writeback cycle signals. Its integration testbench models the architectural wave register file and verifies a complete opcode-6 capture/execute/writeback transaction. The composed path has passed the repository RTL simulation gate.
 
-[source/rtl/cgx1_matrix_int8_engine_shell.sv](../source/rtl/cgx1_matrix_int8_engine_shell.sv) wraps one controller, one per-wave scoreboard, and the integrated signed INT8 path behind an external whole-wave VGPR read/write interface. The shell accepts only matrix opcode `0x6` at this boundary, exposes ordinary-instruction RAW/WAW/WAR and port-conflict decisions from the per-wave scoreboard, and deliberately leaves the physical VGPR file, resident-wave arbitration, ordinary vector issue, and floating matrix opcodes outside the block. Its exact-revision simulation evidence is tracked separately until the shell candidate passes RTL CI.
+[source/rtl/cgx1_matrix_int8_engine_shell.sv](../source/rtl/cgx1_matrix_int8_engine_shell.sv) wraps one controller, one per-wave scoreboard, and the integrated signed INT8 path behind an external whole-wave VGPR read/write interface. The shell accepts only matrix opcode `0x6` at this boundary and has passed the repository RTL simulation gate.
+
+[source/rtl/cgx1_matrix_resident_wave_arbiter.sv](../source/rtl/cgx1_matrix_resident_wave_arbiter.sv) provides parameterized round-robin selection across resident-wave matrix requests. [source/rtl/cgx1_matrix_resident_wave_scoreboard.sv](../source/rtl/cgx1_matrix_resident_wave_scoreboard.sv) routes the validated per-wave scoreboards by resident-wave slot and produces the ordinary-instruction admission decision. [source/rtl/cgx1_matrix_int8_resident_engine.sv](../source/rtl/cgx1_matrix_int8_resident_engine.sv) composes those blocks with the signed INT8 path and carries resident-wave identity through dependency checks and external VGPR transactions. The resident-wave slot count remains an implementation parameter rather than a frozen architecture target. Exact-revision resident-engine simulation evidence remains false until this candidate passes RTL CI.
 
 [source/rtl/cgx1_matrix_int8_execution.sv](../source/rtl/cgx1_matrix_int8_execution.sv) and its SystemVerilog testbench implement the same functional INT8 arithmetic boundary. The standalone INT8 arithmetic block has passed the repository RTL simulation gate.
 
@@ -442,7 +444,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - complete FP16/BF16/FP8 arithmetic datapaths with the frozen FP32-FMA semantics; the signed INT8 arithmetic boundary is implemented functionally;
-- extend the validated single-engine signed INT8 shell toward resident-wave identity/arbitration and ordinary vector issue integration while preserving the frozen control, scoreboard, staging, and arithmetic contracts;
+- connect the parameterized resident-wave signed INT8 boundary to physical resident-wave VGPR storage and the ordinary vector execution datapath while preserving the frozen control, scoreboard, staging, and arithmetic contracts;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;
 - measure timing, area, and power against the compute-unit budget;

@@ -108,4 +108,24 @@ iverilog \
 echo "==> Run signed INT8 matrix-engine shell RTL"
 vvp build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp
 
+echo "==> Compile resident-wave signed INT8 matrix-engine RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_matrix_int8_resident_engine_tb \
+    -o build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp \
+    source/rtl/cgx1_matrix_pipeline_control.sv \
+    source/rtl/cgx1_matrix_operand_staging.sv \
+    source/rtl/cgx1_matrix_int8_execution.sv \
+    source/rtl/cgx1_matrix_result_staging.sv \
+    source/rtl/cgx1_matrix_int8_path.sv \
+    source/rtl/cgx1_matrix_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_arbiter.sv \
+    source/rtl/cgx1_matrix_int8_resident_engine.sv \
+    source/rtl/tests/cgx1_matrix_int8_resident_engine_tb.sv
+
+echo "==> Run resident-wave signed INT8 matrix-engine RTL"
+vvp build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

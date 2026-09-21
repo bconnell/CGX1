@@ -1,5 +1,5 @@
 {
-  "schema_version": 15,
+  "schema_version": 16,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -476,7 +476,9 @@
       "general_compute_unit_scoreboard_integrated": false,
       "ordinary_vector_source_write_interlock_implemented": true,
       "ordinary_vector_pending_destination_read_interlock_implemented": true,
-      "ordinary_vector_pending_destination_write_interlock_implemented": true
+      "ordinary_vector_pending_destination_write_interlock_implemented": true,
+      "resident_wave_identity_implemented": true,
+      "cross_wave_register_number_independence": true
     },
     "pipeline_control_rtl": {
       "implemented": true,
@@ -491,7 +493,11 @@
       "writeback_cycle_index_exposed": true,
       "output_result_staging_rtl_implemented": true,
       "execute_cycle_index_exposed": true,
-      "execute_opcode_exposed": true
+      "execute_opcode_exposed": true,
+      "resident_wave_slot_tag_implemented": true,
+      "wave_local_dependency_checks": true,
+      "resident_wave_slot_count_frozen": false,
+      "resident_wave_identity_simulation_exercised": false
     },
     "staging_storage": {
       "capture_buffer_bytes": 2048,
@@ -516,7 +522,7 @@
       "result_cycle0_bypass_simulation_exercised": true
     },
     "wave_vgpr_scoreboard": {
-      "status": "per-wave VGPR hazard and matrix-port conflict logic implemented in executable reference and RTL; multi-wave CU integration remains open",
+      "status": "per-wave VGPR hazard logic retained; parameterized resident-wave routing and ordinary issue admission implemented in RTL, with full ordinary vector execution still open",
       "scope": "one wave context",
       "register_count": 256,
       "tracks_matrix_source_reservations": true,
@@ -531,10 +537,14 @@
       "rtl_implemented": true,
       "simulation_exercised": true,
       "ordinary_issue_pipeline_integrated": false,
-      "resident_wave_identity_integrated": false,
+      "resident_wave_identity_integrated": true,
       "multi_wave_storage_organization_frozen": false,
       "accepted_register_bases_latched_by_pipeline_control": true,
-      "reservation_event_source": "registered issue acceptance with controller-latched D/A/B bases"
+      "reservation_event_source": "registered issue acceptance with controller-latched D/A/B bases",
+      "ordinary_issue_admission_integrated": true,
+      "resident_wave_router_rtl_implemented": true,
+      "resident_wave_router_simulation_exercised": false,
+      "resident_wave_slot_count_frozen": false
     },
     "arithmetic_rtl": {
       "status": "signed INT8 matrix execution implemented in executable reference and RTL; floating matrix arithmetic remains unimplemented",
@@ -590,6 +600,27 @@
       "resident_wave_arbitration_integrated": false,
       "ordinary_vector_issue_pipeline_integrated": false,
       "floating_matrix_opcodes_supported": false,
+      "timing_closure_validated": false,
+      "area_validated": false,
+      "power_validated": false
+    },
+    "int8_resident_engine": {
+      "status": "parameterized resident-wave signed INT8 engine boundary implemented; exact-revision RTL simulation pending",
+      "implemented": true,
+      "supported_matrix_opcode": "0x6",
+      "resident_wave_slot_count_parameterized": true,
+      "resident_wave_slot_count_frozen": false,
+      "round_robin_matrix_request_arbiter": true,
+      "wave_identity_propagated_through_pipeline": true,
+      "wave_local_matrix_dependency_interlocks": true,
+      "wave_tagged_external_vgpr_interface": true,
+      "per_wave_scoreboard_routing": true,
+      "ordinary_issue_admission_handshake": true,
+      "ordinary_vector_execution_datapath_integrated": false,
+      "physical_vgpr_file_implemented": false,
+      "floating_matrix_opcodes_supported": false,
+      "rtl_testbench_implemented": true,
+      "simulation_exercised": false,
       "timing_closure_validated": false,
       "area_validated": false,
       "power_validated": false

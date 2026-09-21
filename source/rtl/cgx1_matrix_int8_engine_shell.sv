@@ -95,6 +95,7 @@ module cgx1_matrix_int8_engine_shell (
         .clk(clk),
         .reset_n(reset_n),
         .issue_valid(controller_issue_valid),
+        .issue_wave_slot(1'b0),
         .issue_ready(controller_issue_ready),
         .issue_legal(controller_issue_legal),
         .issue_dependency_hazard(controller_issue_dependency_hazard),

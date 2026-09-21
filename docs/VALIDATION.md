@@ -17,7 +17,7 @@ The repository gate checks:
 - shared design value consistency;
 - local Markdown links;
 - C and C++ build success;
-- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, matrix-staging, matrix-result-staging, matrix-scoreboard, matrix-INT8-execution, matrix-INT8-path, matrix-INT8-engine-shell, and power-management policy tests.
+- executable firmware, analytical-model, ISA-reference, matrix-numeric, matrix-architecture, matrix-pipeline-schedule, matrix-banking, matrix-staging, matrix-result-staging, matrix-scoreboard, matrix-INT8-execution, matrix-INT8-path, matrix-INT8-engine-shell, matrix-INT8-resident-engine, and power-management policy tests.
 
 ## 2. Analytical model
 
@@ -78,6 +78,8 @@ The matrix-INT8-path executable test composes capture-to-active operand staging,
 
 The matrix-INT8-engine-shell SystemVerilog testbench adds the controller and per-wave scoreboard around that path, rejects a non-INT8 matrix opcode, models the external 256-entry whole-wave VGPR namespace, verifies source and destination hazard reporting, and checks a complete opcode-`0x6` result transaction. The single-engine INT8 shell has passed the repository RTL simulation gate.
 
+The matrix-INT8-resident-engine SystemVerilog testbench uses a four-slot test configuration of the parameterized resident-wave boundary. It checks round-robin selection, wave-tagged VGPR traffic, identical VGPR-number independence across waves, same-wave pending-destination blocking, per-wave ordinary RAW admission, wave-tagged writeback, and invalid full-wave request tagging. Four slots is a test configuration, not a frozen architecture count. Exact-revision resident-engine simulation evidence remains false until this candidate passes RTL CI.
+
 The matrix-scoreboard executable test verifies a 256-VGPR per-wave reservation state, all single-register ordinary RAW/WAW/WAR outcomes across the full register namespace, source release, destination completion, multiple independent pending destinations, exact A/B alias handling, and read/write-port conflict reporting. The RTL integration test additionally changes the live issue register inputs after acceptance and verifies that scoreboard state is created from the controller-latched accepted bases.
 
 These references validate the architecture contract and functional reference behavior. The standalone signed INT8 arithmetic RTL has passed the repository simulation gate. The composed INT8 path has its own exact-revision simulation evidence flag. None of these tests establish physical VGPR macros, timing closure, area/power characterization, compiler integration, or measured silicon performance.
@@ -121,7 +123,7 @@ The dock fault tests also verify that the fallback does not request a 70 W slot 
 
 ## 7. RTL boundary
 
-The public RTL currently covers top-level power-state/tile-enable behavior, matrix pipeline control, capture/active operand staging, output-result staging, per-wave matrix/ordinary VGPR hazard reporting, signed INT8 arithmetic, and a composed INT8 capture-to-writeback path. FP16/BF16/FP8 arithmetic, physical VGPR/storage macros, ordinary vector execution, resident-wave scoreboard arbitration, and the rest of the GPU pipeline remain open.
+The public RTL currently covers top-level power-state/tile-enable behavior, matrix pipeline control, capture/active operand staging, output-result staging, signed INT8 arithmetic/path, one-wave hazard reporting, parameterized resident-wave matrix arbitration, wave-local dependency handling, per-wave scoreboard routing, and ordinary issue admission. FP16/BF16/FP8 arithmetic, physical resident-wave VGPR/storage macros, ordinary vector execution, and the rest of the GPU pipeline remain open.
 
 RTL simulation is run with Icarus Verilog in SystemVerilog 2012 mode through `scripts/validate_rtl.sh` and the path-scoped Ubuntu RTL CI workflow. Functional unit and integration testbenches do not replace constrained-random verification, formal work, synthesis, FPGA/emulation, timing closure, or physical implementation.
 

@@ -56,6 +56,7 @@ module cgx1_matrix_wave_scoreboard_tb;
         .clk(clk),
         .reset_n(reset_n),
         .issue_valid(issue_valid),
+        .issue_wave_slot(1'b0),
         .issue_ready(issue_ready),
         .issue_legal(issue_legal),
         .issue_dependency_hazard(issue_dependency_hazard),

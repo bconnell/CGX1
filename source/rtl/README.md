@@ -29,7 +29,7 @@ The signed INT8 arithmetic block is checked by `source/rtl/tests/cgx1_matrix_int
 
 The composed INT8 path is checked by `source/rtl/tests/cgx1_matrix_int8_path_tb.sv`. That testbench models architectural wave registers and verifies a full opcode-6 capture, execute, cycle-0 bypass, and eight-register writeback transaction. The integrated path has passed the repository RTL simulation gate.
 
-The one-wave INT8 engine shell is checked by `source/rtl/tests/cgx1_matrix_int8_engine_shell_tb.sv`. That testbench verifies non-INT8 opcode rejection, register reservation/release, ordinary RAW/WAR hazard reporting, and a complete signed INT8 result transaction through the shell's external VGPR interface. Exact shell simulation evidence is recorded only after the candidate passes RTL CI.
+The one-wave INT8 engine shell is checked by `source/rtl/tests/cgx1_matrix_int8_engine_shell_tb.sv`. That testbench verifies non-INT8 opcode rejection, register reservation/release, ordinary RAW/WAR hazard reporting, and a complete signed INT8 result transaction through the shell's external VGPR interface. The single-engine INT8 shell has passed the repository RTL simulation gate.
 
 Run the RTL gate with:
 

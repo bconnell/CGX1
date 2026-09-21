@@ -573,7 +573,7 @@
       "physical_power_validated": false
     },
     "int8_engine_shell": {
-      "status": "single-engine, single-wave-context INT8 shell implemented; exact-revision shell simulation pending",
+      "status": "single-engine, single-wave-context INT8 shell implemented and exercised by RTL simulation",
       "implemented": true,
       "supported_matrix_opcode": "0x6",
       "single_wave_context": true,
@@ -585,7 +585,7 @@
       "ordinary_hazard_interface": true,
       "rejects_non_int8_matrix_opcodes": true,
       "rtl_testbench_implemented": true,
-      "simulation_exercised": false,
+      "simulation_exercised": true,
       "physical_vgpr_file_implemented": false,
       "resident_wave_arbitration_integrated": false,
       "ordinary_vector_issue_pipeline_integrated": false,

@@ -76,7 +76,7 @@ The matrix-INT8-execution executable test verifies M16N16K32 signed INT8 arithme
 
 The matrix-INT8-path executable test composes capture-to-active operand staging, the 16-cycle signed INT8 execution model, cycle-0 result bypass, and ordered result drain. The corresponding SystemVerilog integration testbench models the wave register file and performs a complete opcode-6 capture/execute/writeback transaction; that integrated path has passed RTL CI.
 
-The matrix-INT8-engine-shell SystemVerilog testbench adds the controller and per-wave scoreboard around that path, rejects a non-INT8 matrix opcode, models the external 256-entry whole-wave VGPR namespace, verifies source and destination hazard reporting, and checks a complete opcode-`0x6` result transaction. Shell simulation evidence remains separate until the exact candidate revision passes RTL CI.
+The matrix-INT8-engine-shell SystemVerilog testbench adds the controller and per-wave scoreboard around that path, rejects a non-INT8 matrix opcode, models the external 256-entry whole-wave VGPR namespace, verifies source and destination hazard reporting, and checks a complete opcode-`0x6` result transaction. The single-engine INT8 shell has passed the repository RTL simulation gate.
 
 The matrix-scoreboard executable test verifies a 256-VGPR per-wave reservation state, all single-register ordinary RAW/WAW/WAR outcomes across the full register namespace, source release, destination completion, multiple independent pending destinations, exact A/B alias handling, and read/write-port conflict reporting. The RTL integration test additionally changes the live issue register inputs after acceptance and verifies that scoreboard state is created from the controller-latched accepted bases.
 

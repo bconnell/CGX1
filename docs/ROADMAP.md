@@ -62,7 +62,7 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- validate and harden the single-engine signed INT8 shell, including external VGPR interface and per-wave hazard behavior, against the frozen tile, fragment, register, opcode, reduction-order, and issue-interval contracts;
+- extend the validated single-engine signed INT8 shell toward resident-wave identity/arbitration and ordinary vector issue integration while preserving the frozen tile, fragment, register, opcode, reduction-order, and issue-interval contracts;
 - implement physical VGPR storage/macros for the validated eight bank classes and two-read/one-write whole-wave schedule, plus the fixed lane/register-offset delivery network into matrix staging;
 - implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics; connect the per-wave scoreboard to ordinary vector issue and resident-wave identity/arbitration; validate timing, area, and power; revise timing targets if physical evidence cannot close them;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;

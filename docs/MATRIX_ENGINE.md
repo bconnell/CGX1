@@ -442,7 +442,7 @@ The next implementation boundary is matrix RTL and feasibility closure:
 - implement the physical VGPR storage/macros behind the validated eight bank classes and two-read/one-write logical schedule;
 - implement the fixed lane/register-offset routing from whole-wave reads into the 2,048-byte engine-local staging structures;
 - complete FP16/BF16/FP8 arithmetic datapaths with the frozen FP32-FMA semantics; the signed INT8 arithmetic boundary is implemented functionally;
-- validate the single-engine signed INT8 shell against the frozen control, scoreboard, staging, and arithmetic contracts; connect the validated per-wave VGPR scoreboard to real ordinary vector issue and resident-wave identity/arbitration;
+- extend the validated single-engine signed INT8 shell toward resident-wave identity/arbitration and ordinary vector issue integration while preserving the frozen control, scoreboard, staging, and arithmetic contracts;
 - verify exact instruction behavior against the executable reference;
 - synthesize the matrix engine on the selected process assumptions;
 - measure timing, area, and power against the compute-unit budget;

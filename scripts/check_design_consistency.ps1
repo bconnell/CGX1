@@ -506,8 +506,8 @@ if (-not [bool]$architecture.matrix_engine.int8_engine_shell.implemented -or
     -not [bool]$architecture.matrix_engine.int8_engine_shell.rtl_testbench_implemented) {
     Add-Finding "design/cgx1_architecture.json: single-engine INT8 shell contract is incomplete"
 }
-if ([bool]$architecture.matrix_engine.int8_engine_shell.simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: INT8 shell simulation evidence must remain false until the exact revision passes RTL CI"
+if (-not [bool]$architecture.matrix_engine.int8_engine_shell.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: INT8 shell simulation evidence must remain recorded"
 }
 if ([bool]$architecture.matrix_engine.int8_engine_shell.physical_vgpr_file_implemented -or
     [bool]$architecture.matrix_engine.int8_engine_shell.resident_wave_arbitration_integrated -or

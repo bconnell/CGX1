@@ -26,8 +26,8 @@ module cgx1_pooled_vgpr_matrix_subsystem_tb;
         timeout=0; activate_wave_slot=slot; while(!dut.allocation_sanitized_bitmap[slot]) begin @(posedge clk); #1; timeout=timeout+1; if(timeout>20) $fatal(1,"sanitization timeout"); end
     end endtask
 
-    task automatic restore_reg(input logic [SLOT_WIDTH-1:0] slot,input logic [7:0] reg,input logic [7:0] tag); begin
-        @(negedge clk); restore_wave_slot=slot; restore_register=reg; restore_data=pattern(tag); restore_valid=1; #1;
+    task automatic restore_reg(input logic [SLOT_WIDTH-1:0] slot,input logic [7:0] register_index,input logic [7:0] tag); begin
+        @(negedge clk); restore_wave_slot=slot; restore_register=register_index; restore_data=pattern(tag); restore_valid=1; #1;
         if(!restore_ready) $fatal(1,"privileged restore write blocked"); @(posedge clk); #1; @(negedge clk); restore_valid=0;
     end endtask
 

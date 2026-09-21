@@ -4,7 +4,6 @@
 #include "cgx1_matrix_vgpr_pool.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <optional>
@@ -13,6 +12,17 @@
 #include <vector>
 
 using namespace cgx1::matrix;
+
+#define CHECK(expression) \
+    do \
+    { \
+        if (!(expression)) \
+        { \
+            std::cerr << "[fail] " << #expression \
+                      << " at line " << __LINE__ << '\n'; \
+            return 1; \
+        } \
+    } while (false)
 
 template <class Function>
 bool Throws(Function&& function)
@@ -76,11 +86,11 @@ std::optional<std::uint32_t> ExpectedFirstFit(
 
 int main()
 {
-    assert(VgprRowsForRegisterCount(1U) == 1U);
-    assert(VgprRowsForRegisterCount(8U) == 1U);
-    assert(VgprRowsForRegisterCount(9U) == 2U);
-    assert(VgprRowsForRegisterCount(256U) == 32U);
-    assert(Throws(
+    CHECK(VgprRowsForRegisterCount(1U) == 1U);
+    CHECK(VgprRowsForRegisterCount(8U) == 1U);
+    CHECK(VgprRowsForRegisterCount(9U) == 2U);
+    CHECK(VgprRowsForRegisterCount(256U) == 32U);
+    CHECK(Throws(
         [] { (void)VgprRowsForRegisterCount(0U); }));
 
     for (std::uint32_t mask = 0U;
@@ -101,7 +111,7 @@ int main()
              rowsNeeded <= 8U;
              ++rowsNeeded)
         {
-            assert(
+            CHECK(
                 FindFirstFitVgprRows(
                     occupied,
                     rowsNeeded)
@@ -114,13 +124,13 @@ int main()
     ResidentWaveVgprPool pool(32U, 8U);
     PooledVgprStorage storage(32U);
 
-    assert(pool.Reserve(0U, 72U));
-    assert(
+    CHECK(pool.Reserve(0U, 72U));
+    CHECK(
         pool.Allocation(0U).state
         == VgprAllocationState::Reserved);
-    assert(!pool.Activate(0U));
+    CHECK(!pool.Activate(0U));
 
-    assert(Throws(
+    CHECK(Throws(
         [&] {
             (void)pool.Translate(
                 0U,
@@ -131,16 +141,16 @@ int main()
         pool,
         0U);
 
-    assert(pool.Activate(0U));
-    assert(!pool.Reserve(0U, 8U));
+    CHECK(pool.Activate(0U));
+    CHECK(!pool.Reserve(0U, 8U));
 
-    assert(pool.MatrixFragmentsFit(
+    CHECK(pool.MatrixFragmentsFit(
         0U,
         32U,
         64U,
         68U));
 
-    assert(!pool.MatrixFragmentsFit(
+    CHECK(!pool.MatrixFragmentsFit(
         0U,
         72U,
         64U,
@@ -155,26 +165,26 @@ int main()
                 0U,
                 static_cast<std::uint8_t>(reg));
 
-        assert(address.bank == reg % 8U);
-        assert(address.row == reg / 8U);
+        CHECK(address.bank == reg % 8U);
+        CHECK(address.row == reg / 8U);
     }
 
-    assert(pool.Reserve(3U, 8U));
+    CHECK(pool.Reserve(3U, 8U));
     storage.InvalidateReservedAllocation(
         pool,
         3U);
-    assert(pool.Activate(3U));
+    CHECK(pool.Activate(3U));
 
     const auto wave0Register0 =
         pool.Translate(0U, 0U);
     const auto wave3Register0 =
         pool.Translate(3U, 0U);
 
-    assert(
+    CHECK(
         wave0Register0.bank
         == wave3Register0.bank);
 
-    assert(
+    CHECK(
         wave0Register0.row
         != wave3Register0.row);
 
@@ -190,14 +200,14 @@ int main()
         0U,
         Pattern(0x11U));
 
-    assert(
+    CHECK(
         storage.Read(
             pool,
             3U,
             0U)
         == Pattern(0x33U));
 
-    assert(
+    CHECK(
         storage.Read(
             pool,
             0U,
@@ -247,11 +257,11 @@ int main()
          reg < 4U;
          ++reg)
     {
-        assert(
+        CHECK(
             captured.sourceA[reg]
             == Pattern(0xA0U + reg));
 
-        assert(
+        CHECK(
             captured.sourceB[reg]
             == Pattern(0xB0U + reg));
     }
@@ -260,7 +270,7 @@ int main()
          reg < 8U;
          ++reg)
     {
-        assert(
+        CHECK(
             captured.accumulator[reg]
             == Pattern(0xC0U + reg));
     }
@@ -278,12 +288,12 @@ int main()
          reg < 4U;
          ++reg)
     {
-        assert(
+        CHECK(
             aliased.sourceA[reg]
             == aliased.sourceB[reg]);
     }
 
-    assert(Throws(
+    CHECK(Throws(
         [&] {
             (void)storage.ReadPair(
                 pool,
@@ -307,7 +317,7 @@ int main()
             cycle,
             result);
 
-        assert(
+        CHECK(
             storage.Read(
                 pool,
                 0U,
@@ -324,9 +334,9 @@ int main()
 
     pool.Release(0U);
 
-    assert(pool.Reserve(1U, 8U));
+    CHECK(pool.Reserve(1U, 8U));
 
-    assert(
+    CHECK(
         pool.Allocation(1U).physicalRowBase
         == 0U);
 
@@ -334,9 +344,9 @@ int main()
         pool,
         1U);
 
-    assert(pool.Activate(1U));
+    CHECK(pool.Activate(1U));
 
-    assert(Throws(
+    CHECK(Throws(
         [&] {
             (void)storage.Read(
                 pool,
@@ -360,7 +370,7 @@ int main()
             1U,
             0U);
 
-    assert(
+    CHECK(
         sanitized[0]
         == partial[0]);
 
@@ -368,18 +378,18 @@ int main()
          lane < kPooledVgprWaveLanes;
          ++lane)
     {
-        assert(sanitized[lane] == 0U);
+        CHECK(sanitized[lane] == 0U);
     }
 
     pool.Release(1U);
 
-    assert(pool.Reserve(2U, 8U));
+    CHECK(pool.Reserve(2U, 8U));
 
     storage.InvalidateReservedAllocation(
         pool,
         2U);
 
-    assert(pool.Activate(2U));
+    CHECK(pool.Activate(2U));
 
     storage.Write(
         pool,
@@ -388,7 +398,7 @@ int main()
         partial,
         0U);
 
-    assert(
+    CHECK(
         !storage.IsInitialized(
             pool,
             2U,
@@ -429,7 +439,7 @@ int main()
                         stressPool,
                         slot);
 
-                assert(
+                CHECK(
                     stressPool.Activate(
                         slot));
 
@@ -468,7 +478,7 @@ int main()
                 reg,
                 value);
 
-            assert(
+            CHECK(
                 stressStorage.Read(
                     stressPool,
                     slot,
@@ -480,15 +490,15 @@ int main()
                     slot,
                     reg);
 
-            assert(
+            CHECK(
                 address.bank
                 == reg % 8U);
         }
 
-        assert(
+        CHECK(
             stressPool.InvariantsHold());
 
-        assert(
+        CHECK(
             stressPool.OccupiedRows()
             <= stressPool.PhysicalRows());
     }

@@ -35,7 +35,8 @@ struct ResidentWaveVgprAllocation
     VgprAllocationState state = VgprAllocationState::Free;
     std::uint32_t physicalRowBase = 0U;
     std::uint32_t physicalRowCount = 0U;
-    bool invalidated = false;
+    std::uint32_t architecturalRegisterCount = 0U;
+    std::uint32_t invalidatedRows = 0U;
 };
 
 struct PhysicalVgprAddress
@@ -159,44 +160,70 @@ public:
             VgprAllocationState::Reserved,
             *base,
             rowsNeeded,
-            false};
+            registerCount,
+            0U};
 
         return true;
     }
 
-    void MarkInvalidated(std::uint32_t waveSlot)
-    {
-        CheckWaveSlot(waveSlot);
-        auto& allocation = allocations_[waveSlot];
-
-        if (allocation.state != VgprAllocationState::Reserved)
-        {
-            throw std::logic_error(
-                "only a reserved VGPR allocation can be invalidated");
-        }
-
-        allocation.invalidated = true;
-    }
-
-    bool Activate(std::uint32_t waveSlot)
+    bool InvalidationStep(
+        std::uint32_t waveSlot,
+        std::uint32_t& physicalRow)
     {
         CheckWaveSlot(waveSlot);
         auto& allocation = allocations_[waveSlot];
 
         if (allocation.state != VgprAllocationState::Reserved
-            || !allocation.invalidated)
+            || allocation.invalidatedRows >= allocation.physicalRowCount)
         {
             return false;
         }
 
-        allocation.state = VgprAllocationState::Active;
+        physicalRow = allocation.physicalRowBase
+            + allocation.invalidatedRows;
+        ++allocation.invalidatedRows;
         return true;
     }
 
-    void Release(std::uint32_t waveSlot)
+    [[nodiscard]] bool Sanitized(std::uint32_t waveSlot) const
     {
         CheckWaveSlot(waveSlot);
+        const auto& allocation = allocations_[waveSlot];
+        return allocation.state == VgprAllocationState::Reserved
+            && allocation.physicalRowCount != 0U
+            && allocation.invalidatedRows == allocation.physicalRowCount;
+    }
+
+    bool Activate(std::uint32_t waveSlot)
+    {
+        CheckWaveSlot(waveSlot);
+        if (!Sanitized(waveSlot))
+        {
+            return false;
+        }
+
+        allocations_[waveSlot].state = VgprAllocationState::Active;
+        return true;
+    }
+
+    bool Release(
+        std::uint32_t waveSlot,
+        bool executionQuiescent = true)
+    {
+        CheckWaveSlot(waveSlot);
+        const auto state = allocations_[waveSlot].state;
+
+        if (state == VgprAllocationState::Free)
+        {
+            return false;
+        }
+        if (state == VgprAllocationState::Active && !executionQuiescent)
+        {
+            return false;
+        }
+
         allocations_[waveSlot] = ResidentWaveVgprAllocation{};
+        return true;
     }
 
     [[nodiscard]] bool RegisterRangeFits(
@@ -208,16 +235,33 @@ public:
         const auto& allocation = allocations_[waveSlot];
 
         if (allocation.state != VgprAllocationState::Active
-            || registerCount == 0U)
+            || registerCount == 0U
+            || registerBase >= allocation.architecturalRegisterCount)
         {
             return false;
         }
 
-        const std::uint32_t allocatedRegisters =
-            allocation.physicalRowCount * kVgprRegistersPerPhysicalRow;
+        return registerCount
+            <= allocation.architecturalRegisterCount - registerBase;
+    }
 
-        return registerBase < allocatedRegisters
-            && registerCount <= allocatedRegisters - registerBase;
+    [[nodiscard]] bool ReservedRestoreRangeFits(
+        std::uint32_t waveSlot,
+        std::uint32_t registerBase,
+        std::uint32_t registerCount) const
+    {
+        CheckWaveSlot(waveSlot);
+        const auto& allocation = allocations_[waveSlot];
+
+        if (!Sanitized(waveSlot)
+            || registerCount == 0U
+            || registerBase >= allocation.architecturalRegisterCount)
+        {
+            return false;
+        }
+
+        return registerCount
+            <= allocation.architecturalRegisterCount - registerBase;
     }
 
     [[nodiscard]] bool MatrixFragmentsFit(
@@ -252,22 +296,26 @@ public:
         std::uint32_t waveSlot,
         std::uint8_t architecturalRegister) const
     {
-        if (!RegisterRangeFits(
-                waveSlot,
-                architecturalRegister,
-                1U))
+        if (!RegisterRangeFits(waveSlot, architecturalRegister, 1U))
         {
             throw std::out_of_range(
-                "architectural VGPR is outside the active wave allocation");
+                "architectural VGPR is outside the exact active allocation");
         }
 
-        const auto& allocation = allocations_[waveSlot];
+        return TranslateUnchecked(waveSlot, architecturalRegister);
+    }
 
-        return PhysicalVgprAddress{
-            allocation.physicalRowBase
-                + static_cast<std::uint32_t>(architecturalRegister)
-                    / kVgprRegistersPerPhysicalRow,
-            MatrixRegisterBank(architecturalRegister)};
+    [[nodiscard]] PhysicalVgprAddress TranslateForRestore(
+        std::uint32_t waveSlot,
+        std::uint8_t architecturalRegister) const
+    {
+        if (!ReservedRestoreRangeFits(waveSlot, architecturalRegister, 1U))
+        {
+            throw std::out_of_range(
+                "architectural VGPR is outside the sanitized Reserved allocation");
+        }
+
+        return TranslateUnchecked(waveSlot, architecturalRegister);
     }
 
     [[nodiscard]] bool InvariantsHold() const noexcept
@@ -279,24 +327,29 @@ public:
             if (allocation.state == VgprAllocationState::Free)
             {
                 if (allocation.physicalRowCount != 0U
-                    || allocation.invalidated)
+                    || allocation.architecturalRegisterCount != 0U
+                    || allocation.invalidatedRows != 0U)
                 {
                     return false;
                 }
-
                 continue;
             }
 
             if (allocation.physicalRowCount == 0U
+                || allocation.architecturalRegisterCount == 0U
+                || allocation.architecturalRegisterCount > kArchitecturalVgprsPerWave
+                || VgprRowsForRegisterCount(allocation.architecturalRegisterCount)
+                    != allocation.physicalRowCount
                 || allocation.physicalRowBase >= physicalRows_
                 || allocation.physicalRowCount
-                    > physicalRows_ - allocation.physicalRowBase)
+                    > physicalRows_ - allocation.physicalRowBase
+                || allocation.invalidatedRows > allocation.physicalRowCount)
             {
                 return false;
             }
 
             if (allocation.state == VgprAllocationState::Active
-                && !allocation.invalidated)
+                && allocation.invalidatedRows != allocation.physicalRowCount)
             {
                 return false;
             }
@@ -312,7 +365,6 @@ public:
                 {
                     return false;
                 }
-
                 occupied[physicalRow] = true;
             }
         }
@@ -321,6 +373,18 @@ public:
     }
 
 private:
+    [[nodiscard]] PhysicalVgprAddress TranslateUnchecked(
+        std::uint32_t waveSlot,
+        std::uint8_t architecturalRegister) const
+    {
+        const auto& allocation = allocations_[waveSlot];
+        return PhysicalVgprAddress{
+            allocation.physicalRowBase
+                + static_cast<std::uint32_t>(architecturalRegister)
+                    / kVgprRegistersPerPhysicalRow,
+            MatrixRegisterBank(architecturalRegister)};
+    }
+
     void CheckWaveSlot(std::uint32_t waveSlot) const
     {
         if (waveSlot >= allocations_.size())
@@ -375,27 +439,45 @@ public:
         }
     }
 
+    bool InvalidateNextReservedRow(
+        ResidentWaveVgprPool& pool,
+        std::uint32_t waveSlot)
+    {
+        std::uint32_t physicalRow = 0U;
+        if (!pool.InvalidationStep(waveSlot, physicalRow))
+        {
+            return false;
+        }
+
+        initialized_.at(physicalRow).fill(false);
+        return true;
+    }
+
     void InvalidateReservedAllocation(
         ResidentWaveVgprPool& pool,
         std::uint32_t waveSlot)
     {
-        const auto& allocation = pool.Allocation(waveSlot);
-
-        if (allocation.state != VgprAllocationState::Reserved)
+        if (pool.Allocation(waveSlot).state != VgprAllocationState::Reserved)
         {
             throw std::logic_error(
-                "VGPR storage invalidation requires a reserved allocation");
+                "VGPR storage invalidation requires a Reserved allocation");
         }
 
-        for (std::uint32_t row = 0U;
-             row < allocation.physicalRowCount;
-             ++row)
+        while (InvalidateNextReservedRow(pool, waveSlot))
         {
-            initialized_[
-                allocation.physicalRowBase + row].fill(false);
         }
+    }
 
-        pool.MarkInvalidated(waveSlot);
+    void RestoreWrite(
+        const ResidentWaveVgprPool& pool,
+        std::uint32_t waveSlot,
+        std::uint8_t architecturalRegister,
+        const PooledWaveRegister& value)
+    {
+        const auto address =
+            pool.TranslateForRestore(waveSlot, architecturalRegister);
+        registers_[address.row][address.bank] = value;
+        initialized_[address.row][address.bank] = true;
     }
 
     [[nodiscard]] PooledWaveRegister Read(
@@ -482,53 +564,25 @@ public:
     {
         const auto address =
             pool.Translate(waveSlot, architecturalRegister);
-
         return initialized_[address.row][address.bank];
     }
 
-private:
-    using PhysicalRow =
-        std::array<
-            PooledWaveRegister,
-            kVgprRegistersPerPhysicalRow>;
-
-    std::vector<PhysicalRow> registers_;
-    std::vector<
-        std::array<bool, kVgprRegistersPerPhysicalRow>>
-        initialized_;
-};
-
-struct MatrixCapturedPooledOperands
-{
-    std::array<
-        PooledWaveRegister,
-        kMatrixSourceRegistersPerLane> sourceA{};
-
-    std::array<
-        PooledWaveRegister,
-        kMatrixSourceRegistersPerLane> sourceB{};
-
-    std::array<
-        PooledWaveRegister,
-        kMatrixAccumulatorRegistersPerLane> accumulator{};
-};
-
-inline MatrixCapturedPooledOperands CaptureMatrixOperandsFromPool(
-    const ResidentWaveVgprPool& pool,
-    const PooledVgprStorage& storage,
-    std::uint32_t waveSlot,
-    std::uint8_t destinationBase,
-    std::uint8_t sourceABase,
-    std::uint8_t sourceBBase)
-{
-    if (!pool.MatrixFragmentsFit(
+    [[nodiscard]] bool MatrixPreflight(
+        const ResidentWaveVgprPool& pool,
+        std::uint32_t waveSlot,
+        std::uint8_t destinationBase,
+        std::uint8_t sourceABase,
+        std::uint8_t sourceBBase) const
+    {
+        if (!storage.MatrixPreflight(
+            pool,
             waveSlot,
             destinationBase,
             sourceABase,
             sourceBBase))
     {
-        throw std::out_of_range(
-            "matrix fragments exceed the active pooled VGPR allocation");
+        throw std::logic_error(
+            "matrix pooled-VGPR preflight failed");
     }
 
     MatrixCapturedPooledOperands captured{};
@@ -598,7 +652,7 @@ inline void WriteMatrixResultToPool(
             1U))
     {
         throw std::out_of_range(
-            "matrix writeback exceeds the active pooled VGPR allocation");
+            "matrix writeback exceeds the exact active VGPR allocation");
     }
 
     storage.Write(

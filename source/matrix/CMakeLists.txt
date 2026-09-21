@@ -37,3 +37,7 @@ add_test(NAME cgx1_matrix_int8_path_checks COMMAND cgx1_matrix_int8_path_tests)
 add_executable(cgx1_matrix_vgpr_pool_tests vgpr_pool_tests.cpp)
 target_include_directories(cgx1_matrix_vgpr_pool_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME cgx1_matrix_vgpr_pool_checks COMMAND cgx1_matrix_vgpr_pool_tests)
+
+add_executable(cgx1_matrix_vgpr_pool_resident_tests vgpr_pool_resident_tests.cpp)
+target_include_directories(cgx1_matrix_vgpr_pool_resident_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_matrix_vgpr_pool_resident_checks COMMAND cgx1_matrix_vgpr_pool_resident_tests)

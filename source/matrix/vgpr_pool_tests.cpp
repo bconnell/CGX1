@@ -454,13 +454,10 @@ int main()
             state
             == VgprAllocationState::Active)
         {
-            const std::uint32_t rows =
+            const std::uint32_t registers =
                 stressPool
                     .Allocation(slot)
-                    .physicalRowCount;
-
-            const std::uint32_t registers =
-                rows * 8U;
+                    .architecturalRegisterCount;
 
             const auto reg =
                 static_cast<std::uint8_t>(

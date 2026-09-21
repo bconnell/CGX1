@@ -127,9 +127,9 @@ module cgx1_resident_wave_vgpr_allocator_tb;
             reserve_register_count = count;
             reserve_valid = 1'b1;
             #1;
-            if (!reserve_ready) $fatal(1, "reserve request was unexpectedly blocked");
+            if (!reserve_ready || !reserve_accepted)
+                $fatal(1, "reserve request handshake was not accepted");
             @(posedge clk); #1;
-            if (!reserve_accepted) $fatal(1, "reserve request was not accepted");
             @(negedge clk);
             reserve_valid = 1'b0;
         end
@@ -154,9 +154,9 @@ module cgx1_resident_wave_vgpr_allocator_tb;
             activate_wave_slot = slot;
             activate_valid = 1'b1;
             #1;
-            if (!activate_ready) $fatal(1, "activate request was unexpectedly blocked");
+            if (!activate_ready || !activate_accepted)
+                $fatal(1, "activate request handshake was not accepted");
             @(posedge clk); #1;
-            if (!activate_accepted) $fatal(1, "activate request was not accepted");
             @(negedge clk);
             activate_valid = 1'b0;
         end
@@ -169,9 +169,9 @@ module cgx1_resident_wave_vgpr_allocator_tb;
             release_valid = 1'b1;
             release_quiescent = 1'b1;
             #1;
-            if (!release_ready) $fatal(1, "release request was unexpectedly blocked");
+            if (!release_ready || !release_accepted)
+                $fatal(1, "release request handshake was not accepted");
             @(posedge clk); #1;
-            if (!release_accepted) $fatal(1, "release request was not accepted");
             @(negedge clk);
             release_valid = 1'b0;
         end

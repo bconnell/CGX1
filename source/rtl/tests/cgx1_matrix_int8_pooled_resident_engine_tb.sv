@@ -97,12 +97,12 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
 
     task automatic restore_word(
         input logic [SLOT_WIDTH-1:0] slot,
-        input logic [7:0] reg,
+        input logic [7:0] register_index,
         input logic [1023:0] value);
         begin
             @(negedge clk);
             restore_wave_slot = slot;
-            restore_register = reg;
+            restore_register = register_index;
             restore_data = value;
             restore_valid = 1'b1;
             #1;

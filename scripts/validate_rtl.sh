@@ -305,4 +305,39 @@ iverilog -g2012 -Wall -s cgx1_pooled_vgpr_execution_subsystem_tb -o build/rtl/cg
 echo "==> Run unified pooled execution subsystem RTL"
 vvp build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp
 
+
+echo "==> Compile mixed resident INT8/vector execution frontend RTL"
+iverilog -g2012 -Wall -s cgx1_compute_int8_vector_execution_frontend_tb -o build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp \
+    source/rtl/cgx1_matrix_pipeline_control.sv \
+    source/rtl/cgx1_matrix_operand_staging.sv \
+    source/rtl/cgx1_matrix_int8_execution.sv \
+    source/rtl/cgx1_matrix_result_staging.sv \
+    source/rtl/cgx1_matrix_int8_path.sv \
+    source/rtl/cgx1_matrix_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_arbiter.sv \
+    source/rtl/cgx1_matrix_int8_resident_engine.sv \
+    source/rtl/cgx1_pooled_vgpr_mapper.sv \
+    source/rtl/cgx1_pooled_vgpr_restore_mapper.sv \
+    source/rtl/cgx1_matrix_vgpr_allocation_guard.sv \
+    source/rtl/cgx1_matrix_vgpr_preflight.sv \
+    source/rtl/cgx1_matrix_request_preflight_array.sv \
+    source/rtl/cgx1_resident_wave_vgpr_allocator.sv \
+    source/rtl/cgx1_pooled_vgpr_storage.sv \
+    source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv \
+    source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv \
+    source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv \
+    source/rtl/cgx1_pooled_vgpr_release_guard.sv \
+    source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv \
+    source/rtl/cgx1_vector_int32_alu.sv \
+    source/rtl/cgx1_vector_int32_pipeline.sv \
+    source/rtl/cgx1_vector_resident_wave_scheduler.sv \
+    source/rtl/cgx1_resident_vector_execution_frontend.sv \
+    source/rtl/cgx1_matrix_vector_hazard_guard.sv \
+    source/rtl/cgx1_matrix_vector_hazard_array.sv \
+    source/rtl/cgx1_compute_int8_vector_execution_frontend.sv \
+    source/rtl/tests/cgx1_compute_int8_vector_execution_frontend_tb.sv
+echo "==> Run mixed resident INT8/vector execution frontend RTL"
+vvp build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

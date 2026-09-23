@@ -28,6 +28,7 @@ module cgx1_vector_int32_pipeline #(
  output logic address_fault,
  output logic uninitialized_fault,
  output logic busy,
+ output logic [WAVE_SLOT_WIDTH-1:0] live_wave_slot,
  output logic [7:0] live_source0, live_source1, live_destination,
  output logic source_locks_live, destination_lock_live
 );
@@ -46,7 +47,7 @@ module cgx1_vector_int32_pipeline #(
    read_valid=(state_q==READ); read_wave_slot=wave_q; read_source0=s0_q; read_source1=s1_q;
    write_valid=(state_q==WRITE); write_wave_slot=wave_q; write_destination=d_q; write_lane_mask=mask_q; write_data=result;
    complete_valid=(state_q==DONE); complete_wave_slot=wave_q; busy=(state_q!=IDLE);
-   live_source0=s0_q; live_source1=s1_q; live_destination=d_q;
+   live_wave_slot=wave_q; live_source0=s0_q; live_source1=s1_q; live_destination=d_q;
    source_locks_live=(state_q==READ); destination_lock_live=(state_q==READ)||(state_q==EXEC)||(state_q==WRITE);
    illegal_opcode=(state_q==DONE)&&alu_illegal; address_fault=(state_q==DONE)&&address_fault_q; uninitialized_fault=(state_q==DONE)&&uninitialized_fault_q;
  end

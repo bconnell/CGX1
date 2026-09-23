@@ -4,18 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - ".github/workflows/rtl-ci.yml"
-      - "scripts/validate_rtl.sh"
-      - "source/rtl/**"
-      - "source/matrix/cgx1_matrix_architecture.hpp"
-      - "source/matrix/cgx1_matrix_pipeline.hpp"
-      - "source/matrix/cgx1_matrix_banking.hpp"
-      - "source/matrix/cgx1_matrix_staging.hpp"
-      - "source/matrix/cgx1_matrix_scoreboard.hpp"
-      - "source/matrix/cgx1_matrix_result_staging.hpp"
-      - "source/matrix/cgx1_matrix_int8_execution.hpp"
-      - "design/cgx1_architecture.json"
   workflow_dispatch:
 
 permissions:

@@ -254,8 +254,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 19) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 19 for the pooled resident-wave VGPR RTL boundary"
+if ([int]$architecture.schema_version -ne 20) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 20 for the pooled resident-wave VGPR RTL boundary"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -756,6 +756,33 @@ if ([bool]$vectorRtl.timing_closure_validated -or
     [bool]$vectorRtl.area_validated -or
     [bool]$vectorRtl.power_validated) {
     Add-Finding "design/cgx1_architecture.json: ordinary vector RTL must not claim unfinished physical evidence"
+}
+
+
+Require-Literal "source/rtl/cgx1_compute_int8_vector_execution_frontend.sv" "module cgx1_compute_int8_vector_execution_frontend"
+
+$mixedFrontend = $architecture.execution_model.mixed_matrix_vector_frontend_rtl
+if (-not [bool]$mixedFrontend.implemented -or
+    -not [bool]$mixedFrontend.one_shared_pooled_vgpr_authority -or
+    -not [bool]$mixedFrontend.matrix_controller_illegal_authority_preserved -or
+    -not [bool]$mixedFrontend.legal_matrix_runtime_preflight_required -or
+    -not [bool]$mixedFrontend.live_vector_locks_gate_matrix_issue -or
+    -not [bool]$mixedFrontend.matrix_scoreboard_gates_selected_vector_issue -or
+    -not [bool]$mixedFrontend.same_cycle_matrix_vector_acceptance_prevented -or
+    -not [bool]$mixedFrontend.vector_live_wave_tag_carried -or
+    -not [bool]$mixedFrontend.vector_dependency_ready_external_input -or
+    [bool]$mixedFrontend.full_compute_unit_scheduler_integrated -or
+    [bool]$mixedFrontend.memory_execution_integrated -or
+    -not [bool]$mixedFrontend.rtl_testbench_implemented) {
+    Add-Finding "design/cgx1_architecture.json: mixed matrix/vector frontend RTL contract is incomplete"
+}
+if ([bool]$mixedFrontend.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: mixed matrix/vector frontend simulation evidence must remain false until exact-revision RTL CI passes"
+}
+if ([bool]$mixedFrontend.timing_closure_validated -or
+    [bool]$mixedFrontend.area_validated -or
+    [bool]$mixedFrontend.power_validated) {
+    Add-Finding "design/cgx1_architecture.json: mixed matrix/vector frontend must not claim unfinished physical evidence"
 }
 
 if ($findings.Count -gt 0) {

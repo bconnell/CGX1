@@ -86,6 +86,8 @@ The matrix-scoreboard executable test verifies a 256-VGPR per-wave reservation s
 
 These references validate the architecture contract and functional reference behavior. The standalone signed INT8 arithmetic RTL has passed the repository simulation gate. The composed INT8 path has its own exact-revision simulation evidence flag. None of these tests establish physical VGPR macros, timing closure, area/power characterization, compiler integration, or measured silicon performance.
 
+The mixed resident execution frontend has a dedicated executable admission reference and SystemVerilog integration test. The test covers pooled initialization, resident vector execution/writeback, release blocking while vector execution is live, matrix blocking on a live vector destination hazard, recovery after that hazard clears, and same-edge matrix/vector acceptance exclusion. The external per-wave vector dependency-ready input remains a scheduler contract rather than evidence of a completed compute-unit scheduler.
+
 ## 5. Power-management reference
 
 The executable power-management test verifies:
@@ -127,7 +129,7 @@ The dock fault tests also verify that the fallback does not request a 70 W slot 
 
 The public RTL currently covers top-level power-state/tile-enable behavior, matrix pipeline control, capture/active operand staging, output-result staging, signed INT8 arithmetic/path, one-wave hazard reporting, parameterized resident-wave matrix arbitration, wave-local dependency handling, per-wave scoreboard routing, and ordinary issue admission. FP16/BF16/FP8 arithmetic, physical resident-wave VGPR/storage macros, ordinary vector execution, and the rest of the GPU pipeline remain open.
 
-RTL simulation is run with Icarus Verilog in SystemVerilog 2012 mode through `scripts/validate_rtl.sh` and the path-scoped Ubuntu RTL CI workflow. Functional unit and integration testbenches do not replace constrained-random verification, formal work, synthesis, FPGA/emulation, timing closure, or physical implementation.
+RTL simulation is run with Icarus Verilog in SystemVerilog 2012 mode through `scripts/validate_rtl.sh`. The Ubuntu RTL CI workflow runs for every push to `main`, preventing a final reference, schema, or truth-state revision from escaping exact-revision RTL validation. Functional unit and integration testbenches do not replace constrained-random verification, formal work, synthesis, FPGA/emulation, timing closure, or physical implementation.
 
 The critical architecture contracts are defined in [ISA](ISA.md), [Graphics Pipeline](GRAPHICS_PIPELINE.md), [Texture and Compression](TEXTURE_COMPRESSION.md), [Chiplet Fabric](CHIPLET_FABRIC.md), [Virtual Memory](VIRTUAL_MEMORY.md), and [Scheduling and Preemption](SCHEDULING_PREEMPTION.md). RTL must match those contracts or update them and their tests in the same revision.
 

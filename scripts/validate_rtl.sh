@@ -335,9 +335,55 @@ iverilog -g2012 -Wall -s cgx1_compute_int8_vector_execution_frontend_tb -o build
     source/rtl/cgx1_resident_vector_execution_frontend.sv \
     source/rtl/cgx1_matrix_vector_hazard_guard.sv \
     source/rtl/cgx1_matrix_vector_hazard_array.sv \
+    source/rtl/cgx1_vector_matrix_dependency_ready_array.sv \
+    source/rtl/cgx1_resident_vector_dependency_scheduler.sv \
+    source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv \
+    source/rtl/cgx1_compute_mixed_service_policy.sv \
     source/rtl/cgx1_compute_int8_vector_execution_frontend.sv \
     source/rtl/tests/cgx1_compute_int8_vector_execution_frontend_tb.sv
 echo "==> Run mixed resident INT8/vector execution frontend RTL"
 vvp build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp
+
+
+echo "==> Compile resident matrix scoreboard export RTL"
+iverilog -g2012 -Wall -s cgx1_matrix_resident_wave_scoreboard_export_tb -o build/rtl/cgx1_matrix_resident_wave_scoreboard_export_tb.vvp \
+    source/rtl/cgx1_matrix_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_scoreboard.sv \
+    source/rtl/tests/cgx1_matrix_resident_wave_scoreboard_export_tb.sv
+echo "==> Run resident matrix scoreboard export RTL"
+vvp build/rtl/cgx1_matrix_resident_wave_scoreboard_export_tb.vvp
+
+echo "==> Compile resident vector dependency scheduler RTL"
+iverilog -g2012 -Wall -s cgx1_resident_vector_dependency_scheduler_tb -o build/rtl/cgx1_resident_vector_dependency_scheduler_tb.vvp \
+    source/rtl/cgx1_vector_resident_wave_scheduler.sv \
+    source/rtl/cgx1_vector_matrix_dependency_ready_array.sv \
+    source/rtl/cgx1_resident_vector_dependency_scheduler.sv \
+    source/rtl/tests/cgx1_resident_vector_dependency_scheduler_tb.sv
+echo "==> Run resident vector dependency scheduler RTL"
+vvp build/rtl/cgx1_resident_vector_dependency_scheduler_tb.vvp
+
+echo "==> Compile resident vector matrix-dependency frontend RTL"
+iverilog -g2012 -Wall -s cgx1_resident_vector_matrix_dependency_frontend_tb -o build/rtl/cgx1_resident_vector_matrix_dependency_frontend_tb.vvp \
+    source/rtl/cgx1_vector_resident_wave_scheduler.sv \
+    source/rtl/cgx1_vector_matrix_dependency_ready_array.sv \
+    source/rtl/cgx1_resident_vector_dependency_scheduler.sv \
+    source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv \
+    source/rtl/tests/cgx1_resident_vector_matrix_dependency_frontend_tb.sv
+echo "==> Run resident vector matrix-dependency frontend RTL"
+vvp build/rtl/cgx1_resident_vector_matrix_dependency_frontend_tb.vvp
+
+echo "==> Compile cadence-accurate matrix admission RTL"
+iverilog -g2012 -Wall -s cgx1_matrix_mixed_workload_admission_cadence_tb -o build/rtl/cgx1_matrix_mixed_workload_admission_cadence_tb.vvp \
+    source/rtl/cgx1_matrix_mixed_workload_admission.sv \
+    source/rtl/tests/cgx1_matrix_mixed_workload_admission_cadence_tb.sv
+echo "==> Run cadence-accurate matrix admission RTL"
+vvp build/rtl/cgx1_matrix_mixed_workload_admission_cadence_tb.vvp
+
+echo "==> Compile compute mixed-service progress policy RTL"
+iverilog -g2012 -Wall -s cgx1_compute_mixed_service_policy_tb -o build/rtl/cgx1_compute_mixed_service_policy_tb.vvp \
+    source/rtl/cgx1_compute_mixed_service_policy.sv \
+    source/rtl/tests/cgx1_compute_mixed_service_policy_tb.sv
+echo "==> Run compute mixed-service progress policy RTL"
+vvp build/rtl/cgx1_compute_mixed_service_policy_tb.vvp
 
 echo "[pass] CGX 1 RTL validation completed."

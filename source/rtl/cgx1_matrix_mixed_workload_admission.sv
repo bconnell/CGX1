@@ -4,23 +4,30 @@ module cgx1_matrix_mixed_workload_admission #(
  parameter integer MATRIX_BURST_LIMIT=4,
  parameter integer COUNT_WIDTH=(MATRIX_BURST_LIMIT<=1)?1:$clog2(MATRIX_BURST_LIMIT+1)
 )(
- input logic clk, reset_n,
- input logic request_valid, request_architecturally_legal, controller_ready,
- input logic competing_non_matrix_work,
- output logic request_forward_valid, request_ready, service_window
+ input logic clk,reset_n,
+ input logic request_valid,request_architecturally_legal,controller_ready,competing_non_matrix_work,
+ output logic request_forward_valid,request_ready,service_window
 );
  logic [COUNT_WIDTH-1:0] burst_q;
- logic throttle;
+ logic service_pending_q,skipped_ready_seen_q,accepted_legal;
  always_comb begin
-   throttle=request_architecturally_legal && competing_non_matrix_work && (burst_q>=MATRIX_BURST_LIMIT);
-   service_window=throttle;
-   request_forward_valid=request_valid && (!request_architecturally_legal || !throttle);
-   request_ready=controller_ready && (!request_architecturally_legal || !throttle);
+  service_window=competing_non_matrix_work&&service_pending_q;
+  request_forward_valid=request_valid&&(!request_architecturally_legal||!service_window);
+  request_ready=controller_ready&&(!request_architecturally_legal||!service_window);
+  accepted_legal=request_valid&&request_architecturally_legal&&request_ready;
  end
  always_ff @(posedge clk or negedge reset_n) begin
-   if(!reset_n) burst_q<='0;
-   else if(!competing_non_matrix_work || !controller_ready) burst_q<='0;
-   else if(throttle) burst_q<='0;
-   else if(request_valid && request_ready && request_architecturally_legal) burst_q<=burst_q+1'b1;
+  if(!reset_n) begin burst_q<='0;service_pending_q<=0;skipped_ready_seen_q<=0;end
+  else if(!competing_non_matrix_work) begin burst_q<='0;service_pending_q<=0;skipped_ready_seen_q<=0;end
+  else if(service_pending_q) begin
+   if(controller_ready) skipped_ready_seen_q<=1;
+   if(skipped_ready_seen_q&&!controller_ready) begin burst_q<='0;service_pending_q<=0;skipped_ready_seen_q<=0;end
+  end else if(accepted_legal) begin
+   if((burst_q+1'b1)>=MATRIX_BURST_LIMIT) begin burst_q<=MATRIX_BURST_LIMIT;service_pending_q<=1;skipped_ready_seen_q<=0;end
+   else burst_q<=burst_q+1'b1;
+  end
  end
+`ifndef SYNTHESIS
+ initial if(MATRIX_BURST_LIMIT<1) $fatal(1,"matrix mixed-workload burst limit must be at least one");
+`endif
 endmodule

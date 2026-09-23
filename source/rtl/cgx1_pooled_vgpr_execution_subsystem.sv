@@ -22,7 +22,8 @@ module cgx1_pooled_vgpr_execution_subsystem #(
  input logic ordinary_read_valid, input logic [WAVE_SLOT_WIDTH-1:0] ordinary_read_wave_slot, input logic [7:0] ordinary_read_source0,ordinary_read_source1,
  output logic ordinary_read_response_valid,ordinary_read_address_fault,ordinary_read_uninitialized, output logic [1023:0] ordinary_read_data0,ordinary_read_data1,
  input logic ordinary_write_valid, input logic [WAVE_SLOT_WIDTH-1:0] ordinary_write_wave_slot, input logic [7:0] ordinary_write_destination, input logic [31:0] ordinary_write_lane_mask, input logic [1023:0] ordinary_write_data,
- output logic ordinary_write_ready, ordinary_write_address_fault
+ output logic ordinary_write_ready, ordinary_write_address_fault,
+ output logic restore_service_waiting, restore_service_accepted
 );
  logic invalidate_valid,invalidate_ready; logic [ROW_WIDTH-1:0] invalidate_row;
  logic [RESIDENT_WAVE_SLOTS-1:0] alloc_reserved,alloc_active,alloc_sanitized;
@@ -109,6 +110,8 @@ module cgx1_pooled_vgpr_execution_subsystem #(
   else if(gr) begin swrow=restore_row; swbank=restore_bank; swmask=32'hffffffff; swdata=restore_data; end
   matrix_rf_read_ready=gmr&&storage_read_ready; matrix_rf_read0_initialized=gmr&&storage_r0_init; matrix_rf_read1_initialized=gmr&&storage_r1_init; matrix_rf_read_data0=storage_r0_data; matrix_rf_read_data1=storage_r1_data;
   matrix_rf_write_ready=gmw&&storage_write_ready; ord_service_ready=gor&&storage_read_ready; ordinary_write_ready=(ordinary_write_address_fault)||(gow&&storage_write_ready); restore_ready=gr&&storage_write_ready;
+  restore_service_waiting=restore_eligible;
+  restore_service_accepted=gr&&storage_write_ready;
   transfer_accepted=(gmr&&storage_read_ready)||(gmw&&storage_write_ready)||(gor&&storage_read_ready)||(gow&&storage_write_ready)||(gr&&storage_write_ready);
  end
  cgx1_pooled_vgpr_storage #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) storage(.clk(clk),.reset_n(reset_n),.invalidate_valid(invalidate_valid),.invalidate_row(invalidate_row),.invalidate_ready(invalidate_ready),.read_valid(storage_read_valid),.read0_row(sr0),.read0_bank(sb0),.read1_row(sr1),.read1_bank(sb1),.read_ready(storage_read_ready),.read_bank_conflict(storage_conflict),.read0_initialized(storage_r0_init),.read0_data(storage_r0_data),.read1_initialized(storage_r1_init),.read1_data(storage_r1_data),.write_valid(storage_write_valid),.write_row(swrow),.write_bank(swbank),.write_lane_mask(swmask),.write_data(swdata),.write_ready(storage_write_ready),.valid_bitmap(valid_bitmap));

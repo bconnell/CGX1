@@ -41,6 +41,8 @@ module cgx1_matrix_int8_resident_engine #(
     output logic                               ordinary_write_port_conflict,
     output logic                               ordinary_ready,
     output logic                               ordinary_issue_accepted,
+    output logic [(RESIDENT_WAVE_SLOTS*256)-1:0] matrix_source_pending_mask_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*256)-1:0] matrix_destination_pending_mask_flat,
     output logic [RESIDENT_WAVE_SLOTS-1:0]     resident_wave_busy
 );
 
@@ -213,6 +215,8 @@ module cgx1_matrix_int8_resident_engine #(
         .ordinary_issue_accepted(ordinary_issue_accepted),
         .selected_source_pending_mask(selected_source_pending_mask),
         .selected_destination_pending_mask(selected_destination_pending_mask),
+        .resident_source_pending_mask_flat(matrix_source_pending_mask_flat),
+        .resident_destination_pending_mask_flat(matrix_destination_pending_mask_flat),
         .resident_wave_busy(resident_wave_busy)
     );
 

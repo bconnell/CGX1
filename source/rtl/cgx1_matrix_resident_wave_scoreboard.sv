@@ -38,6 +38,8 @@ module cgx1_matrix_resident_wave_scoreboard #(
     output logic                               ordinary_issue_accepted,
     output logic [255:0]                       selected_source_pending_mask,
     output logic [255:0]                       selected_destination_pending_mask,
+    output logic [(RESIDENT_WAVE_SLOTS*256)-1:0] resident_source_pending_mask_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*256)-1:0] resident_destination_pending_mask_flat,
     output logic [RESIDENT_WAVE_SLOTS-1:0]     resident_wave_busy
 );
 
@@ -89,6 +91,11 @@ module cgx1_matrix_resident_wave_scoreboard #(
                     (|slot_source_pending[slot_index])
                     || (|slot_destination_pending[slot_index]);
             end
+
+            assign resident_source_pending_mask_flat[(slot_index*256)+:256] =
+                slot_source_pending[slot_index];
+            assign resident_destination_pending_mask_flat[(slot_index*256)+:256] =
+                slot_destination_pending[slot_index];
         end
     endgenerate
 

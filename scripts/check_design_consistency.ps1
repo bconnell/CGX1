@@ -254,8 +254,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 18) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 18 for the pooled resident-wave VGPR RTL boundary"
+if ([int]$architecture.schema_version -ne 19) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 19 for the pooled resident-wave VGPR RTL boundary"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -722,6 +722,40 @@ if ([double]$architecture.chiplet_fabric.aggregate_read_payload_target_tbps -lt 
 }
 if ($dockFallback -ne $safeBoot) {
     Add-Finding "design/cgx1_architecture.json: dock fault fallback must equal Safe Boot power"
+}
+
+
+Require-Literal "source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv" "module cgx1_pooled_vgpr_execution_subsystem"
+Require-Literal "source/rtl/cgx1_vector_int32_alu.sv" "module cgx1_vector_int32_alu"
+Require-Literal "source/rtl/cgx1_vector_int32_pipeline.sv" "module cgx1_vector_int32_pipeline"
+Require-Literal "source/rtl/cgx1_vector_resident_wave_scheduler.sv" "module cgx1_vector_resident_wave_scheduler"
+Require-Literal "source/rtl/cgx1_matrix_vector_hazard_guard.sv" "module cgx1_matrix_vector_hazard_guard"
+Require-Literal "source/rtl/cgx1_matrix_vector_issue_arbiter.sv" "module cgx1_matrix_vector_issue_arbiter"
+
+$vectorRtl = $architecture.execution_model.ordinary_vector_rtl
+if (-not [bool]$vectorRtl.implemented -or
+    [int]$vectorRtl.lane_count -ne 32 -or
+    [int]$vectorRtl.element_bits -ne 32 -or
+    [int]$vectorRtl.internal_opcode_width_bits -ne 4 -or
+    [bool]$vectorRtl.internal_opcode_encoding_frozen -or
+    -not [bool]$vectorRtl.read_execute_writeback_pipeline -or
+    -not [bool]$vectorRtl.same_bank_two_source_serialization -or
+    -not [bool]$vectorRtl.pooled_vgpr_shared_storage_integrated -or
+    -not [bool]$vectorRtl.matrix_fixed_cycle_port_priority -or
+    -not [bool]$vectorRtl.ordinary_restore_bounded_fairness -or
+    -not [bool]$vectorRtl.matrix_vector_hazard_guard_implemented -or
+    -not [bool]$vectorRtl.same_cycle_matrix_vector_acceptance_prevented -or
+    -not [bool]$vectorRtl.unified_matrix_vector_restore_subsystem -or
+    -not [bool]$vectorRtl.rtl_testbenches_implemented) {
+    Add-Finding "design/cgx1_architecture.json: ordinary vector RTL contract is incomplete"
+}
+if ([bool]$vectorRtl.simulation_exercised) {
+    Add-Finding "design/cgx1_architecture.json: ordinary vector RTL simulation evidence must remain false until exact-revision RTL CI passes"
+}
+if ([bool]$vectorRtl.timing_closure_validated -or
+    [bool]$vectorRtl.area_validated -or
+    [bool]$vectorRtl.power_validated) {
+    Add-Finding "design/cgx1_architecture.json: ordinary vector RTL must not claim unfinished physical evidence"
 }
 
 if ($findings.Count -gt 0) {

@@ -1,5 +1,5 @@
 {
-  "schema_version": 18,
+  "schema_version": 19,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -140,7 +140,46 @@
       "ecc_poison",
       "watchdog"
     ],
-    "paired_wave64_target": true
+    "paired_wave64_target": true,
+    "ordinary_vector_rtl": {
+      "status": "resident-wave INT32 vector execution and shared pooled-VGPR access RTL implemented; exact-revision RTL simulation pending",
+      "implemented": true,
+      "lane_count": 32,
+      "element_bits": 32,
+      "internal_opcode_width_bits": 4,
+      "internal_opcode_encoding_frozen": false,
+      "operations": [
+        "ADD",
+        "SUB",
+        "AND",
+        "OR",
+        "XOR",
+        "SHL",
+        "LSR",
+        "ASR"
+      ],
+      "read_execute_writeback_pipeline": true,
+      "active_lane_masked_writeback": true,
+      "address_fault_termination": true,
+      "uninitialized_operand_termination": true,
+      "same_bank_two_source_serialization": true,
+      "split_read_identity_retained": true,
+      "resident_wave_round_robin_scheduler": true,
+      "dependency_ready_external_input": true,
+      "pooled_vgpr_shared_storage_integrated": true,
+      "matrix_fixed_cycle_port_priority": true,
+      "ordinary_restore_bounded_fairness": true,
+      "mixed_workload_matrix_admission_policy_candidate": true,
+      "mixed_workload_policy_frozen": false,
+      "matrix_vector_hazard_guard_implemented": true,
+      "same_cycle_matrix_vector_acceptance_prevented": true,
+      "unified_matrix_vector_restore_subsystem": true,
+      "rtl_testbenches_implemented": true,
+      "simulation_exercised": false,
+      "timing_closure_validated": false,
+      "area_validated": false,
+      "power_validated": false
+    }
   },
   "graphics_pipeline": {
     "logical_device_count": 1,

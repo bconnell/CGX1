@@ -214,3 +214,6 @@ Every published result should identify whether it is:
 - measured on production silicon.
 
 A calculation does not replace a hardware measurement, and surrogate hardware does not establish CGX application performance.
+
+The executable matrix test set now also includes ordinary/shared pooled-VGPR and resident INT32 vector execution/scheduling references. The RTL workflow includes ordinary/shared arbitration, same-bank read sequencing, vector INT32 ALU/pipeline, resident vector scheduling, and unified pooled execution-subsystem behavioral tests. These tests establish logical behavior only; they do not establish timing, area, power, or silicon performance.
+

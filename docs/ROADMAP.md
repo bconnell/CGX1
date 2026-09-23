@@ -62,8 +62,8 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- obtain exact-revision RTL simulation evidence for the published pooled resident-wave VGPR allocator, storage, matrix preflight, capture/writeback, and resident INT8 integration boundary;
-- implement the ordinary vector execution datapath and shared pooled-VGPR access arbitration while preserving matrix hazard, validity, allocation-lifetime, and port-ownership rules;
+- obtain exact-revision RTL simulation evidence for the pooled resident-wave VGPR, ordinary/shared access, INT32 vector execution, resident vector scheduling, and unified matrix/vector/restore storage boundaries;
+- compose the resident INT8 matrix engine and resident INT32 vector pipeline into the full compute-unit execution front end, using the published cross-pipeline hazard and issue guards and keeping the mixed-workload service-window policy parameterized until scheduling evidence supports a value;
 - select implementation storage macros without prematurely freezing resident-wave occupancy, implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics, and validate timing, area, and power; revise timing targets if physical evidence cannot close them;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;
 - characterize finer-than-workgroup preemption cost before adding it to the baseline;

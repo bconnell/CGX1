@@ -64,4 +64,11 @@ module cgx1_pooled_vgpr_ordinary_read_sequencer #(
      end else if(split_q && service_ready && request_valid && request_wave_slot==wave_q && request_source0==src0_q && request_source1==src1_q) begin split_q<=0; end
    end
  end
+`ifndef SYNTHESIS
+ always_ff @(posedge clk) begin
+   if(reset_n && split_q && request_valid
+      && ((request_wave_slot!=wave_q)||(request_source0!=src0_q)||(request_source1!=src1_q)))
+     $fatal(1,"ordinary split-read request identity changed before completion");
+ end
+`endif
 endmodule

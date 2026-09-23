@@ -248,4 +248,61 @@ iverilog \
 echo "==> Run pooled resident-wave INT8 integration RTL"
 vvp build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp
 
+
+echo "==> Compile ordinary/shared pooled VGPR control RTL"
+iverilog -g2012 -Wall -s cgx1_ordinary_shared_control_tb -o build/rtl/cgx1_ordinary_shared_control_tb.vvp \
+    source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv \
+    source/rtl/cgx1_pooled_vgpr_release_guard.sv \
+    source/rtl/cgx1_matrix_mixed_workload_admission.sv \
+    source/rtl/tests/cgx1_ordinary_shared_control_tb.sv
+echo "==> Run ordinary/shared pooled VGPR control RTL"
+vvp build/rtl/cgx1_ordinary_shared_control_tb.vvp
+
+echo "==> Compile ordinary same-bank read sequencer RTL"
+iverilog -g2012 -Wall -s cgx1_ordinary_read_sequencer_tb -o build/rtl/cgx1_ordinary_read_sequencer_tb.vvp \
+    source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv \
+    source/rtl/tests/cgx1_ordinary_read_sequencer_tb.sv
+echo "==> Run ordinary same-bank read sequencer RTL"
+vvp build/rtl/cgx1_ordinary_read_sequencer_tb.vvp
+
+echo "==> Compile vector INT32 ALU RTL"
+iverilog -g2012 -Wall -s cgx1_vector_int32_alu_tb -o build/rtl/cgx1_vector_int32_alu_tb.vvp \
+    source/rtl/cgx1_vector_int32_alu.sv \
+    source/rtl/tests/cgx1_vector_int32_alu_tb.sv
+echo "==> Run vector INT32 ALU RTL"
+vvp build/rtl/cgx1_vector_int32_alu_tb.vvp
+
+echo "==> Compile vector INT32 pipeline RTL"
+iverilog -g2012 -Wall -s cgx1_vector_int32_pipeline_tb -o build/rtl/cgx1_vector_int32_pipeline_tb.vvp \
+    source/rtl/cgx1_vector_int32_alu.sv \
+    source/rtl/cgx1_vector_int32_pipeline.sv \
+    source/rtl/tests/cgx1_vector_int32_pipeline_tb.sv
+echo "==> Run vector INT32 pipeline RTL"
+vvp build/rtl/cgx1_vector_int32_pipeline_tb.vvp
+
+echo "==> Compile resident vector scheduler RTL"
+iverilog -g2012 -Wall -s cgx1_vector_resident_wave_scheduler_tb -o build/rtl/cgx1_vector_resident_wave_scheduler_tb.vvp \
+    source/rtl/cgx1_vector_resident_wave_scheduler.sv \
+    source/rtl/tests/cgx1_vector_resident_wave_scheduler_tb.sv
+echo "==> Run resident vector scheduler RTL"
+vvp build/rtl/cgx1_vector_resident_wave_scheduler_tb.vvp
+
+echo "==> Compile unified pooled execution subsystem RTL"
+iverilog -g2012 -Wall -s cgx1_pooled_vgpr_execution_subsystem_tb -o build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp \
+    source/rtl/cgx1_pooled_vgpr_mapper.sv \
+    source/rtl/cgx1_pooled_vgpr_restore_mapper.sv \
+    source/rtl/cgx1_matrix_vgpr_allocation_guard.sv \
+    source/rtl/cgx1_matrix_vgpr_preflight.sv \
+    source/rtl/cgx1_matrix_request_preflight_array.sv \
+    source/rtl/cgx1_resident_wave_vgpr_allocator.sv \
+    source/rtl/cgx1_pooled_vgpr_storage.sv \
+    source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv \
+    source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv \
+    source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv \
+    source/rtl/cgx1_pooled_vgpr_release_guard.sv \
+    source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv \
+    source/rtl/tests/cgx1_pooled_vgpr_execution_subsystem_tb.sv
+echo "==> Run unified pooled execution subsystem RTL"
+vvp build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

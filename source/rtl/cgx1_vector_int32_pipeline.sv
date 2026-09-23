@@ -6,7 +6,7 @@ module cgx1_vector_int32_pipeline #(
  input logic clk, reset_n,
  input logic issue_valid,
  input logic [WAVE_SLOT_WIDTH-1:0] issue_wave_slot,
- input logic [2:0] issue_opcode,
+ input logic [3:0] issue_opcode,
  input logic [7:0] issue_source0, issue_source1, issue_destination,
  input logic [31:0] issue_lane_mask,
  output logic issue_ready, issue_accepted,
@@ -32,7 +32,8 @@ module cgx1_vector_int32_pipeline #(
  output logic source_locks_live, destination_lock_live
 );
  localparam logic [2:0] IDLE=0,READ=1,EXEC=2,WRITE=3,DONE=4;
- logic [2:0] state_q,opcode_q;
+ logic [2:0] state_q;
+ logic [3:0] opcode_q;
  logic [WAVE_SLOT_WIDTH-1:0] wave_q;
  logic [7:0] s0_q,s1_q,d_q;
  logic [31:0] mask_q;

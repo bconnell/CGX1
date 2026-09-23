@@ -7,13 +7,13 @@ module cgx1_resident_vector_execution_frontend #(
  input logic clk, reset_n,
  input logic [RESIDENT_WAVE_SLOTS-1:0] request_valid,
  input logic [RESIDENT_WAVE_SLOTS-1:0] dependency_ready,
- input logic [(RESIDENT_WAVE_SLOTS*3)-1:0] request_opcode,
+ input logic [(RESIDENT_WAVE_SLOTS*4)-1:0] request_opcode,
  input logic [(RESIDENT_WAVE_SLOTS*8)-1:0] request_source0,request_source1,request_destination,
  input logic [(RESIDENT_WAVE_SLOTS*32)-1:0] request_lane_mask,
  output logic [RESIDENT_WAVE_SLOTS-1:0] request_accepted,
  output logic selected_valid,
  output logic [WAVE_SLOT_WIDTH-1:0] selected_wave_slot,
- output logic [2:0] selected_opcode,
+ output logic [3:0] selected_opcode,
  output logic [7:0] selected_source0,selected_source1,selected_destination,
  output logic [31:0] selected_lane_mask,
  input logic selected_ready
@@ -24,7 +24,7 @@ module cgx1_resident_vector_execution_frontend #(
  always_comb begin
    selected_opcode='0;selected_source0='0;selected_source1='0;selected_destination='0;selected_lane_mask='0;request_accepted='0;
    if(selected_valid) begin
-     selected_opcode=request_opcode[($unsigned(selected_wave_slot)*3)+:3];
+     selected_opcode=request_opcode[($unsigned(selected_wave_slot)*4)+:4];
      selected_source0=request_source0[($unsigned(selected_wave_slot)*8)+:8];
      selected_source1=request_source1[($unsigned(selected_wave_slot)*8)+:8];
      selected_destination=request_destination[($unsigned(selected_wave_slot)*8)+:8];

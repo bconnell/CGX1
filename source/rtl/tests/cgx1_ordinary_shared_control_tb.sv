@@ -17,8 +17,13 @@ module cgx1_ordinary_shared_control_tb;
   mw=1;#1;if(!gmw||gor||gr)$fatal(1,"matrix write did not retain fixed-cycle priority");mw=0;
   orr=1;rr=1;#1;if(!gor||gr)$fatal(1,"ordinary/restore initial fairness grant mismatch");accepted=1;@(posedge clk);#1;@(negedge clk);accepted=0;#1;if(!gr||gor)$fatal(1,"restore did not receive bounded fairness turn");
   orr=0;rr=0;mb=1;#1;if(release_safe)$fatal(1,"matrix busy failed to block release");mb=0;split=1;#1;if(release_safe)$fatal(1,"split read failed to block release");split=0;#1;if(!release_safe)$fatal(1,"quiescent release was blocked");
-  request_valid=1;competition=1;#1;if(!request_ready)$fatal(1,"first matrix request unexpectedly throttled");@(posedge clk);#1;@(negedge clk);#1;if(!request_ready)$fatal(1,"second matrix request unexpectedly throttled");@(posedge clk);#1;@(negedge clk);#1;if(!service_window||request_ready)$fatal(1,"mixed-load service window was not created");
-  legal=0;#1;if(!request_ready||!forward_valid)$fatal(1,"illegal matrix request was swallowed by workload throttle");
+  competition=1;
+  request_valid=1;#1;if(!request_ready||!forward_valid)$fatal(1,"first matrix request unexpectedly throttled");
+  @(posedge clk);#1;@(negedge clk);request_valid=0;#1;
+  request_valid=1;#1;if(!request_ready||!forward_valid)$fatal(1,"second matrix request unexpectedly throttled");
+  @(posedge clk);#1;@(negedge clk);request_valid=0;#1;
+  if(!service_window||request_ready)$fatal(1,"mixed-load service window was not created after two accepted matrix requests");
+  request_valid=1;legal=0;#1;if(!request_ready||!forward_valid)$fatal(1,"illegal matrix request was swallowed by workload throttle");
   $display("[pass] CGX 1 ordinary/shared control checks passed.");$finish;
  end
 endmodule

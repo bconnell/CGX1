@@ -67,23 +67,65 @@ module cgx1_pooled_vgpr_execution_subsystem #(
  always_comb begin matrix_request_preflight_ready=preflight_ready_raw; matrix_request_gated_valid=gated_raw; if(release_valid&&release_slot_valid) begin matrix_request_preflight_ready[release_wave_slot]=0; matrix_request_gated_valid[release_wave_slot]=0; end end
 
  function automatic logic slot_valid(input logic [WAVE_SLOT_WIDTH-1:0] slot); slot_valid=($unsigned(slot)<RESIDENT_WAVE_SLOTS); endfunction
- function automatic [ROW_WIDTH-1:0] base_for(input logic [WAVE_SLOT_WIDTH-1:0] slot); begin if(slot_valid(slot)) base_for=alloc_base_flat[($unsigned(slot)*ROW_WIDTH)+:ROW_WIDTH]; else base_for='0; end endfunction
- function automatic [8:0] count_for(input logic [WAVE_SLOT_WIDTH-1:0] slot); begin if(slot_valid(slot)) count_for=alloc_count_flat[($unsigned(slot)*9)+:9]; else count_for='0; end endfunction
- function automatic logic active_for(input logic [WAVE_SLOT_WIDTH-1:0] slot); begin if(slot_valid(slot)) active_for=alloc_active[slot]; else active_for=1'b0; end endfunction
- function automatic logic reserved_for(input logic [WAVE_SLOT_WIDTH-1:0] slot); begin if(slot_valid(slot)) reserved_for=alloc_reserved[slot]; else reserved_for=1'b0; end endfunction
- function automatic logic sanitized_for(input logic [WAVE_SLOT_WIDTH-1:0] slot); begin if(slot_valid(slot)) sanitized_for=alloc_sanitized[slot]; else sanitized_for=1'b0; end endfunction
+
+ logic restore_slot_valid_sel,restore_reserved_sel,restore_sanitized_sel;
+ logic matrix_read_slot_valid_sel,matrix_read_active_sel,matrix_write_slot_valid_sel,matrix_write_active_sel;
+ logic ordinary_read_slot_valid_sel,ordinary_read_active_sel,ordinary_write_slot_valid_sel,ordinary_write_active_sel;
+ logic [ROW_WIDTH-1:0] restore_base_sel,matrix_read_base_sel,matrix_write_base_sel,ordinary_read_base_sel,ordinary_write_base_sel;
+ logic [8:0] restore_count_sel,matrix_read_count_sel,matrix_write_count_sel,ordinary_read_count_sel,ordinary_write_count_sel;
+
+ always_comb begin
+  restore_slot_valid_sel=slot_valid(restore_wave_slot);
+  matrix_read_slot_valid_sel=slot_valid(matrix_rf_read_wave_slot);
+  matrix_write_slot_valid_sel=slot_valid(matrix_rf_write_wave_slot);
+  ordinary_read_slot_valid_sel=slot_valid(ordinary_read_wave_slot);
+  ordinary_write_slot_valid_sel=slot_valid(ordinary_write_wave_slot);
+
+  restore_reserved_sel=1'b0; restore_sanitized_sel=1'b0; restore_base_sel='0; restore_count_sel='0;
+  matrix_read_active_sel=1'b0; matrix_read_base_sel='0; matrix_read_count_sel='0;
+  matrix_write_active_sel=1'b0; matrix_write_base_sel='0; matrix_write_count_sel='0;
+  ordinary_read_active_sel=1'b0; ordinary_read_base_sel='0; ordinary_read_count_sel='0;
+  ordinary_write_active_sel=1'b0; ordinary_write_base_sel='0; ordinary_write_count_sel='0;
+
+  if(restore_slot_valid_sel) begin
+   restore_reserved_sel=alloc_reserved[restore_wave_slot];
+   restore_sanitized_sel=alloc_sanitized[restore_wave_slot];
+   restore_base_sel=alloc_base_flat[($unsigned(restore_wave_slot)*ROW_WIDTH)+:ROW_WIDTH];
+   restore_count_sel=alloc_count_flat[($unsigned(restore_wave_slot)*9)+:9];
+  end
+  if(matrix_read_slot_valid_sel) begin
+   matrix_read_active_sel=alloc_active[matrix_rf_read_wave_slot];
+   matrix_read_base_sel=alloc_base_flat[($unsigned(matrix_rf_read_wave_slot)*ROW_WIDTH)+:ROW_WIDTH];
+   matrix_read_count_sel=alloc_count_flat[($unsigned(matrix_rf_read_wave_slot)*9)+:9];
+  end
+  if(matrix_write_slot_valid_sel) begin
+   matrix_write_active_sel=alloc_active[matrix_rf_write_wave_slot];
+   matrix_write_base_sel=alloc_base_flat[($unsigned(matrix_rf_write_wave_slot)*ROW_WIDTH)+:ROW_WIDTH];
+   matrix_write_count_sel=alloc_count_flat[($unsigned(matrix_rf_write_wave_slot)*9)+:9];
+  end
+  if(ordinary_read_slot_valid_sel) begin
+   ordinary_read_active_sel=alloc_active[ordinary_read_wave_slot];
+   ordinary_read_base_sel=alloc_base_flat[($unsigned(ordinary_read_wave_slot)*ROW_WIDTH)+:ROW_WIDTH];
+   ordinary_read_count_sel=alloc_count_flat[($unsigned(ordinary_read_wave_slot)*9)+:9];
+  end
+  if(ordinary_write_slot_valid_sel) begin
+   ordinary_write_active_sel=alloc_active[ordinary_write_wave_slot];
+   ordinary_write_base_sel=alloc_base_flat[($unsigned(ordinary_write_wave_slot)*ROW_WIDTH)+:ROW_WIDTH];
+   ordinary_write_count_sel=alloc_count_flat[($unsigned(ordinary_write_wave_slot)*9)+:9];
+  end
+ end
 
  logic restore_map_valid; logic [ROW_WIDTH-1:0] restore_row; logic [2:0] restore_bank;
- cgx1_pooled_vgpr_restore_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) restore_mapper(.allocation_reserved(reserved_for(restore_wave_slot)),.allocation_sanitized(sanitized_for(restore_wave_slot)),.allocation_row_base(base_for(restore_wave_slot)),.allocation_register_count(count_for(restore_wave_slot)),.architectural_register(restore_register),.restore_address_valid(restore_map_valid),.physical_row(restore_row),.bank_class(restore_bank));
+ cgx1_pooled_vgpr_restore_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) restore_mapper(.allocation_reserved(restore_reserved_sel),.allocation_sanitized(restore_sanitized_sel),.allocation_row_base(restore_base_sel),.allocation_register_count(restore_count_sel),.architectural_register(restore_register),.restore_address_valid(restore_map_valid),.physical_row(restore_row),.bank_class(restore_bank));
 
  logic m0v,m1v,mwv; logic [ROW_WIDTH-1:0] m0r,m1r,mwr; logic [2:0] m0b,m1b,mwb;
- cgx1_pooled_vgpr_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) mm0(.allocation_active(active_for(matrix_rf_read_wave_slot)),.allocation_row_base(base_for(matrix_rf_read_wave_slot)),.allocation_register_count(count_for(matrix_rf_read_wave_slot)),.architectural_register(matrix_rf_read_addr0),.address_valid(m0v),.physical_row(m0r),.bank_class(m0b));
- cgx1_pooled_vgpr_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) mm1(.allocation_active(active_for(matrix_rf_read_wave_slot)),.allocation_row_base(base_for(matrix_rf_read_wave_slot)),.allocation_register_count(count_for(matrix_rf_read_wave_slot)),.architectural_register(matrix_rf_read_addr1),.address_valid(m1v),.physical_row(m1r),.bank_class(m1b));
- cgx1_pooled_vgpr_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) mmw(.allocation_active(active_for(matrix_rf_write_wave_slot)),.allocation_row_base(base_for(matrix_rf_write_wave_slot)),.allocation_register_count(count_for(matrix_rf_write_wave_slot)),.architectural_register(matrix_rf_write_addr),.address_valid(mwv),.physical_row(mwr),.bank_class(mwb));
+ cgx1_pooled_vgpr_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) mm0(.allocation_active(matrix_read_active_sel),.allocation_row_base(matrix_read_base_sel),.allocation_register_count(matrix_read_count_sel),.architectural_register(matrix_rf_read_addr0),.address_valid(m0v),.physical_row(m0r),.bank_class(m0b));
+ cgx1_pooled_vgpr_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) mm1(.allocation_active(matrix_read_active_sel),.allocation_row_base(matrix_read_base_sel),.allocation_register_count(matrix_read_count_sel),.architectural_register(matrix_rf_read_addr1),.address_valid(m1v),.physical_row(m1r),.bank_class(m1b));
+ cgx1_pooled_vgpr_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) mmw(.allocation_active(matrix_write_active_sel),.allocation_row_base(matrix_write_base_sel),.allocation_register_count(matrix_write_count_sel),.architectural_register(matrix_rf_write_addr),.address_valid(mwv),.physical_row(mwr),.bank_class(mwb));
 
  logic os0v,os1v,odv; logic [ROW_WIDTH-1:0] os0r,os1r,odr; logic [2:0] os0b,os1b,odb; logic oalias,osame;
- cgx1_pooled_vgpr_ordinary_frontend #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) ofront(.allocation_active(active_for(ordinary_read_wave_slot)),.allocation_row_base(base_for(ordinary_read_wave_slot)),.allocation_register_count(count_for(ordinary_read_wave_slot)),.source0(ordinary_read_source0),.source1(ordinary_read_source1),.destination(8'd0),.source0_valid(os0v),.source1_valid(os1v),.destination_valid(),.source0_row(os0r),.source1_row(os1r),.destination_row(),.source0_bank(os0b),.source1_bank(os1b),.destination_bank(),.exact_alias(oalias),.distinct_same_bank(osame));
- cgx1_pooled_vgpr_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) omw(.allocation_active(active_for(ordinary_write_wave_slot)),.allocation_row_base(base_for(ordinary_write_wave_slot)),.allocation_register_count(count_for(ordinary_write_wave_slot)),.architectural_register(ordinary_write_destination),.address_valid(odv),.physical_row(odr),.bank_class(odb));
+ cgx1_pooled_vgpr_ordinary_frontend #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) ofront(.allocation_active(ordinary_read_active_sel),.allocation_row_base(ordinary_read_base_sel),.allocation_register_count(ordinary_read_count_sel),.source0(ordinary_read_source0),.source1(ordinary_read_source1),.destination(8'd0),.source0_valid(os0v),.source1_valid(os1v),.destination_valid(),.source0_row(os0r),.source1_row(os1r),.destination_row(),.source0_bank(os0b),.source1_bank(os1b),.destination_bank(),.exact_alias(oalias),.distinct_same_bank(osame));
+ cgx1_pooled_vgpr_mapper #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.ROW_WIDTH(ROW_WIDTH)) omw(.allocation_active(ordinary_write_active_sel),.allocation_row_base(ordinary_write_base_sel),.allocation_register_count(ordinary_write_count_sel),.architectural_register(ordinary_write_destination),.address_valid(odv),.physical_row(odr),.bank_class(odb));
 
  logic ord_service_valid,ord_service_single,ord_service_ready; logic [ROW_WIDTH-1:0] ord_sr0,ord_sr1; logic [2:0] ord_sb0,ord_sb1;
  logic storage_r0_init,storage_r1_init; logic [1023:0] storage_r0_data,storage_r1_data;

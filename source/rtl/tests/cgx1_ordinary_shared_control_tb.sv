@@ -18,6 +18,7 @@ module cgx1_ordinary_shared_control_tb;
   orr=1;rr=1;#1;if(!gor||gr)$fatal(1,"ordinary/restore initial fairness grant mismatch");accepted=1;@(posedge clk);#1;@(negedge clk);accepted=0;#1;if(!gr||gor)$fatal(1,"restore did not receive bounded fairness turn");
   orr=0;rr=0;mb=1;#1;if(release_safe)$fatal(1,"matrix busy failed to block release");mb=0;split=1;#1;if(release_safe)$fatal(1,"split read failed to block release");split=0;#1;if(!release_safe)$fatal(1,"quiescent release was blocked");
   competition=1;
+  @(negedge clk);
   request_valid=1;#1;if(!request_ready||!forward_valid)$fatal(1,"first matrix request unexpectedly throttled");
   @(posedge clk);#1;@(negedge clk);request_valid=0;#1;
   request_valid=1;#1;if(!request_ready||!forward_valid)$fatal(1,"second matrix request unexpectedly throttled");

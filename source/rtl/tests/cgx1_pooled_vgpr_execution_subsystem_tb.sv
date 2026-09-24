@@ -17,7 +17,18 @@ module cgx1_pooled_vgpr_execution_subsystem_tb;
  always #5 clk=~clk;
  cgx1_pooled_vgpr_execution_subsystem #(.PHYSICAL_ROWS(ROWS),.RESIDENT_WAVE_SLOTS(SLOTS),.ROW_WIDTH(ROW_WIDTH),.WAVE_SLOT_WIDTH(SLOT_WIDTH)) dut(.*);
  function automatic[1023:0]pat(input logic[31:0]base);integer i;begin pat='0;for(i=0;i<32;i=i+1)pat[(i*32)+:32]=base+i;end endfunction
- task automatic restore_word(input logic[7:0]register_index,input logic[1023:0]value);begin @(negedge clk);restore_register=register_index;restore_data=value;restore_valid=1;timeout=0;#1;while(!restore_ready)begin @(negedge clk);#1;timeout=timeout+1;if(timeout>20)$fatal(1,"restore never became ready");end @(posedge clk);#1;@(negedge clk);restore_valid=0;end endtask
+ task automatic restore_word(input logic[7:0]register_index,input logic[1023:0]value);begin @(negedge clk);restore_register=register_index;restore_data=value;restore_valid=1;timeout=0;#1;while(!restore_ready)begin @(negedge clk);#1;timeout=timeout+1;if(timeout>20)$fatal(1,
+  "restore never became ready: reserved=%0b sanitized=%0b map=%0b grant=%0b storage_write_ready=%0b invalidate_valid=%0b invalidate_row=%0d restore_row=%0d count=%0d base=%0d",
+  dut.alloc_reserved[restore_wave_slot],
+  dut.alloc_sanitized[restore_wave_slot],
+  dut.restore_map_valid,
+  dut.gr,
+  dut.storage_write_ready,
+  dut.invalidate_valid,
+  dut.invalidate_row,
+  dut.restore_row,
+  dut.count_for(restore_wave_slot),
+  dut.base_for(restore_wave_slot));end @(posedge clk);#1;@(negedge clk);restore_valid=0;end endtask
  initial begin
   reserve_valid=0;reserve_wave_slot=0;reserve_register_count=0;activate_valid=0;activate_wave_slot=0;release_valid=0;release_wave_slot=0;release_quiescent=0;matrix_execution_busy=0;vector_execution_busy=0;restore_valid=0;restore_wave_slot=0;restore_register=0;restore_data=0;matrix_request_valid=0;matrix_request_d_base=0;matrix_request_a_base=0;matrix_request_b_base=0;matrix_rf_read_valid=0;matrix_rf_read_wave_slot=0;matrix_rf_read_addr0=0;matrix_rf_read_addr1=0;matrix_rf_write_valid=0;matrix_rf_write_wave_slot=0;matrix_rf_write_addr=0;matrix_rf_write_data=0;ordinary_read_valid=0;ordinary_read_wave_slot=0;ordinary_read_source0=0;ordinary_read_source1=0;ordinary_write_valid=0;ordinary_write_wave_slot=0;ordinary_write_destination=0;ordinary_write_lane_mask=0;ordinary_write_data=0;
   repeat(3)@(posedge clk);@(negedge clk);reset_n=1;

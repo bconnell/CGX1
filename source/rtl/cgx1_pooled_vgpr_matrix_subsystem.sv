@@ -279,7 +279,7 @@ module cgx1_pooled_vgpr_matrix_subsystem #(
     always_comb begin
         matrix_request_preflight_ready = matrix_request_preflight_ready_raw;
         matrix_request_gated_valid = matrix_request_gated_valid_raw;
-        if (release_accepted && release_slot_valid) begin
+        if (release_valid && release_slot_valid) begin
             matrix_request_preflight_ready[release_wave_slot] = 1'b0;
             matrix_request_gated_valid[release_wave_slot] = 1'b0;
         end

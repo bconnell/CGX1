@@ -23,8 +23,13 @@ module cgx1_matrix_mixed_workload_admission #(
    if(controller_ready) skipped_ready_seen_q<=1;
    if(skipped_ready_seen_q&&!controller_ready) begin burst_q<='0;service_pending_q<=0;skipped_ready_seen_q<=0;end
   end else if(accepted_legal) begin
-   if((burst_q+1'b1)>=MATRIX_BURST_LIMIT) begin burst_q<=MATRIX_BURST_LIMIT;service_pending_q<=1;skipped_ready_seen_q<=0;end
-   else burst_q<=burst_q+1'b1;
+   if(burst_q >= (MATRIX_BURST_LIMIT-1)) begin
+    burst_q <= MATRIX_BURST_LIMIT[COUNT_WIDTH-1:0];
+    service_pending_q <= 1'b1;
+    skipped_ready_seen_q <= 1'b0;
+   end else begin
+    burst_q <= burst_q + {{(COUNT_WIDTH-1){1'b0}},1'b1};
+   end
   end
  end
 `ifndef SYNTHESIS

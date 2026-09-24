@@ -27,8 +27,8 @@ module cgx1_pooled_vgpr_execution_subsystem_tb;
   dut.invalidate_valid,
   dut.invalidate_row,
   dut.restore_row,
-  dut.count_for(restore_wave_slot),
-  dut.base_for(restore_wave_slot));end @(posedge clk);#1;@(negedge clk);restore_valid=0;end endtask
+  dut.restore_count_sel,
+  dut.restore_base_sel);end @(posedge clk);#1;@(negedge clk);restore_valid=0;end endtask
  initial begin
   reserve_valid=0;reserve_wave_slot=0;reserve_register_count=0;activate_valid=0;activate_wave_slot=0;release_valid=0;release_wave_slot=0;release_quiescent=0;matrix_execution_busy=0;vector_execution_busy=0;restore_valid=0;restore_wave_slot=0;restore_register=0;restore_data=0;matrix_request_valid=0;matrix_request_d_base=0;matrix_request_a_base=0;matrix_request_b_base=0;matrix_rf_read_valid=0;matrix_rf_read_wave_slot=0;matrix_rf_read_addr0=0;matrix_rf_read_addr1=0;matrix_rf_write_valid=0;matrix_rf_write_wave_slot=0;matrix_rf_write_addr=0;matrix_rf_write_data=0;ordinary_read_valid=0;ordinary_read_wave_slot=0;ordinary_read_source0=0;ordinary_read_source1=0;ordinary_write_valid=0;ordinary_write_wave_slot=0;ordinary_write_destination=0;ordinary_write_lane_mask=0;ordinary_write_data=0;
   repeat(3)@(posedge clk);@(negedge clk);reset_n=1;

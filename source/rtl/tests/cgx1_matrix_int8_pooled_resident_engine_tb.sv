@@ -127,6 +127,7 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
     endtask
 
     initial begin
+        $display("[phase] pooled resident INT8 test start");
         reserve_valid = 1'b0;
         reserve_wave_slot = '0;
         reserve_register_count = '0;
@@ -154,8 +155,10 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
         repeat (3) @(posedge clk);
         @(negedge clk);
         reset_n = 1'b1;
+        $display("[phase] reset released");
 
         reserve72(0);
+        $display("[phase] wave0 reserved and sanitized");
         for (reg_index = 64; reg_index < 72; reg_index = reg_index + 1)
             restore_word(0, reg_index[7:0], '0);
         for (reg_index = 0; reg_index < 8; reg_index = reg_index + 1) begin
@@ -163,6 +166,7 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
             restore_word(0, 8'd32 + reg_index[7:0], c_word[reg_index]);
         end
         activate_wave(0);
+        $display("[phase] wave0 restored and active");
 
         matrix_request_d_base[0 +: 8] = 8'd32;
         matrix_request_a_base[0 +: 8] = 8'd64;
@@ -177,6 +181,7 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
         @(posedge clk); #1;
         @(negedge clk);
         matrix_request_valid[0] = 1'b0;
+        $display("[phase] wave0 matrix request accepted");
 
         timeout = 0;
         while (!resident_wave_busy[0]) begin
@@ -196,6 +201,7 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
 
         timeout = 0;
         while (resident_wave_busy[0]) begin
+            if (timeout == 0) $display("[phase] waiting for wave0 matrix drain");
             @(posedge clk); #1;
             timeout = timeout + 1;
             if (timeout > 96) $fatal(1, "pooled resident matrix operation did not drain");
@@ -207,12 +213,14 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
         end
 
         reserve72(1);
+        $display("[phase] wave0 result checked; starting wave1 negative path");
         for (reg_index = 64; reg_index < 72; reg_index = reg_index + 1) begin
             if (reg_index != 69) restore_word(1, reg_index[7:0], '0);
         end
         for (reg_index = 32; reg_index < 40; reg_index = reg_index + 1)
             restore_word(1, reg_index[7:0], c_pattern(reg_index[7:0]));
         activate_wave(1);
+        $display("[phase] wave1 restored with one missing source and active");
         matrix_request_d_base[8 +: 8] = 8'd32;
         matrix_request_a_base[8 +: 8] = 8'd64;
         matrix_request_b_base[8 +: 8] = 8'd68;
@@ -222,6 +230,7 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
             $fatal(1, "pooled resident uninitialized legal request was admitted");
 
         matrix_request_full_wave_active[1] = 1'b0;
+        $display("[phase] wave1 legal request correctly blocked; testing illegal forwarding");
         timeout = 0;
         while (!matrix_request_ready[1]) begin
             @(negedge clk); #1;
@@ -243,6 +252,13 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
             $fatal(1, "illegal full-wave request reported wrong resident wave");
 
         $display("[pass] CGX 1 pooled resident INT8 engine integration checks passed.");
+        $display("[phase] illegal forwarding observed");
         $finish;
     end
+
+    initial begin : simulation_watchdog
+        #20000;
+        $fatal(1, "pooled resident INT8 integration simulation-time watchdog expired");
+    end
+
 endmodule

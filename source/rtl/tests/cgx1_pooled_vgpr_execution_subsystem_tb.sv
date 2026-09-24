@@ -12,6 +12,7 @@ module cgx1_pooled_vgpr_execution_subsystem_tb;
  logic matrix_rf_write_valid;logic[SLOT_WIDTH-1:0]matrix_rf_write_wave_slot;logic[7:0]matrix_rf_write_addr;logic[1023:0]matrix_rf_write_data;logic matrix_rf_write_ready;
  logic ordinary_read_valid;logic[SLOT_WIDTH-1:0]ordinary_read_wave_slot;logic[7:0]ordinary_read_source0,ordinary_read_source1;logic ordinary_read_response_valid,ordinary_read_address_fault,ordinary_read_uninitialized;logic[1023:0]ordinary_read_data0,ordinary_read_data1;
  logic ordinary_write_valid;logic[SLOT_WIDTH-1:0]ordinary_write_wave_slot;logic[7:0]ordinary_write_destination;logic[31:0]ordinary_write_lane_mask;logic[1023:0]ordinary_write_data;logic ordinary_write_ready,ordinary_write_address_fault;
+ logic restore_service_waiting,restore_service_accepted;
  integer timeout;
  always #5 clk=~clk;
  cgx1_pooled_vgpr_execution_subsystem #(.PHYSICAL_ROWS(ROWS),.RESIDENT_WAVE_SLOTS(SLOTS),.ROW_WIDTH(ROW_WIDTH),.WAVE_SLOT_WIDTH(SLOT_WIDTH)) dut(.*);

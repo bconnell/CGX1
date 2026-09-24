@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Brandon Connell
 
 module cgx1_matrix_int8_pooled_resident_engine_tb;
-    localparam integer ROWS = 32;
-    localparam integer SLOTS = 4;
-    localparam integer ROW_WIDTH = 5;
-    localparam integer SLOT_WIDTH = 2;
+    localparam integer ROWS = 9;
+    localparam integer SLOTS = 2;
+    localparam integer ROW_WIDTH = 4;
+    localparam integer SLOT_WIDTH = 1;
 
     logic clk = 1'b0;
     logic reset_n = 1'b0;
@@ -211,6 +211,18 @@ module cgx1_matrix_int8_pooled_resident_engine_tb;
             if (dut.pooled.storage.data[4][reg_index] !== c_word[reg_index])
                 $fatal(1, "pooled resident INT8 writeback mismatch at D+%0d", reg_index);
         end
+
+        @(negedge clk);
+        release_wave_slot = 0;
+        release_quiescent = 1'b1;
+        release_valid = 1'b1;
+        #1;
+        if (!release_ready || !release_accepted)
+            $fatal(1, "completed wave0 allocation was not releasable");
+        @(posedge clk); #1;
+        @(negedge clk);
+        release_valid = 1'b0;
+        release_quiescent = 1'b0;
 
         reserve72(1);
         $display("[phase] wave0 result checked; starting wave1 negative path");

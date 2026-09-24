@@ -20,6 +20,7 @@ module cgx1_matrix_vgpr_preflight #(
 );
 
     logic guard_legal;
+    logic inputs_initialized_next;
     integer source_offset;
     integer accumulator_offset;
 
@@ -54,22 +55,23 @@ module cgx1_matrix_vgpr_preflight #(
     );
 
     always_comb begin
-        all_inputs_initialized = guard_legal;
+        inputs_initialized_next = guard_legal;
 
         if (guard_legal) begin
             for (source_offset = 0; source_offset < 4; source_offset = source_offset + 1) begin
-                all_inputs_initialized = all_inputs_initialized
+                inputs_initialized_next = inputs_initialized_next
                     && register_initialized(source_a_base + source_offset)
                     && register_initialized(source_b_base + source_offset);
             end
 
             for (accumulator_offset = 0; accumulator_offset < 8; accumulator_offset = accumulator_offset + 1) begin
-                all_inputs_initialized = all_inputs_initialized
+                inputs_initialized_next = inputs_initialized_next
                     && register_initialized(destination_base + accumulator_offset);
             end
         end
 
-        matrix_issue_legal = guard_legal && all_inputs_initialized;
+        all_inputs_initialized = inputs_initialized_next;
+        matrix_issue_legal = guard_legal && inputs_initialized_next;
     end
 
 endmodule

@@ -58,7 +58,7 @@ module cgx1_compute_int8_vector_execution_frontend #(
 
  logic mrf_read_valid,mrf_write_valid;logic[7:0]mrf_addr0,mrf_addr1,mrf_waddr;logic[WAVE_SLOT_WIDTH-1:0]mrf_read_wave,mrf_write_wave;logic[1023:0]mrf_data0,mrf_data1,mrf_wdata;logic mrf_read_ready,mrf_write_ready,mrf_init0,mrf_init1;
  logic matrix_ordinary_raw,matrix_ordinary_waw,matrix_ordinary_war,matrix_ordinary_rpc,matrix_ordinary_wpc,matrix_ordinary_ready,matrix_ordinary_accepted;
- logic[255:0]vec_read_mask,vec_write_mask;logic any_matrix_accepted,vector_issue_to_matrix_scoreboard;
+ logic[255:0]vec_read_mask,vec_write_mask;logic any_matrix_accepted,matrix_fire_now,vector_issue_to_matrix_scoreboard;
  logic legal_matrix_accepted,allow_legal_matrix_issue,service_window_active;
  logic restore_service_waiting,restore_service_accepted;
  integer accepted_scan;
@@ -66,11 +66,12 @@ module cgx1_compute_int8_vector_execution_frontend #(
    vec_read_mask='0;vec_write_mask='0;
    if(vec_selected_valid) begin vec_read_mask[vec_selected_s0]=1'b1;vec_read_mask[vec_selected_s1]=1'b1;vec_write_mask[vec_selected_d]=1'b1;end
    any_matrix_accepted=|matrix_request_accepted;
+   matrix_fire_now=|(engine_matrix_valid & engine_matrix_ready);
    legal_matrix_accepted=1'b0;
    for(accepted_scan=0;accepted_scan<RESIDENT_WAVE_SLOTS;accepted_scan=accepted_scan+1)
      if(matrix_request_accepted[accepted_scan]&&matrix_request_full_wave_active[accepted_scan]&&layout_legal[accepted_scan])
        legal_matrix_accepted=1'b1;
-   vector_issue_to_matrix_scoreboard=vec_selected_valid&&!any_matrix_accepted;
+   vector_issue_to_matrix_scoreboard=vec_selected_valid&&!matrix_fire_now;
  end
 
  cgx1_compute_mixed_service_policy #(.MATRIX_BURST_LIMIT(MATRIX_BURST_LIMIT)) service_policy(
@@ -83,8 +84,8 @@ module cgx1_compute_int8_vector_execution_frontend #(
   .clk(clk),.reset_n(reset_n),.matrix_request_valid(engine_matrix_valid),.matrix_request_full_wave_active(matrix_request_full_wave_active),.matrix_request_d_base(matrix_request_d_base),.matrix_request_a_base(matrix_request_a_base),.matrix_request_b_base(matrix_request_b_base),.matrix_request_ready(engine_matrix_ready),.matrix_request_accepted(matrix_request_accepted),.illegal_issue(matrix_illegal_issue),.illegal_wave_slot(matrix_illegal_wave_slot),.rf_read_valid(mrf_read_valid),.rf_read_addr0(mrf_addr0),.rf_read_addr1(mrf_addr1),.rf_read_wave_slot(mrf_read_wave),.rf_read_data0(mrf_data0),.rf_read_data1(mrf_data1),.rf_write_valid(mrf_write_valid),.rf_write_addr(mrf_waddr),.rf_write_wave_slot(mrf_write_wave),.rf_write_data(mrf_wdata),.ordinary_issue_valid(vector_issue_to_matrix_scoreboard),.ordinary_wave_slot(vec_selected_wave),.ordinary_read_mask(vec_read_mask),.ordinary_write_mask(vec_write_mask),.ordinary_uses_read_ports(1'b1),.ordinary_uses_write_port(1'b1),.ordinary_raw_hazard(matrix_ordinary_raw),.ordinary_waw_hazard(matrix_ordinary_waw),.ordinary_war_hazard(matrix_ordinary_war),.ordinary_read_port_conflict(matrix_ordinary_rpc),.ordinary_write_port_conflict(matrix_ordinary_wpc),.ordinary_ready(matrix_ordinary_ready),.ordinary_issue_accepted(matrix_ordinary_accepted),.matrix_source_pending_mask_flat(matrix_source_pending_flat),.matrix_destination_pending_mask_flat(matrix_destination_pending_flat),.resident_wave_busy(matrix_resident_wave_busy));
 
  logic vread_valid,vwrite_valid;logic[WAVE_SLOT_WIDTH-1:0]vread_wave,vwrite_wave;logic[7:0]vread_s0,vread_s1,vwrite_d;logic[31:0]vwrite_mask;logic[1023:0]vread_d0,vread_d1,vwrite_data;logic vread_response,vread_af,vread_uninit,vwrite_ready,vwrite_af,vector_issue_ready,vector_issue_accepted;
- assign vec_selected_ready=vector_issue_ready&&matrix_ordinary_ready&&!any_matrix_accepted;
- cgx1_vector_int32_pipeline #(.WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH)) vector_pipe(.clk(clk),.reset_n(reset_n),.issue_valid(vec_selected_valid&&matrix_ordinary_ready&&!any_matrix_accepted),.issue_wave_slot(vec_selected_wave),.issue_opcode(vec_selected_opcode),.issue_source0(vec_selected_s0),.issue_source1(vec_selected_s1),.issue_destination(vec_selected_d),.issue_lane_mask(vec_selected_mask),.issue_ready(vector_issue_ready),.issue_accepted(vector_issue_accepted),.read_valid(vread_valid),.read_wave_slot(vread_wave),.read_source0(vread_s0),.read_source1(vread_s1),.read_response_valid(vread_response),.read_address_fault(vread_af),.read_uninitialized(vread_uninit),.read_data0(vread_d0),.read_data1(vread_d1),.write_valid(vwrite_valid),.write_wave_slot(vwrite_wave),.write_destination(vwrite_d),.write_lane_mask(vwrite_mask),.write_data(vwrite_data),.write_ready(vwrite_ready),.write_address_fault(vwrite_af),.complete_valid(vector_complete_valid),.complete_wave_slot(vector_complete_wave_slot),.illegal_opcode(vector_illegal_opcode),.address_fault(vector_address_fault),.uninitialized_fault(vector_uninitialized_fault),.busy(vector_busy),.live_wave_slot(vec_live_wave),.live_source0(vec_live_s0),.live_source1(vec_live_s1),.live_destination(vec_live_d),.source_locks_live(vec_source_locks),.destination_lock_live(vec_dest_lock));
+ assign vec_selected_ready=vector_issue_ready&&matrix_ordinary_ready&&!matrix_fire_now;
+ cgx1_vector_int32_pipeline #(.WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH)) vector_pipe(.clk(clk),.reset_n(reset_n),.issue_valid(vec_selected_valid&&matrix_ordinary_ready&&!matrix_fire_now),.issue_wave_slot(vec_selected_wave),.issue_opcode(vec_selected_opcode),.issue_source0(vec_selected_s0),.issue_source1(vec_selected_s1),.issue_destination(vec_selected_d),.issue_lane_mask(vec_selected_mask),.issue_ready(vector_issue_ready),.issue_accepted(vector_issue_accepted),.read_valid(vread_valid),.read_wave_slot(vread_wave),.read_source0(vread_s0),.read_source1(vread_s1),.read_response_valid(vread_response),.read_address_fault(vread_af),.read_uninitialized(vread_uninit),.read_data0(vread_d0),.read_data1(vread_d1),.write_valid(vwrite_valid),.write_wave_slot(vwrite_wave),.write_destination(vwrite_d),.write_lane_mask(vwrite_mask),.write_data(vwrite_data),.write_ready(vwrite_ready),.write_address_fault(vwrite_af),.complete_valid(vector_complete_valid),.complete_wave_slot(vector_complete_wave_slot),.illegal_opcode(vector_illegal_opcode),.address_fault(vector_address_fault),.uninitialized_fault(vector_uninitialized_fault),.busy(vector_busy),.live_wave_slot(vec_live_wave),.live_source0(vec_live_s0),.live_source1(vec_live_s1),.live_destination(vec_live_d),.source_locks_live(vec_source_locks),.destination_lock_live(vec_dest_lock));
 
  logic[RESIDENT_WAVE_SLOTS-1:0]vector_busy_bitmap;
  always_comb begin vector_busy_bitmap='0;if(vector_busy&&($unsigned(vec_live_wave)<RESIDENT_WAVE_SLOTS))vector_busy_bitmap[vec_live_wave]=1'b1;end
@@ -93,7 +94,7 @@ module cgx1_compute_int8_vector_execution_frontend #(
   .restore_service_waiting(restore_service_waiting),.restore_service_accepted(restore_service_accepted));
 `ifndef SYNTHESIS
  always_ff @(posedge clk) begin
-  if(reset_n && any_matrix_accepted && vector_issue_accepted) $fatal(1,"matrix and vector instructions were accepted on the same issue edge");
+  if(reset_n && matrix_fire_now && vector_issue_accepted) $fatal(1,"matrix and vector instructions were accepted on the same issue edge");
  end
 `endif
 endmodule

@@ -64,7 +64,7 @@ module cgx1_pooled_vgpr_execution_subsystem #(
  cgx1_matrix_request_preflight_array #(.PHYSICAL_ROWS(PHYSICAL_ROWS),.RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),.ROW_WIDTH(ROW_WIDTH)) preflight(
   .request_valid(matrix_request_valid),.allocation_active(alloc_active),.allocation_row_base(alloc_base_flat),.allocation_register_count(alloc_count_flat),.valid_bitmap(valid_bitmap),
   .destination_base(matrix_request_d_base),.source_a_base(matrix_request_a_base),.source_b_base(matrix_request_b_base),.request_layout_legal(),.request_allocation_legal(),.request_initialized(),.request_preflight_ready(preflight_ready_raw),.gated_request_valid(gated_raw));
- always_comb begin matrix_request_preflight_ready=preflight_ready_raw; matrix_request_gated_valid=gated_raw; if(release_accepted&&release_slot_valid) begin matrix_request_preflight_ready[release_wave_slot]=0; matrix_request_gated_valid[release_wave_slot]=0; end end
+ always_comb begin matrix_request_preflight_ready=preflight_ready_raw; matrix_request_gated_valid=gated_raw; if(release_valid&&release_slot_valid) begin matrix_request_preflight_ready[release_wave_slot]=0; matrix_request_gated_valid[release_wave_slot]=0; end end
 
  function automatic logic slot_valid(input logic [WAVE_SLOT_WIDTH-1:0] slot); slot_valid=($unsigned(slot)<RESIDENT_WAVE_SLOTS); endfunction
  function automatic [ROW_WIDTH-1:0] base_for(input logic [WAVE_SLOT_WIDTH-1:0] slot); begin if(slot_valid(slot)) base_for=alloc_base_flat[($unsigned(slot)*ROW_WIDTH)+:ROW_WIDTH]; else base_for='0; end endfunction

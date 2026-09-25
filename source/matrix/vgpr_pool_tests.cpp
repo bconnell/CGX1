@@ -495,10 +495,25 @@ int main()
         CHECK(
             stressPool.InvariantsHold());
 
-        CHECK(
-            stressPool.OccupiedRows()
-            <= stressPool.PhysicalRows());
+    CHECK(
+        stressPool.OccupiedRows()
+        <= stressPool.PhysicalRows());
     }
+
+    CHECK(pool.Reserve(0U, 8U));
+    storage.InvalidateReservedAllocation(pool, 0U);
+    CHECK(pool.Activate(0U));
+    storage.Write(pool, 0U, 0U, Pattern(0xBADU));
+    CHECK(storage.IsInitialized(pool, 0U, 0U));
+    storage.Reset();
+    pool.Reset();
+    CHECK(pool.Allocation(0U).state == VgprAllocationState::Free);
+    CHECK(pool.OccupiedRows() == 0U);
+    CHECK(pool.Reserve(0U, 8U));
+    storage.InvalidateReservedAllocation(pool, 0U);
+    CHECK(pool.Activate(0U));
+    CHECK(!storage.IsInitialized(pool, 0U, 0U));
+    pool.Release(0U);
 
     std::cout
         << "[pass] pooled resident-wave VGPR allocation, "

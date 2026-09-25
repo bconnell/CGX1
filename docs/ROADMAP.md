@@ -19,6 +19,7 @@
 - coherent chiplet-fabric protocol and bandwidth budget;
 - virtual-memory/page-fault architecture;
 - queue scheduling, preemption and reset containment model;
+- authoritative complete-workgroup residency reference and RTL frontend composed with the actual pooled VGPR allocator, mixed matrix/vector execution, barrier generations, and quiescent retirement;
 - per-tile DVFS, clock/power-gating architecture and executable policy/invariant model;
 - validation and repository integrity checks.
 
@@ -62,7 +63,7 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- integrate the parameterized whole-workgroup admission/barrier candidate and validated mixed matrix/vector frontend into a canonical compute-unit scheduler that accounts for the actual pooled-VGPR allocator, memory waits, faults, dispatch, and retirement; validate independent-wave forward progress, starvation resistance, and reset/reuse while preserving the existing internal matrix-scoreboard dependencies;
+- extend the authoritative workgroup execution frontend into a canonical compute-unit scheduler spanning memory waits, hardware queue dispatch, fault reporting, scheduler fairness/starvation resistance, and runtime/compiler integration while preserving the actual pooled-VGPR allocator, matrix/vector dependencies, barrier generations, and quiescent retirement;
 - replace remaining externally supplied per-wave readiness contracts in standalone vector integration with the canonical compute-unit scheduler/scoreboard source, while keeping mixed-workload service-window policy parameterized until scheduling evidence supports a value;
 - select implementation storage macros without prematurely freezing resident-wave occupancy, implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics, and validate timing, area, and power; revise timing targets if physical evidence cannot close them;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;

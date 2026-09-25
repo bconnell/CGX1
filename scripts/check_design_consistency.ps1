@@ -254,8 +254,8 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
 Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
 
-if ([int]$architecture.schema_version -ne 20) {
-    Add-Finding "design/cgx1_architecture.json: schema version must remain 20 for the pooled resident-wave VGPR RTL boundary"
+if ([int]$architecture.schema_version -ne 21) {
+    Add-Finding "design/cgx1_architecture.json: schema version must remain 21 for the pooled resident-wave workgroup RTL boundary"
 }
 if ($matrixScope -ne ("wave" + $wave)) {
     Add-Finding "design/cgx1_architecture.json: matrix cooperative scope must match native wave size"
@@ -793,6 +793,11 @@ Require-Literal "source/model/workgroup_scheduler.hpp" "class ComputeUnitWorkgro
 Require-Literal "source/model/workgroup_scheduler_tests.cpp" "cycle < 100000U"
 Require-Literal "source/rtl/cgx1_workgroup_residency_barrier.sv" "module cgx1_workgroup_residency_barrier"
 Require-Literal "source/rtl/tests/cgx1_workgroup_residency_barrier_tb.sv" "module cgx1_workgroup_residency_barrier_tb"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "module cgx1_compute_workgroup_execution_frontend"
+Require-Literal "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv" "module cgx1_compute_workgroup_execution_frontend_tb"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" ".allocation_active_bitmap(allocation_active_bitmap)"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "assign vector_exec_request_valid = vector_request_valid & issuable_wave_mask"
 $workgroupBoundary = $architecture.execution_model.workgroup_residency_barrier_rtl
 if (-not [bool]$workgroupBoundary.reference_model_implemented -or
     -not [bool]$workgroupBoundary.rtl_implemented -or
@@ -807,24 +812,30 @@ if (-not [bool]$workgroupBoundary.reference_model_implemented -or
     -not [bool]$workgroupBoundary.barrier_generation_reuse_supported -or
     -not [bool]$workgroupBoundary.wave_retirement_fault_kill_and_group_abort_cleanup -or
     -not [bool]$workgroupBoundary.reset_releases_barrier_and_resource_ownership -or
-    -not [bool]$workgroupBoundary.existing_vector_arbiter_issuable_mask_tested -or
+    -not [bool]$workgroupBoundary.issue_mask_uses_committed_live_nonwaiting_membership -or
     [int]$workgroupBoundary.reference_randomized_transitions_tested -lt 100000 -or
-    [int]$workgroupBoundary.rtl_randomized_cycles_tested -lt 5000 -or
-    [string]$workgroupBoundary.pooled_vgpr_allocation_policy -ne "first-fit contiguous rows, all waves planned before admission" -or
+    [int]$workgroupBoundary.rtl_randomized_barrier_arrivals_tested -lt 5000 -or
+    [string]$workgroupBoundary.pooled_vgpr_allocation_policy -ne "actual pooled first-fit allocator, exact per-wave register counts, private reserve-sanitize-activate transaction, rollback before failure publication" -or
     [string]$workgroupBoundary.mandatory_compute_preemption_boundary -ne "workgroup") {
     Add-Finding "design/cgx1_architecture.json: workgroup residency/barrier RTL contract is incomplete"
 }
-if ([bool]$workgroupBoundary.full_compute_unit_scheduler_integrated -or
-    [bool]$workgroupBoundary.actual_pooled_vgpr_allocator_integrated -or
-    [bool]$workgroupBoundary.mixed_matrix_vector_frontend_integrated -or
+if (-not [bool]$workgroupBoundary.workgroup_execution_frontend_integrated -or
+    -not [bool]$workgroupBoundary.actual_pooled_vgpr_allocator_integrated -or
+    -not [bool]$workgroupBoundary.mixed_matrix_vector_frontend_integrated -or
+    -not [bool]$workgroupBoundary.issue_mask_uses_committed_live_nonwaiting_membership -or
+    -not [bool]$workgroupBoundary.matrix_and_vector_requests_gated_by_issue_mask -or
+    -not [bool]$workgroupBoundary.terminal_wave_release_waits_for_actual_matrix_vector_quiescence -or
+    -not [bool]$workgroupBoundary.workgroup_context_retained_until_last_allocator_release -or
+    -not [bool]$workgroupBoundary.transactional_fragmentation_rollback_tested -or
+    [bool]$workgroupBoundary.full_compute_unit_scheduler_integrated -or
     [bool]$workgroupBoundary.shared_local_memory_datapath_integrated -or
-    [bool]$workgroupBoundary.memory_wait_dispatch_fault_reporting_and_retirement_integrated -or
+    [bool]$workgroupBoundary.full_runtime_memory_queue_dispatch_fault_and_completion_integration -or
     [bool]$workgroupBoundary.wave_save_restore_or_swapping_implemented -or
     [bool]$workgroupBoundary.simulation_exercised -or
     [bool]$workgroupBoundary.timing_closure_validated -or
     [bool]$workgroupBoundary.area_validated -or
     [bool]$workgroupBoundary.power_validated) {
-    Add-Finding "design/cgx1_architecture.json: workgroup residency/barrier boundary must not claim unvalidated CU integration, hosted simulation, swapping, or physical evidence"
+    Add-Finding "design/cgx1_architecture.json: authoritative workgroup frontend integration or evidence boundary is inconsistent"
 }
 
 if ($findings.Count -gt 0) {

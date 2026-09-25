@@ -23,11 +23,19 @@ module cgx1_pooled_vgpr_execution_subsystem #(
  output logic ordinary_read_response_valid,ordinary_read_address_fault,ordinary_read_uninitialized, output logic [1023:0] ordinary_read_data0,ordinary_read_data1,
  input logic ordinary_write_valid, input logic [WAVE_SLOT_WIDTH-1:0] ordinary_write_wave_slot, input logic [7:0] ordinary_write_destination, input logic [31:0] ordinary_write_lane_mask, input logic [1023:0] ordinary_write_data,
  output logic ordinary_write_ready, ordinary_write_address_fault,
+ output logic [RESIDENT_WAVE_SLOTS-1:0] allocation_reserved_bitmap, allocation_active_bitmap, allocation_sanitized_bitmap,
+ output logic [(RESIDENT_WAVE_SLOTS*ROW_WIDTH)-1:0] allocation_row_base_flat,
+ output logic [(RESIDENT_WAVE_SLOTS*9)-1:0] allocation_register_count_flat,
  output logic restore_service_waiting, restore_service_accepted
 );
  logic invalidate_valid,invalidate_ready; logic [ROW_WIDTH-1:0] invalidate_row;
  logic [RESIDENT_WAVE_SLOTS-1:0] alloc_reserved,alloc_active,alloc_sanitized;
  logic [(RESIDENT_WAVE_SLOTS*ROW_WIDTH)-1:0] alloc_base_flat; logic [(RESIDENT_WAVE_SLOTS*9)-1:0] alloc_count_flat;
+ assign allocation_reserved_bitmap=alloc_reserved;
+ assign allocation_active_bitmap=alloc_active;
+ assign allocation_sanitized_bitmap=alloc_sanitized;
+ assign allocation_row_base_flat=alloc_base_flat;
+ assign allocation_register_count_flat=alloc_count_flat;
  logic [WAVE_SLOT_WIDTH-1:0] query_slot; logic qres,qact,qsan; logic [ROW_WIDTH-1:0] qbase; logic [ROW_WIDTH:0] qrows; logic [8:0] qcount;
  assign query_slot='0;
  logic release_slot_valid,restore_same_wave,matrix_rf_same_wave,ordinary_rf_same_wave,split_same_wave;

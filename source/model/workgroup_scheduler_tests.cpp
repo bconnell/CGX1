@@ -3,9 +3,11 @@
 #include "workgroup_scheduler.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <iostream>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 #define CHECK(x) do { if (!(x)) { std::cerr << "[fail] " #x " line " << __LINE__ << '\n'; return 1; } } while (false)
@@ -226,6 +228,113 @@ int TestFragmentationAndLifecycle()
     return 0;
 }
 
+int TestAuthoritativePoolTransactionsAndQuiescence()
+{
+    ComputeUnitWorkgroupScheduler variable(
+        Limits(8U, 64U, 128U, 2048U, 4U, 64U));
+    auto variableDemand = Demand(50U, 2U, 16U);
+    variableDemand.vgprRegisterCountsByWave = {9U, 17U};
+    CHECK(variable.Admit(variableDemand) == AdmissionFailure::None);
+    CHECK(variable.AllocationForWave(50U, 0U).state
+        == cgx1::matrix::VgprAllocationState::Active);
+    CHECK(variable.AllocationForWave(50U, 0U).physicalRowCount == 2U);
+    CHECK(variable.AllocationForWave(50U, 0U).architecturalRegisterCount == 9U);
+    CHECK(variable.AllocationForWave(50U, 1U).physicalRowCount == 3U);
+    CHECK(variable.AllocationForWave(50U, 1U).architecturalRegisterCount == 17U);
+    bool outOfBoundsRejected = false;
+    try
+    {
+        (void)variable.ReadVgpr(50U, 0U, 9U);
+    }
+    catch (const std::out_of_range&)
+    {
+        outOfBoundsRejected = true;
+    }
+    CHECK(outOfBoundsRejected);
+
+    cgx1::matrix::PooledWaveRegister stalePattern{};
+    stalePattern.fill(0xDEADBEEFU);
+    CHECK(variable.RestoreVgpr(50U, 0U, 0U, stalePattern));
+    CHECK(variable.ReadVgpr(50U, 0U, 0U) == stalePattern);
+    CHECK(variable.FaultWorkgroup(50U));
+    CHECK(variable.Admit(Demand(51U, 1U, 9U)) == AdmissionFailure::None);
+    bool staleReadRejected = false;
+    try
+    {
+        (void)variable.ReadVgpr(51U, 0U, 0U);
+    }
+    catch (const std::logic_error&)
+    {
+        staleReadRejected = true;
+    }
+    CHECK(staleReadRejected);
+
+    ComputeUnitWorkgroupScheduler fragmented(
+        Limits(8U, 16U, 64U, 2048U, 8U, 128U));
+    for (std::uint64_t id = 60U; id <= 63U; ++id)
+        CHECK(fragmented.Admit(Demand(id, 1U, 32U)) == AdmissionFailure::None);
+    CHECK(fragmented.KillWorkgroup(61U));
+    CHECK(fragmented.KillWorkgroup(63U));
+    std::array<cgx1::matrix::ResidentWaveVgprAllocation, 8U> before{};
+    for (std::uint32_t slot = 0U; slot < before.size(); ++slot)
+        before[slot] = fragmented.AllocationForSlot(slot);
+    auto fragmentedDemand = Demand(64U, 2U, 16U);
+    fragmentedDemand.vgprRegisterCountsByWave = {8U, 40U};
+    CHECK(fragmented.Admit(fragmentedDemand)
+        == AdmissionFailure::VgprCapacityFragmented);
+    for (std::uint32_t slot = 0U; slot < before.size(); ++slot)
+    {
+        const auto& after = fragmented.AllocationForSlot(slot);
+        CHECK(after.state == before[slot].state);
+        CHECK(after.physicalRowBase == before[slot].physicalRowBase);
+        CHECK(after.physicalRowCount == before[slot].physicalRowCount);
+        CHECK(after.architecturalRegisterCount == before[slot].architecturalRegisterCount);
+        CHECK(after.invalidatedRows == before[slot].invalidatedRows);
+    }
+    CHECK(fragmented.CheckInvariants());
+
+    ComputeUnitWorkgroupScheduler lifecycle(
+        Limits(4U, 32U, 64U, 2048U, 4U, 64U));
+    CHECK(lifecycle.Admit(Demand(70U, 2U)) == AdmissionFailure::None);
+    const auto faultedSlot = *lifecycle.GetWorkgroupState(70U).waveSlots[0U];
+    CHECK(lifecycle.BeginWaveExecution(70U, 0U));
+    CHECK(lifecycle.ArriveAtBarrier(70U, {1U}).status == BarrierStatus::Waiting);
+    CHECK(lifecycle.FaultWave(70U, 0U));
+    CHECK(lifecycle.AllocationForWave(70U, 0U).state
+        == cgx1::matrix::VgprAllocationState::Active);
+    CHECK(!lifecycle.CanIssue(70U, 0U));
+    CHECK(lifecycle.CanIssue(70U, 1U));
+    CHECK(lifecycle.BarrierGeneration(70U) == 1U);
+    CHECK(lifecycle.CompleteWaveExecution(70U, 0U));
+    CHECK(lifecycle.AllocationForSlot(faultedSlot).state
+        == cgx1::matrix::VgprAllocationState::Free);
+    CHECK(lifecycle.TerminateWave(70U, 1U));
+    CHECK(lifecycle.WorkgroupCount() == 0U);
+    CHECK(lifecycle.OccupiedVgprRows() == 0U);
+
+    CHECK(lifecycle.Admit(Demand(71U, 1U)) == AdmissionFailure::None);
+    CHECK(lifecycle.BeginWaveExecution(71U, 0U));
+    CHECK(lifecycle.KillWorkgroup(71U));
+    CHECK(lifecycle.WorkgroupCount() == 1U);
+    CHECK(lifecycle.AllocationForWave(71U, 0U).state
+        == cgx1::matrix::VgprAllocationState::Active);
+    CHECK(lifecycle.CompleteWaveExecution(71U, 0U));
+    CHECK(lifecycle.WorkgroupCount() == 0U);
+    CHECK(lifecycle.OccupiedVgprRows() == 0U);
+
+    CHECK(lifecycle.Admit(Demand(72U, 2U)) == AdmissionFailure::None);
+    CHECK(lifecycle.BeginWaveExecution(72U, 0U));
+    CHECK(lifecycle.ArriveAtBarrier(72U, {1U}).status == BarrierStatus::Waiting);
+    lifecycle.Reset();
+    CHECK(lifecycle.WorkgroupCount() == 0U);
+    CHECK(lifecycle.OccupiedVgprRows() == 0U);
+    for (std::uint32_t slot = 0U; slot < 4U; ++slot)
+        CHECK(lifecycle.AllocationForSlot(slot).state
+            == cgx1::matrix::VgprAllocationState::Free);
+    CHECK(lifecycle.CheckInvariants());
+    return 0;
+}
+
 int TestRandomizedForwardProgress()
 {
     ComputeUnitWorkgroupScheduler scheduler(Limits(16U, 128U, 512U, 8192U, 8U, 256U));
@@ -235,7 +344,7 @@ int TestRandomizedForwardProgress()
     {
         const auto ids = scheduler.ActiveWorkgroupIds();
         const auto action = random() % 100U;
-        if (action < 26U)
+        if (action < 22U)
         {
             const auto waves = 1U + (random() % 5U);
             const auto registers = 1U + (random() % 256U);
@@ -245,7 +354,7 @@ int TestRandomizedForwardProgress()
             (void)scheduler.Admit(Demand(
                 nextId++, waves, registers, scalar, shared, other));
         }
-        else if (!ids.empty() && action < 72U)
+        else if (!ids.empty() && action < 50U)
         {
             const auto id = ids[random() % ids.size()];
             const auto state = scheduler.GetWorkgroupState(id);
@@ -259,7 +368,31 @@ int TestRandomizedForwardProgress()
             if (!arrivals.empty())
                 (void)scheduler.ArriveAtBarrier(id, arrivals);
         }
-        else if (!ids.empty() && action < 90U)
+        else if (!ids.empty() && action < 65U)
+        {
+            const auto id = ids[random() % ids.size()];
+            const auto state = scheduler.GetWorkgroupState(id);
+            std::vector<std::uint32_t> issuable;
+            for (std::uint32_t wave = 0U; wave < state.liveWaves.size(); ++wave)
+            {
+                if (state.liveWaves[wave] && !state.waitingWaves[wave]
+                    && !state.busyWaves[wave])
+                    issuable.push_back(wave);
+            }
+            if (!issuable.empty())
+                (void)scheduler.BeginWaveExecution(id, issuable[random() % issuable.size()]);
+        }
+        else if (!ids.empty() && action < 78U)
+        {
+            const auto id = ids[random() % ids.size()];
+            const auto state = scheduler.GetWorkgroupState(id);
+            std::vector<std::uint32_t> busy;
+            for (std::uint32_t wave = 0U; wave < state.busyWaves.size(); ++wave)
+                if (state.busyWaves[wave]) busy.push_back(wave);
+            if (!busy.empty())
+                (void)scheduler.CompleteWaveExecution(id, busy[random() % busy.size()]);
+        }
+        else if (!ids.empty() && action < 88U)
         {
             const auto id = ids[random() % ids.size()];
             const auto state = scheduler.GetWorkgroupState(id);
@@ -276,12 +409,17 @@ int TestRandomizedForwardProgress()
                 ? scheduler.KillWorkgroup(id)
                 : scheduler.FaultWorkgroup(id));
         }
-        else if ((random() & 63U) == 0U)
+        else
         {
             scheduler.Reset();
         }
 
-        CHECK(scheduler.CheckInvariants());
+        if (!scheduler.CheckInvariants())
+        {
+            std::cerr << "[fail] randomized scheduler invariant at cycle "
+                      << cycle << " action " << action << '\n';
+            return 1;
+        }
         CHECK(scheduler.ResidentWaveCount() <= 16U);
         CHECK(scheduler.OccupiedVgprRows() <= 128U);
         CHECK(scheduler.UsedScalarPredicateUnits() <= 512U);
@@ -292,12 +430,27 @@ int TestRandomizedForwardProgress()
             const auto state = scheduler.GetWorkgroupState(id);
             CHECK(scheduler.AllLiveWavesResident(id));
             bool liveWaveCanIssue = false;
+            bool anyLiveWave = false;
+            bool busyLiveWaveExists = false;
             for (std::uint32_t wave = 0U; wave < state.liveWaves.size(); ++wave)
             {
-                if (state.liveWaves[wave] && !state.waitingWaves[wave])
+                anyLiveWave = anyLiveWave || state.liveWaves[wave];
+                if (state.liveWaves[wave] && state.busyWaves[wave])
+                    busyLiveWaveExists = true;
+                if (state.liveWaves[wave] && !state.waitingWaves[wave]
+                    && !state.busyWaves[wave])
                     liveWaveCanIssue = true;
             }
-            CHECK(liveWaveCanIssue);
+            bool terminalBusyWaveExists = false;
+            for (std::uint32_t wave = 0U; wave < state.liveWaves.size(); ++wave)
+            {
+                if (!state.liveWaves[wave] && state.busyWaves[wave])
+                    terminalBusyWaveExists = true;
+            }
+            if (anyLiveWave)
+                CHECK(liveWaveCanIssue || busyLiveWaveExists);
+            else
+                CHECK(terminalBusyWaveExists);
         }
     }
     return 0;
@@ -308,6 +461,7 @@ int main()
     if (TestAdmissionAndResourceBoundaries() != 0) return 1;
     if (TestBarrierArrivalsAndIssue() != 0) return 1;
     if (TestFragmentationAndLifecycle() != 0) return 1;
+    if (TestAuthoritativePoolTransactionsAndQuiescence() != 0) return 1;
     if (TestRandomizedForwardProgress() != 0) return 1;
     std::cout << "[pass] whole-workgroup residency, resource admission, barriers, lifecycle, and randomized forward progress passed.\n";
     return 0;

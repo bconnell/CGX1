@@ -230,16 +230,16 @@ try {
     }
 
     $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
-    $architecture.execution_model.workgroup_residency_barrier_rtl.partial_workgroup_admission = $true
+    $architecture.execution_model.workgroup_residency_barrier_rtl.actual_pooled_vgpr_allocator_integrated = $false
     $architecture | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $probePath -Encoding UTF8
 
     $result = Invoke-CgxExpectedFailure `
         -FilePath "powershell.exe" `
         -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
         -WorkingDirectory $repoRoot
-    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted partial workgroup admission." }
-    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "workgroup residency/barrier RTL contract is incomplete") {
-        throw "Workgroup residency negative control did not report the expected invariant."
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted workgroup composition without the actual allocator." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "authoritative workgroup frontend integration or evidence boundary is inconsistent") {
+        throw "Workgroup allocator-composition negative control did not report the expected invariant."
     }
     Write-Host "[pass] Design consistency negative controls were rejected."
 }

@@ -4,6 +4,7 @@
 
 #include "cgx1_matrix_banking.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -134,6 +135,12 @@ public:
             }
         }
         return rows;
+    }
+
+    void Reset() noexcept
+    {
+        std::fill(allocations_.begin(), allocations_.end(),
+                  ResidentWaveVgprAllocation{});
     }
 
     bool Reserve(
@@ -565,6 +572,17 @@ public:
         const auto address =
             pool.Translate(waveSlot, architecturalRegister);
         return initialized_[address.row][address.bank];
+    }
+
+    void Reset() noexcept
+    {
+        for (auto& row : initialized_)
+            row.fill(false);
+        for (auto& row : registers_)
+        {
+            for (auto& reg : row)
+                reg.fill(0U);
+        }
     }
 
     [[nodiscard]] bool MatrixPreflight(

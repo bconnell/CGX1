@@ -26,7 +26,7 @@ The public RTL currently contains limited, separately testable modules and compo
 - `cgx1_pooled_vgpr_ordinary_read_sequencer.sv` preserves one-cycle conflict-free reads and serializes distinct same-bank source pairs without exposing stale data.
 - `cgx1_pooled_vgpr_shared_port_arbiter.sv` gives accepted matrix capture/writeback fixed-cycle priority while alternating contested ordinary/restore transfers.
 - `cgx1_pooled_vgpr_execution_subsystem.sv` makes allocation, validity, storage, matrix traffic, ordinary traffic, restore, and release safety one shared authority.
-- `cgx1_vector_int32_alu.sv` and `cgx1_vector_int32_pipeline.sv` implement the candidate wave32 INT32 ADD/SUB/AND/OR/XOR/SHL/LSR/ASR read-execute-writeback path.
+- `cgx1_vector_int32_alu.sv` and `cgx1_vector_int32_pipeline.sv` implement the candidate wave32 INT32 ADD/SUB/AND/OR/XOR/SHL/LSR/ASR read-execute-writeback path; illegal opcodes complete before VGPR operand access.
 - `cgx1_vector_resident_wave_scheduler.sv` and `cgx1_resident_vector_execution_frontend.sv` provide parameterized resident-wave vector selection and payload routing; the scheduler rejects slot-index widths that cannot represent every configured slot.
 - `cgx1_matrix_vector_hazard_guard.sv`, `cgx1_matrix_vector_hazard_array.sv`, and `cgx1_matrix_vector_issue_arbiter.sv` define cross-pipeline dependency and same-cycle issue exclusion boundaries.
 - `cgx1_compute_int8_vector_execution_frontend.sv` composes resident signed INT8 matrix execution and resident INT32 vector execution over one unified pooled-VGPR authority, gates legal matrix issue with live vector locks, gates selected vector issue with the matrix scoreboard, and prevents same-edge matrix/vector acceptance.

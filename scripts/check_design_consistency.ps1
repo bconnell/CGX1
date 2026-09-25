@@ -740,6 +740,7 @@ if (-not [bool]$vectorRtl.implemented -or
     [bool]$vectorRtl.internal_opcode_encoding_frozen -or
     -not [bool]$vectorRtl.read_execute_writeback_pipeline -or
     -not [bool]$vectorRtl.same_bank_two_source_serialization -or
+    -not [bool]$vectorRtl.illegal_opcode_short_circuits_operand_read -or
     -not [bool]$vectorRtl.resident_wave_slot_count_parameterized -or
     -not [bool]$vectorRtl.resident_wave_slot_width_guard -or
     -not [bool]$vectorRtl.pooled_vgpr_shared_storage_integrated -or

@@ -191,6 +191,19 @@ try {
     }
 
     $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.ordinary_vector_rtl.illegal_opcode_short_circuits_operand_read = $false
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted an illegal vector opcode that waits on operand access." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "ordinary vector RTL contract is incomplete") {
+        throw "Vector illegal-opcode negative control did not report the expected invariant."
+    }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
     $architecture.execution_model.mixed_matrix_vector_frontend_rtl.vector_dependency_ready_external_input = $true
     $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
 

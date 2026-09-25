@@ -40,6 +40,7 @@ module cgx1_vector_int32_pipeline #(
  logic [31:0] mask_q;
  logic [1023:0] a_q,b_q,result;
  logic alu_illegal;
+ logic illegal_opcode_q;
  logic address_fault_q, uninitialized_fault_q;
  cgx1_vector_int32_alu alu(.opcode(opcode_q),.source0_data(a_q),.source1_data(b_q),.lane_mask(mask_q),.result_data(result),.illegal_opcode(alu_illegal));
  always_comb begin
@@ -49,12 +50,12 @@ module cgx1_vector_int32_pipeline #(
    complete_valid=(state_q==DONE); complete_wave_slot=wave_q; busy=(state_q!=IDLE);
    live_wave_slot=wave_q; live_source0=s0_q; live_source1=s1_q; live_destination=d_q;
    source_locks_live=(state_q==READ); destination_lock_live=(state_q==READ)||(state_q==EXEC)||(state_q==WRITE);
-   illegal_opcode=(state_q==DONE)&&alu_illegal; address_fault=(state_q==DONE)&&address_fault_q; uninitialized_fault=(state_q==DONE)&&uninitialized_fault_q;
+   illegal_opcode=(state_q==DONE)&&illegal_opcode_q; address_fault=(state_q==DONE)&&address_fault_q; uninitialized_fault=(state_q==DONE)&&uninitialized_fault_q;
  end
  always_ff @(posedge clk or negedge reset_n) begin
-   if(!reset_n) begin state_q<=IDLE; opcode_q<='0; wave_q<='0; s0_q<='0; s1_q<='0; d_q<='0; mask_q<='0; a_q<='0; b_q<='0; address_fault_q<=1'b0; uninitialized_fault_q<=1'b0; end
+   if(!reset_n) begin state_q<=IDLE; opcode_q<='0; wave_q<='0; s0_q<='0; s1_q<='0; d_q<='0; mask_q<='0; a_q<='0; b_q<='0; illegal_opcode_q<=1'b0; address_fault_q<=1'b0; uninitialized_fault_q<=1'b0; end
    else case(state_q)
-     IDLE: if(issue_accepted) begin state_q<=READ; opcode_q<=issue_opcode; wave_q<=issue_wave_slot; s0_q<=issue_source0; s1_q<=issue_source1; d_q<=issue_destination; mask_q<=issue_lane_mask; address_fault_q<=1'b0; uninitialized_fault_q<=1'b0; end
+     IDLE: if(issue_accepted) begin state_q<=(issue_opcode>4'd7)?DONE:READ; opcode_q<=issue_opcode; wave_q<=issue_wave_slot; s0_q<=issue_source0; s1_q<=issue_source1; d_q<=issue_destination; mask_q<=issue_lane_mask; illegal_opcode_q<=(issue_opcode>4'd7); address_fault_q<=1'b0; uninitialized_fault_q<=1'b0; end
      READ: if(read_response_valid) begin a_q<=read_data0; b_q<=read_data1; address_fault_q<=read_address_fault; uninitialized_fault_q<=read_uninitialized; if(read_address_fault||read_uninitialized) state_q<=DONE; else state_q<=EXEC; end
      EXEC: state_q<=alu_illegal?DONE:WRITE;
      WRITE: if(write_address_fault) begin address_fault_q<=1'b1; state_q<=DONE; end else if(write_ready) state_q<=DONE;

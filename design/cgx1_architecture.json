@@ -162,6 +162,7 @@
       "active_lane_masked_writeback": true,
       "address_fault_termination": true,
       "uninitialized_operand_termination": true,
+      "illegal_opcode_short_circuits_operand_read": true,
       "same_bank_two_source_serialization": true,
       "split_read_identity_retained": true,
       "resident_wave_round_robin_scheduler": true,

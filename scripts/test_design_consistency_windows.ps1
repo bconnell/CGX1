@@ -228,6 +228,19 @@ try {
     if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "mixed matrix/vector frontend RTL contract is incomplete") {
         throw "Mixed frontend scoreboard-dependency negative control did not report the expected invariant."
     }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.workgroup_residency_barrier_rtl.partial_workgroup_admission = $true
+    $architecture | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted partial workgroup admission." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "workgroup residency/barrier RTL contract is incomplete") {
+        throw "Workgroup residency negative control did not report the expected invariant."
+    }
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

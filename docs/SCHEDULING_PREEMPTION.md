@@ -18,6 +18,18 @@ Priorities may favor latency-sensitive graphics, display-supporting work or syst
 
 Work placement is power-aware. The global scheduler knows which tiles are powered and eligible in P0-P4 states and must not dispatch work to a gated tile.
 
+## Compute-unit workgroup residency and barriers
+
+Complete-workgroup residency is the baseline for compute execution. A CU admits a workgroup only after it can reserve the entire wave set and all declared CU-local state together. It must not make only a subset resident and wait for later batches to reach a workgroup barrier.
+
+Admission accounts for resident-wave slots, pooled VGPR rows for every wave, per-wave scalar/predicate state, shared/local-memory capacity, one finite barrier context per workgroup, and additional declared workgroup-local state. VGPR demand is rounded to the physical eight-register row granularity for capacity, while the exact architectural register count remains authoritative. If enough rows exist in total but first-fit row ranges cannot be placed for all waves, admission reports fragmentation and makes no partial reservation. Per-workgroup capacities and slot counts remain parameters; the tested values do not freeze occupancy.
+
+Every admitted live wave has a resident slot and its VGPR row reservation. Barrier arrival is tracked by workgroup-local wave index and generation. An arriving wave stops being issuable while its architectural and allocated state remains resident; not-yet-arrived waves remain eligible for issue. A generation releases only when every live, non-terminated participant has arrived. A single-wave barrier therefore releases on that wave's arrival. Reuse advances the generation and clears the arrival set.
+
+Normal wave completion, wave fault, and wave kill retire that participant, free its wave-local resources, and remove any pending arrival. If the remaining live waves were all waiting at the barrier, the barrier advances for them. A whole-workgroup fault or kill destroys that workgroup's barrier context and releases its resources. Reset clears all group, wave, barrier, and resource ownership. Baseline workgroup-boundary preemption remains unchanged; resident-wave save/restore and wave swapping are not prerequisites for barriers.
+
+The current executable reference and parameterized RTL boundary validate these rules, including the output mask consumed by the existing resident-wave issue arbiter. The RTL candidate still owns a separate logical VGPR-row reservation map: it is not yet composed with the pooled VGPR execution subsystem, the mixed matrix/vector frontend, shared/local-memory access logic, memory waits, queue dispatch, fault reporting, or retirement. This is a workgroup admission/barrier foundation, not a complete CU scheduler or working shared-memory datapath. Those integration layers remain open.
+
 ## Preemption boundaries
 
 Mandatory baseline boundaries are deliberately implementable:

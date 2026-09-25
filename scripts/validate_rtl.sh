@@ -414,4 +414,13 @@ iverilog -g2012 -Wall -s cgx1_compute_mixed_service_policy_tb -o build/rtl/cgx1_
 echo "==> Run compute mixed-service progress policy RTL"
 timeout 30s vvp build/rtl/cgx1_compute_mixed_service_policy_tb.vvp
 
+echo "==> Compile whole-workgroup CU residency and barrier RTL"
+iverilog -g2012 -Wall -s cgx1_workgroup_residency_barrier_tb \
+    -o build/rtl/cgx1_workgroup_residency_barrier_tb.vvp \
+    source/rtl/cgx1_workgroup_residency_barrier.sv \
+    source/rtl/cgx1_vector_resident_wave_scheduler.sv \
+    source/rtl/tests/cgx1_workgroup_residency_barrier_tb.sv
+echo "==> Run whole-workgroup CU residency and barrier RTL"
+timeout 30s vvp build/rtl/cgx1_workgroup_residency_barrier_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

@@ -62,7 +62,7 @@
 - implement tile coherence protocol and fabric transaction model;
 - implement texture sampling and compression reference models;
 - implement primitive binning, raster ownership and back-end ordering models;
-- integrate the validated mixed matrix/vector frontend into a canonical compute-unit scheduler that accounts for memory waits, barriers, faults, dispatch, and retirement; validate independent-wave forward progress, starvation resistance, and reset/reuse while preserving the existing internal matrix-scoreboard dependencies;
+- integrate the parameterized whole-workgroup admission/barrier candidate and validated mixed matrix/vector frontend into a canonical compute-unit scheduler that accounts for the actual pooled-VGPR allocator, memory waits, faults, dispatch, and retirement; validate independent-wave forward progress, starvation resistance, and reset/reuse while preserving the existing internal matrix-scoreboard dependencies;
 - replace remaining externally supplied per-wave readiness contracts in standalone vector integration with the canonical compute-unit scheduler/scoreboard source, while keeping mixed-workload service-window policy parameterized until scheduling evidence supports a value;
 - select implementation storage macros without prematurely freezing resident-wave occupancy, implement FP16/BF16/FP8 matrix arithmetic with the frozen FP32-FMA semantics, and validate timing, area, and power; revise timing targets if physical evidence cannot close them;
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;

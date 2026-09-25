@@ -789,6 +789,44 @@ if ([bool]$mixedFrontend.timing_closure_validated -or
     Add-Finding "design/cgx1_architecture.json: mixed matrix/vector frontend must not claim unfinished physical evidence"
 }
 
+Require-Literal "source/model/workgroup_scheduler.hpp" "class ComputeUnitWorkgroupScheduler"
+Require-Literal "source/model/workgroup_scheduler_tests.cpp" "cycle < 100000U"
+Require-Literal "source/rtl/cgx1_workgroup_residency_barrier.sv" "module cgx1_workgroup_residency_barrier"
+Require-Literal "source/rtl/tests/cgx1_workgroup_residency_barrier_tb.sv" "module cgx1_workgroup_residency_barrier_tb"
+$workgroupBoundary = $architecture.execution_model.workgroup_residency_barrier_rtl
+if (-not [bool]$workgroupBoundary.reference_model_implemented -or
+    -not [bool]$workgroupBoundary.rtl_implemented -or
+    -not [bool]$workgroupBoundary.complete_workgroup_atomic_admission -or
+    [bool]$workgroupBoundary.partial_workgroup_admission -or
+    -not [bool]$workgroupBoundary.complete_live_wave_set_resident_until_group_transition -or
+    -not [bool]$workgroupBoundary.pooled_vgpr_fragmentation_reported -or
+    -not [bool]$workgroupBoundary.barrier_arrival_mask_and_generation_tracked -or
+    -not [bool]$workgroupBoundary.barrier_releases_after_all_live_waves_arrive -or
+    -not [bool]$workgroupBoundary.arrived_waves_remain_resident_and_nonissuable -or
+    -not [bool]$workgroupBoundary.nonarrived_group_waves_remain_issuable -or
+    -not [bool]$workgroupBoundary.barrier_generation_reuse_supported -or
+    -not [bool]$workgroupBoundary.wave_retirement_fault_kill_and_group_abort_cleanup -or
+    -not [bool]$workgroupBoundary.reset_releases_barrier_and_resource_ownership -or
+    -not [bool]$workgroupBoundary.existing_vector_arbiter_issuable_mask_tested -or
+    [int]$workgroupBoundary.reference_randomized_transitions_tested -lt 100000 -or
+    [int]$workgroupBoundary.rtl_randomized_cycles_tested -lt 5000 -or
+    [string]$workgroupBoundary.pooled_vgpr_allocation_policy -ne "first-fit contiguous rows, all waves planned before admission" -or
+    [string]$workgroupBoundary.mandatory_compute_preemption_boundary -ne "workgroup") {
+    Add-Finding "design/cgx1_architecture.json: workgroup residency/barrier RTL contract is incomplete"
+}
+if ([bool]$workgroupBoundary.full_compute_unit_scheduler_integrated -or
+    [bool]$workgroupBoundary.actual_pooled_vgpr_allocator_integrated -or
+    [bool]$workgroupBoundary.mixed_matrix_vector_frontend_integrated -or
+    [bool]$workgroupBoundary.shared_local_memory_datapath_integrated -or
+    [bool]$workgroupBoundary.memory_wait_dispatch_fault_reporting_and_retirement_integrated -or
+    [bool]$workgroupBoundary.wave_save_restore_or_swapping_implemented -or
+    [bool]$workgroupBoundary.simulation_exercised -or
+    [bool]$workgroupBoundary.timing_closure_validated -or
+    [bool]$workgroupBoundary.area_validated -or
+    [bool]$workgroupBoundary.power_validated) {
+    Add-Finding "design/cgx1_architecture.json: workgroup residency/barrier boundary must not claim unvalidated CU integration, hosted simulation, swapping, or physical evidence"
+}
+
 if ($findings.Count -gt 0) {
     Write-Host "Design consistency check failed:"
     $findings | Sort-Object -Unique | ForEach-Object { Write-Host "  $_" }

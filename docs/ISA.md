@@ -70,6 +70,8 @@ Branches may change the active-lane mask. Divergent paths execute under masks an
 
 Software must not assume inactive lanes make forward progress. Synchronization that requires all lanes must use subgroup or workgroup primitives rather than relying on branch timing.
 
+Workgroup barriers retain every admitted non-terminated wave on its CU through the barrier generation. Admission and release behavior are specified in [Scheduling and Preemption](SCHEDULING_PREEMPTION.md); wave-batch swapping is not part of the baseline barrier contract.
+
 ## Memory model
 
 The default ordering model is relaxed. Acquire, release, acquire-release, and sequentially consistent operations are available at these scopes:

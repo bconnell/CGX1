@@ -740,6 +740,8 @@ if (-not [bool]$vectorRtl.implemented -or
     [bool]$vectorRtl.internal_opcode_encoding_frozen -or
     -not [bool]$vectorRtl.read_execute_writeback_pipeline -or
     -not [bool]$vectorRtl.same_bank_two_source_serialization -or
+    -not [bool]$vectorRtl.resident_wave_slot_count_parameterized -or
+    -not [bool]$vectorRtl.resident_wave_slot_width_guard -or
     -not [bool]$vectorRtl.pooled_vgpr_shared_storage_integrated -or
     -not [bool]$vectorRtl.matrix_fixed_cycle_port_priority -or
     -not [bool]$vectorRtl.ordinary_restore_bounded_fairness -or
@@ -770,7 +772,8 @@ if (-not [bool]$mixedFrontend.implemented -or
     -not [bool]$mixedFrontend.matrix_scoreboard_gates_selected_vector_issue -or
     -not [bool]$mixedFrontend.same_cycle_matrix_vector_acceptance_prevented -or
     -not [bool]$mixedFrontend.vector_live_wave_tag_carried -or
-    -not [bool]$mixedFrontend.vector_dependency_ready_external_input -or
+    [bool]$mixedFrontend.vector_dependency_ready_external_input -or
+    -not [bool]$mixedFrontend.matrix_scoreboard_dependency_source_integrated -or
     [bool]$mixedFrontend.full_compute_unit_scheduler_integrated -or
     [bool]$mixedFrontend.memory_execution_integrated -or
     -not [bool]$mixedFrontend.rtl_testbench_implemented) {

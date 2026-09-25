@@ -8,7 +8,7 @@ The pooled VGPR design separates a wave's architectural 256-VGPR namespace from 
 
 The earlier per-resident-slot VGPR RTL remains a validated logical storage boundary. It is not the physical allocation architecture.
 
-The pooled implementation now exists as executable C++ reference code and synthesizable SystemVerilog candidate RTL. The pooled RTL is wired into the repository RTL gate, but exact-revision RTL simulation evidence remains pending until the current published revision passes that gate.
+The pooled implementation now exists as executable C++ reference code and synthesizable SystemVerilog candidate RTL. The current local working-tree candidate passes the repository RTL gate; published CI and physical implementation remain separate evidence.
 
 Nothing in this boundary freezes resident-wave occupancy, physical register-file capacity, foundry memory macros, timing, area, or power.
 
@@ -113,6 +113,6 @@ The repository RTL gate now includes behavioral testbenches for pooled restore m
 
 ## Evidence boundary
 
-The pooled RTL files are implemented and published. Their `simulation_exercised` architecture evidence remains **false** until the exact published revision passes the repository RTL workflow.
+The current local working-tree candidate passes `scripts/validate_rtl.sh` for behavioral RTL simulation. The architecture field `simulation_exercised` remains **false** until the exact revision passes the repository's RTL CI contract. Neither result selects a foundry register-file macro or establishes timing closure, area, power, resident-wave occupancy, or fabricated-silicon performance.
 
 Even after RTL simulation passes, this boundary remains logical/synthesizable implementation evidence. It does not select a foundry register-file macro or establish timing closure, area, power, resident-wave occupancy, or fabricated-silicon performance.

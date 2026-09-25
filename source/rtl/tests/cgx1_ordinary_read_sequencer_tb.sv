@@ -11,7 +11,7 @@ module cgx1_ordinary_read_sequencer_tb;
   request_valid=1;source0_valid=0;source1_valid=1;#1;if(!response_valid||!response_address_fault)$fatal(1,"invalid ordinary read did not terminate with address fault");
   source0_valid=1;exact_alias=1;source0_row=2;source0_bank=3;service_ready=1;service0_data='h1234;#1;if(!response_valid||response0_data!=='h1234||response1_data!=='h1234)$fatal(1,"exact alias did not broadcast");
   exact_alias=0;distinct_same_bank=1;request_wave_slot=2;request_source0=8'd4;request_source1=8'd12;source0_row=1;source1_row=2;source0_bank=4;source1_bank=4;service0_data='hAAAA;#1;if(!service_valid||!service_single)$fatal(1,"same-bank pair did not request first serialized read");@(posedge clk);#1;@(negedge clk);#1;if(!split_pending||split_wave_slot!=2||service_row0!=2)$fatal(1,"split read did not retain second physical address");service0_data='hBBBB;#1;if(!response_valid||response0_data!=='hAAAA||response1_data!=='hBBBB)$fatal(1,"split read did not reassemble operands");
-  request_source1=8'd13;#1;if(response_valid)$fatal(1,"split completion acknowledged a changed request identity");
+  request_source1=8'd13;#1;if(response_valid)$fatal(1,"split completion acknowledged a changed request identity");request_source1=8'd12;#1;@(posedge clk);#1;if(split_pending)$fatal(1,"split read did not retire after response acceptance");@(negedge clk);request_valid=0;#1;if(split_pending)$fatal(1,"split read remained pending after request retirement");
   $display("[pass] CGX 1 ordinary same-bank read sequencing checks passed.");$finish;
  end
 endmodule

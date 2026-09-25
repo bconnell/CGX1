@@ -120,6 +120,18 @@ iverilog \
 echo "==> Run resident-wave VGPR storage RTL"
 timeout 30s vvp build/rtl/cgx1_resident_wave_vgpr_file_tb.vvp
 
+echo "==> Compile resident-wave matrix request arbiter RTL"
+iverilog \
+    -g2012 \
+    -Wall \
+    -s cgx1_matrix_resident_wave_arbiter_tb \
+    -o build/rtl/cgx1_matrix_resident_wave_arbiter_tb.vvp \
+    source/rtl/cgx1_matrix_resident_wave_arbiter.sv \
+    source/rtl/tests/cgx1_matrix_resident_wave_arbiter_tb.sv
+echo "==> Run resident-wave matrix request arbiter RTL"
+timeout 5s vvp build/rtl/cgx1_matrix_resident_wave_arbiter_tb.vvp
+
+
 echo "==> Compile resident-wave signed INT8 matrix-engine RTL"
 iverilog \
     -g2012 \
@@ -286,6 +298,22 @@ iverilog -g2012 -Wall -s cgx1_vector_resident_wave_scheduler_tb -o build/rtl/cgx
     source/rtl/tests/cgx1_vector_resident_wave_scheduler_tb.sv
 echo "==> Run resident vector scheduler RTL"
 timeout 30s vvp build/rtl/cgx1_vector_resident_wave_scheduler_tb.vvp
+
+echo "==> Compile resident vector scheduler invalid-parameter control"
+iverilog -g2012 -Wall -s cgx1_vector_resident_wave_scheduler_invalid_param_tb \
+    -o build/rtl/cgx1_vector_resident_wave_scheduler_invalid_param_tb.vvp \
+    source/rtl/cgx1_vector_resident_wave_scheduler.sv \
+    source/rtl/tests/cgx1_vector_resident_wave_scheduler_invalid_param_tb.sv
+if timeout 5s vvp build/rtl/cgx1_vector_resident_wave_scheduler_invalid_param_tb.vvp > build/rtl/cgx1_vector_resident_wave_scheduler_invalid_param.log 2>&1; then
+    echo "[fail] resident vector scheduler accepted an undersized wave-slot index" >&2
+    exit 1
+fi
+if ! grep -q "wave-slot width is too small" build/rtl/cgx1_vector_resident_wave_scheduler_invalid_param.log; then
+    cat build/rtl/cgx1_vector_resident_wave_scheduler_invalid_param.log >&2
+    echo "[fail] resident vector scheduler invalid-parameter diagnostic was missing" >&2
+    exit 1
+fi
+echo "[pass] resident vector scheduler rejected an undersized wave-slot index"
 
 echo "==> Compile unified pooled execution subsystem RTL"
 iverilog -g2012 -Wall -s cgx1_pooled_vgpr_execution_subsystem_tb -o build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp \

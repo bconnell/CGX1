@@ -6,7 +6,7 @@ module cgx1_matrix_mixed_workload_admission_cadence_tb;
  cgx1_matrix_mixed_workload_admission #(.MATRIX_BURST_LIMIT(2)) dut(.*);
  initial begin request_valid=1;request_architecturally_legal=1;controller_ready=0;competing_non_matrix_work=1;accepted_count=0;repeat(2)@(posedge clk);@(negedge clk);reset_n=1;
   for(cycle=0;cycle<=49;cycle=cycle+1)begin controller_ready=(cycle==0||cycle==16||cycle==32||cycle==48);#1;if(request_ready)accepted_count=accepted_count+1;if(cycle==32&&request_ready)$fatal(1,"third issue opportunity was not skipped");if(cycle>16&&cycle<=32&&!service_window)$fatal(1,"service debt was lost while controller_ready was low");@(posedge clk);#1;@(negedge clk);end
-  if(accepted_count!=3)$fatal(1,"expected accepts at 0,16,48; count=%0d",accepted_count);dut.service_pending_q=1;dut.burst_q=2;request_architecturally_legal=0;controller_ready=1;#1;if(!request_forward_valid||!request_ready)$fatal(1,"illegal matrix request was swallowed");
+  if(accepted_count!=3)$fatal(1,"expected accepts at 0,16,48; count=%0d",accepted_count);controller_ready=1;@(posedge clk);#1;if(!service_window)$fatal(1,"accepted legal requests did not create service debt");request_architecturally_legal=0;#1;if(!service_window||!request_forward_valid||!request_ready)$fatal(1,"illegal matrix request was swallowed during service debt");
   $display("[pass] CGX 1 cadence-accurate matrix admission checks passed.");$finish;
  end
 endmodule

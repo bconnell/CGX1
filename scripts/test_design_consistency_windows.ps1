@@ -176,6 +176,45 @@ try {
     if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "resident-wave INT8 boundary must not claim unfinished physical or floating integration") {
         throw "Resident-wave INT8 boundary negative control did not report the expected invariant."
     }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.ordinary_vector_rtl.resident_wave_slot_width_guard = $false
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted a scheduler without a slot-width guard." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "ordinary vector RTL contract is incomplete") {
+        throw "Vector scheduler parameter negative control did not report the expected invariant."
+    }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.mixed_matrix_vector_frontend_rtl.vector_dependency_ready_external_input = $true
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted an external dependency-ready contract in the mixed frontend." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "mixed matrix/vector frontend RTL contract is incomplete") {
+        throw "Mixed frontend external-readiness negative control did not report the expected invariant."
+    }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.mixed_matrix_vector_frontend_rtl.matrix_scoreboard_dependency_source_integrated = $false
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted a mixed frontend without its matrix-scoreboard dependency source." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "mixed matrix/vector frontend RTL contract is incomplete") {
+        throw "Mixed frontend scoreboard-dependency negative control did not report the expected invariant."
+    }
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

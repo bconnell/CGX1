@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
-module cgx1_matrix_vector_hazard_guard #(
+module cgx1_matrix_vector_hazard_guard (
  input logic same_wave,
  input logic matrix_layout_legal,
  input logic [7:0] matrix_d_base, matrix_a_base, matrix_b_base,

@@ -21,4 +21,10 @@ module cgx1_vector_resident_wave_scheduler #(
    if(!reset_n) next_q<='0;
    else if(selected_valid&&selected_accepted) begin if($unsigned(selected_wave_slot)==RESIDENT_WAVE_SLOTS-1) next_q<='0; else next_q<=selected_wave_slot+1'b1; end
  end
+`ifndef SYNTHESIS
+ initial begin
+   if(RESIDENT_WAVE_SLOTS<1) $fatal(1,"resident vector scheduler requires at least one slot");
+   if((1<<WAVE_SLOT_WIDTH)<RESIDENT_WAVE_SLOTS) $fatal(1,"resident vector scheduler wave-slot width is too small");
+ end
+`endif
 endmodule

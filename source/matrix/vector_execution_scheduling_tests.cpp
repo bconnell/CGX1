@@ -103,7 +103,8 @@ struct Scheduler { std::uint32_t next = 0U; };
 int Select(
     Scheduler& scheduler,
     const std::array<bool, 8>& valid,
-    const std::array<bool, 8>& dependencyReady)
+    const std::array<bool, 8>& dependencyReady,
+    bool accepted = true)
 {
     for (std::uint32_t offset = 0U; offset < 8U; ++offset)
     {
@@ -112,7 +113,8 @@ int Select(
 
         if (valid[slot] && dependencyReady[slot])
         {
-            scheduler.next = (slot + 1U) % 8U;
+            if (accepted)
+                scheduler.next = (slot + 1U) % 8U;
             return static_cast<int>(slot);
         }
     }
@@ -205,6 +207,12 @@ int main()
     dependencyReady[2] = false;
     scheduler.next = 2U;
     CHECK(Select(scheduler, valid, dependencyReady) == 3);
+
+    Scheduler stalledScheduler{};
+    CHECK(Select(stalledScheduler, valid, dependencyReady, false) == 0);
+    CHECK(stalledScheduler.next == 0U);
+    CHECK(Select(stalledScheduler, valid, dependencyReady, true) == 0);
+    CHECK(stalledScheduler.next == 1U);
 
     for (std::uint32_t iteration = 0U; iteration < 100000U; ++iteration)
     {

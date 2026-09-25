@@ -142,7 +142,7 @@
     ],
     "paired_wave64_target": true,
     "ordinary_vector_rtl": {
-      "status": "resident-wave INT32 vector execution and shared pooled-VGPR access RTL implemented; exact-revision RTL simulation pending",
+      "status": "resident-wave INT32 vector execution and shared pooled-VGPR access RTL implemented; local working-tree RTL gate passes, exact-revision CI evidence pending",
       "implemented": true,
       "lane_count": 32,
       "element_bits": 32,
@@ -165,6 +165,8 @@
       "same_bank_two_source_serialization": true,
       "split_read_identity_retained": true,
       "resident_wave_round_robin_scheduler": true,
+      "resident_wave_slot_count_parameterized": true,
+      "resident_wave_slot_width_guard": true,
       "dependency_ready_external_input": true,
       "pooled_vgpr_shared_storage_integrated": true,
       "matrix_fixed_cycle_port_priority": true,
@@ -181,7 +183,7 @@
       "power_validated": false
     },
     "mixed_matrix_vector_frontend_rtl": {
-      "status": "resident signed INT8 matrix and resident INT32 vector execution composed over the unified pooled VGPR subsystem; exact-revision RTL simulation pending",
+      "status": "resident signed INT8 matrix and resident INT32 vector execution composed over the unified pooled VGPR subsystem; local working-tree RTL gate passes, exact-revision CI evidence pending",
       "implemented": true,
       "matrix_profile": "signed INT8 x signed INT8 -> signed INT32",
       "vector_profile": "wave32 INT32 register-register candidate operations",
@@ -192,7 +194,8 @@
       "matrix_scoreboard_gates_selected_vector_issue": true,
       "same_cycle_matrix_vector_acceptance_prevented": true,
       "vector_live_wave_tag_carried": true,
-      "vector_dependency_ready_external_input": true,
+      "vector_dependency_ready_external_input": false,
+      "matrix_scoreboard_dependency_source_integrated": true,
       "full_compute_unit_scheduler_integrated": false,
       "memory_execution_integrated": false,
       "rtl_testbench_implemented": true,
@@ -710,7 +713,7 @@
       "power_validated": false
     },
     "pooled_vgpr_rtl": {
-      "status": "pooled resident-wave VGPR lifecycle, storage, matrix preflight, and resident INT8 integration RTL implemented; exact-revision RTL simulation pending",
+      "status": "pooled resident-wave VGPR lifecycle, storage, matrix preflight, and resident INT8 integration RTL implemented; local working-tree RTL gate passes, exact-revision CI evidence pending",
       "implemented": true,
       "exact_register_count_enforced": true,
       "physical_row_register_granularity": 8,

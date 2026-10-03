@@ -32,6 +32,8 @@ The architecture provides:
 
 Exact TLB entry counts and associativity remain physical-design parameters.
 
+The current decoded workgroup LSU preserves all 57 virtual-address bits on its abstract global-memory request boundary. Translation and physical-address generation are not part of that LSU slice.
+
 ## Page faults
 
 Replayable faults are required for normal demand-paged resources.

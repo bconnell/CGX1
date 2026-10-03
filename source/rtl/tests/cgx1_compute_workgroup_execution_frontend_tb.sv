@@ -7,6 +7,8 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     localparam integer ROW_WIDTH = 5;
     localparam integer SLOT_WIDTH = 2;
     localparam integer COUNT_WIDTH = 3;
+    localparam integer VA_WIDTH = 57;
+    localparam integer WAVE_ADDRESS_WIDTH = 32 * VA_WIDTH;
     localparam logic [4:0] FAIL_SHARED_MEMORY_FRAGMENTED = 5'd16;
     logic clk = 0, reset_n = 0;
     logic dispatch_valid, dispatch_ready;
@@ -54,7 +56,8 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [SLOTS-1:0] memory_issue_global, memory_issue_write;
     logic [(SLOTS*8)-1:0] memory_issue_destination_flat;
     logic [(SLOTS*32)-1:0] memory_issue_lane_mask_flat;
-    logic [(SLOTS*1024)-1:0] memory_issue_byte_addresses_flat, memory_issue_store_data_flat;
+    logic [(SLOTS*WAVE_ADDRESS_WIDTH)-1:0] memory_issue_byte_addresses_flat;
+    logic [(SLOTS*1024)-1:0] memory_issue_store_data_flat;
     logic [SLOTS-1:0] memory_waiting_mask, memory_load_destination_pending_mask;
     logic memory_completion_ready, memory_completion_valid, memory_completion_write;
     logic [7:0] memory_completion_workgroup_id;
@@ -73,7 +76,8 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [63:0] memory_global_request_transaction_tag;
     logic memory_global_request_write;
     logic [31:0] memory_global_request_lane_mask;
-    logic [1023:0] memory_global_request_byte_addresses_flat, memory_global_request_store_data_flat;
+    logic [WAVE_ADDRESS_WIDTH-1:0] memory_global_request_byte_addresses_flat;
+    logic [1023:0] memory_global_request_store_data_flat;
     logic memory_global_response_valid, memory_global_response_ready;
     logic [7:0] memory_global_response_workgroup_id;
     logic [SLOT_WIDTH-1:0] memory_global_response_wave_slot;
@@ -235,7 +239,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
 
     task automatic issue_memory(input integer slot, input logic global_space,
                                 input logic write_access, input logic [7:0] destination,
-                                input logic [31:0] lane_mask, input logic [31:0] address0,
+                                input logic [31:0] lane_mask, input logic [VA_WIDTH-1:0] address0,
                                 input logic [31:0] value0);
     begin
         @(negedge clk);
@@ -243,9 +247,9 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         memory_issue_write[slot] = write_access;
         memory_issue_destination_flat[(slot*8)+:8] = destination;
         memory_issue_lane_mask_flat[(slot*32)+:32] = lane_mask;
-        memory_issue_byte_addresses_flat[(slot*1024)+:1024] = '0;
+        memory_issue_byte_addresses_flat[(slot*WAVE_ADDRESS_WIDTH)+:WAVE_ADDRESS_WIDTH] = '0;
         memory_issue_store_data_flat[(slot*1024)+:1024] = '0;
-        memory_issue_byte_addresses_flat[(slot*1024)+:32] = address0;
+        memory_issue_byte_addresses_flat[(slot*WAVE_ADDRESS_WIDTH)+:VA_WIDTH] = address0;
         memory_issue_store_data_flat[(slot*1024)+:32] = value0;
         memory_issue_valid[slot] = 1'b1; #1;
         if (memory_issue_ready[slot] !== 1'b1 || memory_issue_accepted[slot] !== 1'b1)
@@ -762,7 +766,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         memory_issue_global[0] = 1'b0; memory_issue_write[0] = 1'b1;
         memory_issue_destination_flat[0+:8] = '0;
         memory_issue_lane_mask_flat[0+:32] = 32'd1;
-        memory_issue_byte_addresses_flat[0+:1024] = '0;
+        memory_issue_byte_addresses_flat[0+:WAVE_ADDRESS_WIDTH] = '0;
         memory_issue_store_data_flat[0+:1024] = '0;
         memory_issue_store_data_flat[0+:32] = 32'h73a55a73;
         memory_issue_valid[0] = 1'b1; #1;
@@ -835,17 +839,17 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         // A global request is stable under downstream backpressure. Aborting
         // after acceptance holds the wave allocation until the matching response.
         dispatch_with_resource_demand(8'd71, 1, 16, 0, 0, 0, 0, 64, 0, 0);
-        issue_memory(0, 1'b1, 1'b0, 8'd7, 32'd1, 32'h12345000, 32'd0);
+        issue_memory(0, 1'b1, 1'b0, 8'd7, 32'd1, 57'h100000012345000, 32'd0);
         if (!memory_global_request_valid || memory_global_request_workgroup_id != 8'd71
             || memory_global_request_wave_slot != 0
-            || memory_global_request_byte_addresses_flat[0+:32] != 32'h12345000)
+            || memory_global_request_byte_addresses_flat[0+:VA_WIDTH] != 57'h100000012345000)
             $fatal(1, "global LSU request lost captured identity or address");
         tag0 = memory_global_request_transaction_tag;
         repeat (2) begin
             @(posedge clk); #1;
             if (!memory_global_request_valid
                 || memory_global_request_transaction_tag != tag0
-                || memory_global_request_byte_addresses_flat[0+:32] != 32'h12345000)
+                || memory_global_request_byte_addresses_flat[0+:VA_WIDTH] != 57'h100000012345000)
                 $fatal(1, "global request changed while ready was low");
         end
         @(negedge clk); workgroup_abort_id = 8'd71; workgroup_abort_valid = 1'b1; #1;
@@ -856,7 +860,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         @(posedge clk); #1; @(negedge clk); workgroup_abort_valid = 1'b0;
         if (!memory_global_request_valid
             || memory_global_request_transaction_tag != tag0
-            || memory_global_request_byte_addresses_flat[0+:32] != 32'h12345000)
+            || memory_global_request_byte_addresses_flat[0+:VA_WIDTH] != 57'h100000012345000)
             $fatal(1, "killed stalled global request was not held stable through handshake");
         memory_global_request_ready = 1'b1;
         @(posedge clk); #1; @(negedge clk); memory_global_request_ready = 1'b0;

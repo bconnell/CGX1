@@ -12,7 +12,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     parameter integer ROW_WIDTH = (PHYSICAL_ROWS <= 1) ? 1 : $clog2(PHYSICAL_ROWS),
     parameter integer WAVE_SLOT_WIDTH = (RESIDENT_WAVE_SLOTS <= 1) ? 1 : $clog2(RESIDENT_WAVE_SLOTS),
     parameter integer WAVE_COUNT_WIDTH = (RESIDENT_WAVE_SLOTS <= 1) ? 1 : $clog2(RESIDENT_WAVE_SLOTS + 1),
-    parameter integer MAX_MATRIX_BURST = 4
+    parameter integer MAX_MATRIX_BURST = 4,
+    parameter integer VIRTUAL_ADDRESS_WIDTH = 57
 ) (
     input logic clk,
     input logic reset_n,
@@ -84,7 +85,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     input logic [RESIDENT_WAVE_SLOTS-1:0] memory_issue_write,
     input logic [(RESIDENT_WAVE_SLOTS*8)-1:0] memory_issue_destination_flat,
     input logic [(RESIDENT_WAVE_SLOTS*32)-1:0] memory_issue_lane_mask_flat,
-    input logic [(RESIDENT_WAVE_SLOTS*1024)-1:0] memory_issue_byte_addresses_flat,
+    input logic [(RESIDENT_WAVE_SLOTS*32*VIRTUAL_ADDRESS_WIDTH)-1:0] memory_issue_byte_addresses_flat,
     input logic [(RESIDENT_WAVE_SLOTS*1024)-1:0] memory_issue_store_data_flat,
     output logic [RESIDENT_WAVE_SLOTS-1:0] memory_waiting_mask,
     output logic [RESIDENT_WAVE_SLOTS-1:0] memory_load_destination_pending_mask,
@@ -110,7 +111,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     output logic [63:0] memory_global_request_transaction_tag,
     output logic memory_global_request_write,
     output logic [31:0] memory_global_request_lane_mask,
-    output logic [1023:0] memory_global_request_byte_addresses_flat,
+    output logic [(32*VIRTUAL_ADDRESS_WIDTH)-1:0] memory_global_request_byte_addresses_flat,
     output logic [1023:0] memory_global_request_store_data_flat,
     input logic memory_global_response_valid,
     output logic memory_global_response_ready,
@@ -544,7 +545,8 @@ module cgx1_compute_workgroup_execution_frontend #(
         .WORKGROUP_ID_WIDTH(WORKGROUP_ID_WIDTH),
         .WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH),
         .TRANSACTION_TAG_WIDTH(64),
-        .MEMORY_EPOCH_WIDTH(32)
+        .MEMORY_EPOCH_WIDTH(32),
+        .VIRTUAL_ADDRESS_WIDTH(VIRTUAL_ADDRESS_WIDTH)
     ) lsu (
         .clk(clk), .reset_n(reset_n), .memory_epoch(memory_epoch),
         .wave_live_mask(live_wave_mask),

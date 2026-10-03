@@ -5,6 +5,8 @@ module cgx1_compute_workgroup_lsu_tb;
     localparam integer WG_WIDTH = 8;
     localparam integer SLOT_WIDTH = 1;
     localparam integer TAG_WIDTH = 64;
+    localparam integer VA_WIDTH = 57;
+    localparam integer WAVE_ADDRESS_WIDTH = 32 * VA_WIDTH;
     localparam integer MEM_FAULT_NONE = 0;
     localparam integer MEM_FAULT_MISALIGNED = 2;
 
@@ -18,7 +20,8 @@ module cgx1_compute_workgroup_lsu_tb;
     logic [SLOTS-1:0] issue_global, issue_write;
     logic [(SLOTS*8)-1:0] issue_destination_flat;
     logic [(SLOTS*32)-1:0] issue_lane_mask_flat;
-    logic [(SLOTS*1024)-1:0] issue_byte_addresses_flat, issue_store_data_flat;
+    logic [(SLOTS*WAVE_ADDRESS_WIDTH)-1:0] issue_byte_addresses_flat;
+    logic [(SLOTS*1024)-1:0] issue_store_data_flat;
     logic [SLOTS-1:0] memory_waiting_mask, busy_mask, fault_pending_mask;
     logic [SLOTS-1:0] load_destination_pending_mask;
     logic [(SLOTS*8)-1:0] load_destination_register_flat;
@@ -51,7 +54,8 @@ module cgx1_compute_workgroup_lsu_tb;
     logic [TAG_WIDTH-1:0] global_request_transaction_tag;
     logic global_request_write;
     logic [31:0] global_request_lane_mask;
-    logic [1023:0] global_request_byte_addresses_flat, global_request_store_data_flat;
+    logic [WAVE_ADDRESS_WIDTH-1:0] global_request_byte_addresses_flat;
+    logic [1023:0] global_request_store_data_flat;
     logic global_response_valid, global_response_ready;
     logic [WG_WIDTH-1:0] global_response_workgroup_id;
     logic [SLOT_WIDTH-1:0] global_response_wave_id;
@@ -184,19 +188,20 @@ module cgx1_compute_workgroup_lsu_tb;
 
     task automatic issue_one(input integer slot, input logic global_space, input logic write_access,
                              input logic [7:0] destination, input logic [31:0] mask,
-                             input logic [31:0] address0, input logic [31:0] value0);
+                             input logic [VA_WIDTH-1:0] address0, input logic [31:0] value0);
     begin
         @(negedge clk);
         issue_global[slot] = global_space; issue_write[slot] = write_access;
         issue_destination_flat[(slot*8)+:8] = destination;
         issue_lane_mask_flat[(slot*32)+:32] = mask;
-        issue_byte_addresses_flat[(slot*1024)+:1024] = '0;
+        issue_byte_addresses_flat[(slot*WAVE_ADDRESS_WIDTH)+:WAVE_ADDRESS_WIDTH] = '0;
         issue_store_data_flat[(slot*1024)+:1024] = '0;
-        issue_byte_addresses_flat[(slot*1024)+:32] = address0;
+        issue_byte_addresses_flat[(slot*WAVE_ADDRESS_WIDTH)+:VA_WIDTH] = address0;
         issue_store_data_flat[(slot*1024)+:32] = value0;
         issue_valid[slot] = 1'b1; #1;
         if (!issue_ready[slot] || !issue_accepted[slot])
-            $fatal(1, "LSU did not accept a runnable decoded request for slot %0d", slot);
+            $fatal(1, "LSU did not accept slot %0d (global=%b write=%b address=%h state=%0d live=%b)",
+                slot, global_space, write_access, address0, dut.state_q[slot], wave_live_mask[slot]);
         @(posedge clk); #1; @(negedge clk); issue_valid[slot] = 1'b0;
     end
     endtask
@@ -280,6 +285,22 @@ module cgx1_compute_workgroup_lsu_tb;
         @(negedge clk); fault_ready = 1'b1;
         @(posedge clk); #1;
 
+        // Local addresses are 32-bit offsets into the allocated region. A
+        // nonzero high virtual-address portion must fault instead of aliasing
+        // the same low 32-bit offset.
+        @(negedge clk); fault_ready = 1'b0;
+        issue_one(0, 1'b0, 1'b0, 8'd4, 32'd1, 57'h10000000000, 32'd0);
+        timeout = 0;
+        while (!fault_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 64) $fatal(1, "wide local address did not fault");
+        end
+        if (fault_code != 3'd3 || fault_lane != 0 || writeback_valid
+            || local_request_valid || local_outstanding_wave_bitmap != '0)
+            $fatal(1, "wide local address was truncated or reached local memory");
+        @(negedge clk); fault_ready = 1'b1;
+        @(posedge clk); #1;
+
         // Out-of-range local addresses fault, and a kill before downstream
         // service starts never allocates a shared-memory transaction.
         issue_one(0, 1'b0, 1'b0, 8'd4, 32'd1, 32'd128, 32'd0);
@@ -303,18 +324,18 @@ module cgx1_compute_workgroup_lsu_tb;
         @(negedge clk); wave_live_mask[1] = 1'b1;
 
         // Two waves can own independent global requests; a stalled ready/valid payload is stable.
-        issue_one(0, 1'b1, 1'b0, 8'd5, 32'd1, 32'h1000, 32'd0);
+        issue_one(0, 1'b1, 1'b0, 8'd5, 32'd1, 57'h100000012345000, 32'd0);
         issue_one(1, 1'b1, 1'b1, 8'd0, 32'd1, 32'h2000, 32'h12345678);
         if (memory_waiting_mask != 2'b11)
             $fatal(1, "independent memory requests did not block both issuing waves");
         if (!global_request_valid || global_request_wave_id != 0
-            || global_request_byte_addresses_flat[0+:32] != 32'h1000)
+            || global_request_byte_addresses_flat[0+:VA_WIDTH] != 57'h100000012345000)
             $fatal(1, "first global request was not held under backpressure");
         tag0 = global_request_transaction_tag;
         repeat (2) begin
             @(posedge clk); #1;
             if (!global_request_valid || global_request_transaction_tag != tag0
-                || global_request_byte_addresses_flat[0+:32] != 32'h1000)
+                || global_request_byte_addresses_flat[0+:VA_WIDTH] != 57'h100000012345000)
                 $fatal(1, "global ready/valid payload changed before acceptance");
         end
         @(negedge clk); global_request_ready = 1'b1; #1;

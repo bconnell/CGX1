@@ -6,7 +6,8 @@ module cgx1_compute_workgroup_lsu #(
     parameter integer WORKGROUP_ID_WIDTH = 16,
     parameter integer WAVE_SLOT_WIDTH = (RESIDENT_WAVE_SLOTS <= 1) ? 1 : $clog2(RESIDENT_WAVE_SLOTS),
     parameter integer TRANSACTION_TAG_WIDTH = 64,
-    parameter integer MEMORY_EPOCH_WIDTH = 32
+    parameter integer MEMORY_EPOCH_WIDTH = 32,
+    parameter integer VIRTUAL_ADDRESS_WIDTH = 57
 ) (
     input logic clk,
     input logic reset_n,
@@ -21,7 +22,9 @@ module cgx1_compute_workgroup_lsu #(
     input logic [RESIDENT_WAVE_SLOTS-1:0] issue_write,
     input logic [(RESIDENT_WAVE_SLOTS*8)-1:0] issue_destination_flat,
     input logic [(RESIDENT_WAVE_SLOTS*32)-1:0] issue_lane_mask_flat,
-    input logic [(RESIDENT_WAVE_SLOTS*1024)-1:0] issue_byte_addresses_flat,
+    // Global lanes carry full GPU virtual addresses. Local lanes use a
+    // zero-extended 32-bit offset into the admitted workgroup region.
+    input logic [(RESIDENT_WAVE_SLOTS*32*VIRTUAL_ADDRESS_WIDTH)-1:0] issue_byte_addresses_flat,
     input logic [(RESIDENT_WAVE_SLOTS*1024)-1:0] issue_store_data_flat,
 
     output logic [RESIDENT_WAVE_SLOTS-1:0] memory_waiting_mask,
@@ -65,7 +68,7 @@ module cgx1_compute_workgroup_lsu #(
     output logic [TRANSACTION_TAG_WIDTH-1:0] global_request_transaction_tag,
     output logic global_request_write,
     output logic [31:0] global_request_lane_mask,
-    output logic [1023:0] global_request_byte_addresses_flat,
+    output logic [(32*VIRTUAL_ADDRESS_WIDTH)-1:0] global_request_byte_addresses_flat,
     output logic [1023:0] global_request_store_data_flat,
     input logic global_response_valid,
     output logic global_response_ready,
@@ -111,6 +114,7 @@ module cgx1_compute_workgroup_lsu #(
     localparam logic [2:0] ST_GLOBAL_WAIT = 3'd4;
     localparam logic [2:0] ST_DONE = 3'd5;
     localparam logic [2:0] ST_FAULT = 3'd6;
+    localparam logic [2:0] FAULT_LOCAL_ADDRESS_RANGE = 3'd3;
     localparam logic [2:0] FAULT_PROTOCOL = 3'd7;
 
     logic [2:0] state_q [0:RESIDENT_WAVE_SLOTS-1];
@@ -121,7 +125,7 @@ module cgx1_compute_workgroup_lsu #(
     logic write_q [0:RESIDENT_WAVE_SLOTS-1];
     logic [7:0] destination_q [0:RESIDENT_WAVE_SLOTS-1];
     logic [31:0] lane_mask_q [0:RESIDENT_WAVE_SLOTS-1];
-    logic [1023:0] addresses_q [0:RESIDENT_WAVE_SLOTS-1];
+    logic [(32*VIRTUAL_ADDRESS_WIDTH)-1:0] addresses_q [0:RESIDENT_WAVE_SLOTS-1];
     logic [1023:0] store_data_q [0:RESIDENT_WAVE_SLOTS-1];
     logic [2:0] fault_code_q [0:RESIDENT_WAVE_SLOTS-1];
     logic [5:0] fault_lane_q [0:RESIDENT_WAVE_SLOTS-1];
@@ -178,6 +182,7 @@ module cgx1_compute_workgroup_lsu #(
         integer candidate;
         integer offset;
         integer slot;
+        integer lane;
         global_candidate = -1;
         local_candidate = -1;
         // A presented ready/valid request stays stable through kill until accepted.
@@ -242,7 +247,9 @@ module cgx1_compute_workgroup_lsu #(
             local_request_transaction_tag = tag_q[local_candidate];
             local_request_write = write_q[local_candidate];
             local_request_lane_mask = lane_mask_q[local_candidate];
-            local_request_byte_addresses_flat = addresses_q[local_candidate];
+            for (lane = 0; lane < 32; lane = lane + 1)
+                local_request_byte_addresses_flat[(lane*32)+:32] =
+                    addresses_q[local_candidate][(lane*VIRTUAL_ADDRESS_WIDTH)+:32];
             local_request_store_data_flat = store_data_q[local_candidate];
         end
     end
@@ -400,6 +407,9 @@ module cgx1_compute_workgroup_lsu #(
     integer state_slot;
     integer accepted_count;
     integer accepted_prefix;
+    integer accepted_lane;
+    integer accepted_address_bit;
+    integer first_invalid_local_lane;
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             next_tag_q <= {{(TRANSACTION_TAG_WIDTH-1){1'b0}}, 1'b1};
@@ -429,6 +439,22 @@ module cgx1_compute_workgroup_lsu #(
             accepted_prefix = 0;
             for (state_slot = 0; state_slot < RESIDENT_WAVE_SLOTS; state_slot = state_slot + 1) begin
                 if (issue_accepted[state_slot]) begin
+                    first_invalid_local_lane = -1;
+                    if (!issue_global[state_slot]) begin
+                        for (accepted_lane = 0; accepted_lane < 32; accepted_lane = accepted_lane + 1) begin
+                            for (accepted_address_bit = 32;
+                                accepted_address_bit < VIRTUAL_ADDRESS_WIDTH;
+                                accepted_address_bit = accepted_address_bit + 1) begin
+                                if ((first_invalid_local_lane < 0)
+                                    && issue_lane_mask_flat[(state_slot*32)+accepted_lane]
+                                    && issue_byte_addresses_flat[
+                                        (state_slot*32*VIRTUAL_ADDRESS_WIDTH)
+                                        +(accepted_lane*VIRTUAL_ADDRESS_WIDTH)
+                                        +accepted_address_bit])
+                                    first_invalid_local_lane = accepted_lane;
+                            end
+                        end
+                    end
                     workgroup_q[state_slot] <= wave_workgroup_id_flat[
                         (state_slot*WORKGROUP_ID_WIDTH)+:WORKGROUP_ID_WIDTH];
                     epoch_q[state_slot] <= memory_epoch;
@@ -436,12 +462,21 @@ module cgx1_compute_workgroup_lsu #(
                     write_q[state_slot] <= issue_write[state_slot];
                     destination_q[state_slot] <= issue_destination_flat[(state_slot*8)+:8];
                     lane_mask_q[state_slot] <= issue_lane_mask_flat[(state_slot*32)+:32];
-                    addresses_q[state_slot] <= issue_byte_addresses_flat[(state_slot*1024)+:1024];
+                    addresses_q[state_slot] <= issue_byte_addresses_flat[
+                        (state_slot*32*VIRTUAL_ADDRESS_WIDTH)+:(32*VIRTUAL_ADDRESS_WIDTH)];
                     store_data_q[state_slot] <= issue_store_data_flat[(state_slot*1024)+:1024];
                     fault_code_q[state_slot] <= '0;
                     fault_lane_q[state_slot] <= 6'h3f;
-                    state_q[state_slot] <= issue_global[state_slot]
-                        ? ST_GLOBAL_QUEUED : ST_LOCAL_QUEUED;
+                    if (!issue_global[state_slot] && (first_invalid_local_lane >= 0)) begin
+                        // Local addresses are 32-bit CU-region offsets. Never
+                        // truncate an oversized address into a valid offset.
+                        state_q[state_slot] <= ST_FAULT;
+                        fault_code_q[state_slot] <= FAULT_LOCAL_ADDRESS_RANGE;
+                        fault_lane_q[state_slot] <= first_invalid_local_lane[5:0];
+                    end else begin
+                        state_q[state_slot] <= issue_global[state_slot]
+                            ? ST_GLOBAL_QUEUED : ST_LOCAL_QUEUED;
+                    end
                     accepted_count = accepted_count + 1;
                     accepted_prefix = accepted_prefix + 1;
                 end else begin
@@ -576,4 +611,9 @@ module cgx1_compute_workgroup_lsu #(
         end
     end
 `endif
+
+    initial begin
+        if (VIRTUAL_ADDRESS_WIDTH < 32)
+            $fatal(1, "LSU virtual address width must cover 32-bit local offsets");
+    end
 endmodule

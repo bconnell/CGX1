@@ -57,7 +57,8 @@ module cgx1_cu_shared_local_memory #(
     output logic cancel_accepted,
 
     output logic [31:0] allocated_bytes_used,
-    output logic [MAX_OUTSTANDING_TRANSACTIONS-1:0] outstanding_transaction_bitmap
+    output logic [MAX_OUTSTANDING_TRANSACTIONS-1:0] outstanding_transaction_bitmap,
+    output logic [(1 << WAVE_ID_WIDTH)-1:0] outstanding_wave_bitmap
 );
     localparam integer CU_WORD_COUNT = (CU_SHARED_BYTES + 3) / 4;
     localparam integer GROUP_INDEX_WIDTH =
@@ -371,7 +372,6 @@ module cgx1_cu_shared_local_memory #(
     end
 
     always_comb begin : response_decode
-        integer transaction_index;
         logic cancel_same_response;
         response_valid = 1'b0;
         response_workgroup_id = '0;
@@ -404,10 +404,19 @@ module cgx1_cu_shared_local_memory #(
                 response_fault_lane = txn_fault_lane_q[response_selected_index];
             end
         end
+    end
+
+    // Keep status decode independent from response and cancel handshakes. In
+    // particular, the per-wave map feeds LSU cancellation selection.
+    always_comb begin : outstanding_decode
+        integer transaction_index;
         outstanding_transaction_bitmap = '0;
+        outstanding_wave_bitmap = '0;
         for (transaction_index = 0; transaction_index < MAX_OUTSTANDING_TRANSACTIONS; transaction_index = transaction_index + 1)
-            outstanding_transaction_bitmap[transaction_index]
-                = (txn_state_q[transaction_index] != TXN_FREE);
+            if (txn_state_q[transaction_index] != TXN_FREE) begin
+                outstanding_transaction_bitmap[transaction_index] = 1'b1;
+                outstanding_wave_bitmap[txn_wave_id_q[transaction_index]] = 1'b1;
+            end
     end
 
     always_comb begin : used_capacity_next

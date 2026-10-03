@@ -76,6 +76,54 @@ module cgx1_compute_workgroup_execution_frontend #(
     output logic vector_address_fault,
     output logic vector_uninitialized_fault,
 
+    input logic [31:0] memory_epoch,
+    input logic [RESIDENT_WAVE_SLOTS-1:0] memory_issue_valid,
+    output logic [RESIDENT_WAVE_SLOTS-1:0] memory_issue_ready,
+    output logic [RESIDENT_WAVE_SLOTS-1:0] memory_issue_accepted,
+    input logic [RESIDENT_WAVE_SLOTS-1:0] memory_issue_global,
+    input logic [RESIDENT_WAVE_SLOTS-1:0] memory_issue_write,
+    input logic [(RESIDENT_WAVE_SLOTS*8)-1:0] memory_issue_destination_flat,
+    input logic [(RESIDENT_WAVE_SLOTS*32)-1:0] memory_issue_lane_mask_flat,
+    input logic [(RESIDENT_WAVE_SLOTS*1024)-1:0] memory_issue_byte_addresses_flat,
+    input logic [(RESIDENT_WAVE_SLOTS*1024)-1:0] memory_issue_store_data_flat,
+    output logic [RESIDENT_WAVE_SLOTS-1:0] memory_waiting_mask,
+    output logic [RESIDENT_WAVE_SLOTS-1:0] memory_load_destination_pending_mask,
+    input logic memory_completion_ready,
+    output logic memory_completion_valid,
+    output logic [WORKGROUP_ID_WIDTH-1:0] memory_completion_workgroup_id,
+    output logic [WAVE_SLOT_WIDTH-1:0] memory_completion_wave_slot,
+    output logic [63:0] memory_completion_transaction_tag,
+    output logic memory_completion_write,
+    input logic memory_fault_ready,
+    output logic memory_fault_valid,
+    output logic [WORKGROUP_ID_WIDTH-1:0] memory_fault_workgroup_id,
+    output logic [WAVE_SLOT_WIDTH-1:0] memory_fault_wave_slot,
+    output logic [63:0] memory_fault_transaction_tag,
+    output logic [2:0] memory_fault_code,
+    output logic [5:0] memory_fault_lane,
+
+    output logic memory_global_request_valid,
+    input logic memory_global_request_ready,
+    output logic [WORKGROUP_ID_WIDTH-1:0] memory_global_request_workgroup_id,
+    output logic [WAVE_SLOT_WIDTH-1:0] memory_global_request_wave_slot,
+    output logic [31:0] memory_global_request_epoch,
+    output logic [63:0] memory_global_request_transaction_tag,
+    output logic memory_global_request_write,
+    output logic [31:0] memory_global_request_lane_mask,
+    output logic [1023:0] memory_global_request_byte_addresses_flat,
+    output logic [1023:0] memory_global_request_store_data_flat,
+    input logic memory_global_response_valid,
+    output logic memory_global_response_ready,
+    input logic [WORKGROUP_ID_WIDTH-1:0] memory_global_response_workgroup_id,
+    input logic [WAVE_SLOT_WIDTH-1:0] memory_global_response_wave_slot,
+    input logic [31:0] memory_global_response_epoch,
+    input logic [63:0] memory_global_response_transaction_tag,
+    input logic memory_global_response_write,
+    input logic [31:0] memory_global_response_lane_mask,
+    input logic [1023:0] memory_global_response_lane_data_flat,
+    input logic [2:0] memory_global_response_fault_code,
+    input logic [5:0] memory_global_response_fault_lane,
+
     output logic [RESIDENT_WAVE_SLOTS-1:0] allocation_reserved_bitmap,
     output logic [RESIDENT_WAVE_SLOTS-1:0] allocation_active_bitmap,
     output logic [RESIDENT_WAVE_SLOTS-1:0] allocation_sanitized_bitmap,
@@ -140,7 +188,14 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [RESIDENT_WAVE_SLOTS-1:0] scheduler_issue_mask;
     logic [RESIDENT_WAVE_SLOTS-1:0] matrix_exec_request_valid;
     logic [RESIDENT_WAVE_SLOTS-1:0] vector_exec_request_valid;
+    logic [RESIDENT_WAVE_SLOTS-1:0] lsu_issue_valid;
+    logic [RESIDENT_WAVE_SLOTS-1:0] lsu_issue_ready;
+    logic [RESIDENT_WAVE_SLOTS-1:0] lsu_issue_accepted;
+    logic [RESIDENT_WAVE_SLOTS-1:0] memory_issue_slot_available;
+    logic [RESIDENT_WAVE_SLOTS-1:0] lsu_busy_mask;
+    logic [(RESIDENT_WAVE_SLOTS*256)-1:0] memory_destination_pending_mask_flat;
     logic [RESIDENT_WAVE_SLOTS-1:0] busy_bitmap;
+    logic [RESIDENT_WAVE_SLOTS-1:0] vector_execution_busy_bitmap_raw;
     logic [RESIDENT_WAVE_SLOTS-1:0] allocator_release_done_mask;
     logic [WORKGROUP_ID_WIDTH-1:0] query_workgroup_id;
     logic query_workgroup_found;
@@ -152,6 +207,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [RESIDENT_WAVE_SLOTS-1:0] barrier_resident_mask;
     logic [RESIDENT_WAVE_SLOTS-1:0] barrier_live_mask;
     logic [RESIDENT_WAVE_SLOTS-1:0] barrier_issuable_mask;
+    logic [RESIDENT_WAVE_SLOTS-1:0] lsu_fault_block_mask;
     logic [RESIDENT_WAVE_SLOTS-1:0] barrier_release_pending_mask;
     logic [WAVE_COUNT_WIDTH-1:0] barrier_resident_count;
     logic [MAX_WORKGROUP_CONTEXTS-1:0] barrier_active_mask;
@@ -176,6 +232,45 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic shared_memory_release_accepted;
     logic [WORKGROUP_ID_WIDTH-1:0] shared_memory_release_workgroup_id;
     logic [31:0] shared_memory_allocated_bytes;
+    logic [(1 << WAVE_SLOT_WIDTH)-1:0] shared_memory_outstanding_wave_bitmap;
+    logic local_memory_request_valid, local_memory_request_ready, local_memory_request_accepted;
+    logic [WORKGROUP_ID_WIDTH-1:0] local_memory_request_workgroup_id;
+    logic [WAVE_SLOT_WIDTH-1:0] local_memory_request_wave_id;
+    logic [63:0] local_memory_request_transaction_tag;
+    logic local_memory_request_write;
+    logic [31:0] local_memory_request_lane_mask;
+    logic [1023:0] local_memory_request_byte_addresses_flat, local_memory_request_store_data_flat;
+    logic local_memory_response_valid, local_memory_response_ready;
+    logic [WORKGROUP_ID_WIDTH-1:0] local_memory_response_workgroup_id;
+    logic [WAVE_SLOT_WIDTH-1:0] local_memory_response_wave_id;
+    logic [63:0] local_memory_response_transaction_tag;
+    logic local_memory_response_write;
+    logic [31:0] local_memory_response_lane_mask;
+    logic [1023:0] local_memory_response_lane_data_flat;
+    logic [1:0] local_memory_response_fault_code;
+    logic [5:0] local_memory_response_fault_lane;
+    logic local_memory_cancel_valid, local_memory_cancel_ready, local_memory_cancel_accepted;
+    logic [WORKGROUP_ID_WIDTH-1:0] local_memory_cancel_workgroup_id;
+    logic [WAVE_SLOT_WIDTH-1:0] local_memory_cancel_wave_id;
+    logic lsu_writeback_valid, lsu_writeback_ready, lsu_writeback_address_fault;
+    logic [WORKGROUP_ID_WIDTH-1:0] lsu_writeback_workgroup_id;
+    logic [WAVE_SLOT_WIDTH-1:0] lsu_writeback_wave_slot;
+    logic [63:0] lsu_writeback_transaction_tag;
+    logic [7:0] lsu_writeback_destination;
+    logic [31:0] lsu_writeback_lane_mask;
+    logic [1023:0] lsu_writeback_lane_data_flat;
+    logic memory_vgpr_write_ready;
+    logic [(RESIDENT_WAVE_SLOTS*8)-1:0] lsu_load_destination_register_flat;
+    logic lsu_fault_valid, lsu_fault_ready;
+    logic [WORKGROUP_ID_WIDTH-1:0] lsu_fault_workgroup_id;
+    logic [WAVE_SLOT_WIDTH-1:0] lsu_fault_wave_slot;
+    logic [63:0] lsu_fault_transaction_tag;
+    logic [2:0] lsu_fault_code;
+    logic [5:0] lsu_fault_lane;
+    logic barrier_terminate_valid, barrier_terminate_ready, barrier_terminate_accepted;
+    logic [WAVE_SLOT_WIDTH-1:0] barrier_terminate_slot;
+    logic [1:0] barrier_terminate_reason;
+    logic memory_fault_to_barrier;
     logic shared_memory_owned_q;
     logic shared_memory_allocation_submitted_q;
     logic [RESIDENT_WAVE_SLOTS-1:0] matrix_busy_raw;
@@ -195,6 +290,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     integer comb_wave;
     integer comb_slot;
     integer comb_count;
+    integer memory_pending_slot;
 
     always_comb begin : admission_plan
         integer row_count;
@@ -337,20 +433,55 @@ module cgx1_compute_workgroup_execution_frontend #(
 
     assign dispatch_ready = (txn_state_q == ST_IDLE);
     assign query_workgroup_id = dispatch_workgroup_id;
-    assign busy_bitmap = matrix_busy_raw | vector_execution_busy_bitmap;
+    assign busy_bitmap = matrix_busy_raw | vector_execution_busy_bitmap_raw | lsu_busy_mask;
     assign matrix_execution_busy_bitmap = matrix_busy_raw;
+    assign vector_execution_busy_bitmap = vector_execution_busy_bitmap_raw | lsu_busy_mask;
     assign resident_wave_mask = barrier_resident_mask & allocation_active_bitmap;
     assign live_wave_mask = barrier_live_mask & allocation_active_bitmap;
     assign barrier_waiting_mask = barrier_waiting_mask_raw & allocation_active_bitmap;
-    assign issuable_wave_mask = barrier_issuable_mask & allocation_active_bitmap;
+    assign issuable_wave_mask = barrier_issuable_mask & allocation_active_bitmap
+        & ~lsu_fault_block_mask;
     assign release_pending_wave_mask = barrier_release_pending_mask;
     assign workgroup_active_mask = barrier_active_mask;
     assign resident_wave_count = barrier_resident_count;
     assign scalar_state_units_used = barrier_scalar_used;
     assign shared_local_bytes_used = shared_memory_allocated_bytes;
     assign other_workgroup_state_units_used = barrier_other_used;
-    assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask;
+    assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask & ~lsu_busy_mask;
     assign vector_exec_request_valid = vector_request_valid & issuable_wave_mask;
+    // Preserve same-wave program order: an already-presented matrix/vector
+    // request and any live execution finish before the LSU captures its next op.
+    assign memory_issue_slot_available = issuable_wave_mask
+        & ~matrix_busy_raw & ~vector_execution_busy_bitmap_raw
+        & ~matrix_request_valid & ~vector_request_valid;
+    assign lsu_issue_valid = memory_issue_valid & memory_issue_slot_available;
+    assign memory_issue_ready = lsu_issue_ready & memory_issue_slot_available;
+    assign memory_issue_accepted = lsu_issue_accepted;
+
+    assign barrier_terminate_valid = terminate_wave_valid
+        || (lsu_fault_valid && memory_fault_ready);
+    assign barrier_terminate_slot = terminate_wave_valid ? terminate_wave_slot : lsu_fault_wave_slot;
+    assign barrier_terminate_reason = terminate_wave_valid ? terminate_wave_reason : 2'b10;
+    assign terminate_wave_ready = barrier_terminate_ready && !memory_fault_to_barrier;
+    assign terminate_wave_accepted = terminate_wave_valid && terminate_wave_ready;
+    assign memory_fault_to_barrier = !terminate_wave_valid && lsu_fault_valid && memory_fault_ready;
+    assign lsu_fault_ready = !terminate_wave_valid && memory_fault_ready && barrier_terminate_ready;
+    assign memory_fault_valid = lsu_fault_valid;
+    assign memory_fault_workgroup_id = lsu_fault_workgroup_id;
+    assign memory_fault_wave_slot = lsu_fault_wave_slot;
+    assign memory_fault_transaction_tag = lsu_fault_transaction_tag;
+    assign memory_fault_code = lsu_fault_code;
+    assign memory_fault_lane = lsu_fault_lane;
+
+    always_comb begin : memory_destination_scoreboard
+        memory_destination_pending_mask_flat = '0;
+        for (memory_pending_slot = 0; memory_pending_slot < RESIDENT_WAVE_SLOTS;
+            memory_pending_slot = memory_pending_slot + 1) begin
+            if (memory_load_destination_pending_mask[memory_pending_slot])
+                memory_destination_pending_mask_flat[(memory_pending_slot*256)
+                    + $unsigned(lsu_load_destination_register_flat[(memory_pending_slot*8)+:8])] = 1'b1;
+        end
+    end
 
     logic [RESIDENT_WAVE_SLOTS-1:0] barrier_waiting_mask_raw;
     logic [RESIDENT_WAVE_SLOTS-1:0] release_done_mask;
@@ -366,8 +497,10 @@ module cgx1_compute_workgroup_execution_frontend #(
     cgx1_cu_shared_local_memory #(
         .CU_SHARED_BYTES(SHARED_LOCAL_MEMORY_BYTES),
         .MAX_WORKGROUP_CONTEXTS(MAX_WORKGROUP_CONTEXTS),
+        .MAX_OUTSTANDING_TRANSACTIONS(RESIDENT_WAVE_SLOTS),
         .WORKGROUP_ID_WIDTH(WORKGROUP_ID_WIDTH),
-        .WAVE_ID_WIDTH(WAVE_SLOT_WIDTH)
+        .WAVE_ID_WIDTH(WAVE_SLOT_WIDTH),
+        .TRANSACTION_TAG_WIDTH(64)
     ) shared_local_memory (
         .clk(clk), .reset_n(reset_n),
         .allocation_valid(shared_memory_allocation_valid),
@@ -382,18 +515,117 @@ module cgx1_compute_workgroup_execution_frontend #(
         .release_workgroup_id(shared_memory_release_workgroup_id),
         .release_ready(shared_memory_release_ready),
         .release_accepted(shared_memory_release_accepted),
-        .request_valid(1'b0), .request_workgroup_id('0), .request_wave_id('0),
-        .request_transaction_tag('0), .request_write(1'b0),
-        .request_lane_mask('0), .request_byte_addresses_flat('0),
-        .request_store_data_flat('0), .request_ready(), .request_accepted(),
-        .response_valid(), .response_ready(1'b1), .response_workgroup_id(),
-        .response_wave_id(), .response_transaction_tag(), .response_write(),
-        .response_lane_mask(), .response_lane_data_flat(), .response_fault_code(),
-        .response_fault_lane(), .cancel_valid(1'b0), .cancel_workgroup_id('0),
-        .cancel_wave_id('0), .cancel_ready(), .cancel_accepted(),
+        .request_valid(local_memory_request_valid),
+        .request_workgroup_id(local_memory_request_workgroup_id),
+        .request_wave_id(local_memory_request_wave_id),
+        .request_transaction_tag(local_memory_request_transaction_tag),
+        .request_write(local_memory_request_write), .request_lane_mask(local_memory_request_lane_mask),
+        .request_byte_addresses_flat(local_memory_request_byte_addresses_flat),
+        .request_store_data_flat(local_memory_request_store_data_flat),
+        .request_ready(local_memory_request_ready), .request_accepted(local_memory_request_accepted),
+        .response_valid(local_memory_response_valid), .response_ready(local_memory_response_ready),
+        .response_workgroup_id(local_memory_response_workgroup_id),
+        .response_wave_id(local_memory_response_wave_id),
+        .response_transaction_tag(local_memory_response_transaction_tag),
+        .response_write(local_memory_response_write), .response_lane_mask(local_memory_response_lane_mask),
+        .response_lane_data_flat(local_memory_response_lane_data_flat),
+        .response_fault_code(local_memory_response_fault_code),
+        .response_fault_lane(local_memory_response_fault_lane),
+        .cancel_valid(local_memory_cancel_valid), .cancel_workgroup_id(local_memory_cancel_workgroup_id),
+        .cancel_wave_id(local_memory_cancel_wave_id), .cancel_ready(local_memory_cancel_ready),
+        .cancel_accepted(local_memory_cancel_accepted),
         .allocated_bytes_used(shared_memory_allocated_bytes),
-        .outstanding_transaction_bitmap()
+        .outstanding_transaction_bitmap(),
+        .outstanding_wave_bitmap(shared_memory_outstanding_wave_bitmap)
     );
+
+    cgx1_compute_workgroup_lsu #(
+        .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),
+        .WORKGROUP_ID_WIDTH(WORKGROUP_ID_WIDTH),
+        .WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH),
+        .TRANSACTION_TAG_WIDTH(64),
+        .MEMORY_EPOCH_WIDTH(32)
+    ) lsu (
+        .clk(clk), .reset_n(reset_n), .memory_epoch(memory_epoch),
+        .wave_live_mask(live_wave_mask),
+        .wave_workgroup_id_flat(barrier_slot_workgroup_id_flat),
+        .issue_valid(lsu_issue_valid), .issue_ready(lsu_issue_ready),
+        .issue_accepted(lsu_issue_accepted), .issue_global(memory_issue_global),
+        .issue_write(memory_issue_write), .issue_destination_flat(memory_issue_destination_flat),
+        .issue_lane_mask_flat(memory_issue_lane_mask_flat),
+        .issue_byte_addresses_flat(memory_issue_byte_addresses_flat),
+        .issue_store_data_flat(memory_issue_store_data_flat),
+        .memory_waiting_mask(memory_waiting_mask), .busy_mask(lsu_busy_mask),
+        .fault_pending_mask(lsu_fault_block_mask),
+        .load_destination_pending_mask(memory_load_destination_pending_mask),
+        .load_destination_register_flat(lsu_load_destination_register_flat),
+        .local_request_valid(local_memory_request_valid),
+        .local_request_ready(local_memory_request_ready),
+        .local_request_accepted(local_memory_request_accepted),
+        .local_request_workgroup_id(local_memory_request_workgroup_id),
+        .local_request_wave_id(local_memory_request_wave_id),
+        .local_request_transaction_tag(local_memory_request_transaction_tag),
+        .local_request_write(local_memory_request_write),
+        .local_request_lane_mask(local_memory_request_lane_mask),
+        .local_request_byte_addresses_flat(local_memory_request_byte_addresses_flat),
+        .local_request_store_data_flat(local_memory_request_store_data_flat),
+        .local_response_valid(local_memory_response_valid),
+        .local_response_ready(local_memory_response_ready),
+        .local_response_workgroup_id(local_memory_response_workgroup_id),
+        .local_response_wave_id(local_memory_response_wave_id),
+        .local_response_transaction_tag(local_memory_response_transaction_tag),
+        .local_response_write(local_memory_response_write),
+        .local_response_lane_mask(local_memory_response_lane_mask),
+        .local_response_lane_data_flat(local_memory_response_lane_data_flat),
+        .local_response_fault_code(local_memory_response_fault_code),
+        .local_response_fault_lane(local_memory_response_fault_lane),
+        .local_cancel_valid(local_memory_cancel_valid),
+        .local_cancel_workgroup_id(local_memory_cancel_workgroup_id),
+        .local_cancel_wave_id(local_memory_cancel_wave_id),
+        .local_cancel_ready(local_memory_cancel_ready),
+        .local_cancel_accepted(local_memory_cancel_accepted),
+        .local_outstanding_wave_bitmap(shared_memory_outstanding_wave_bitmap),
+        .global_request_valid(memory_global_request_valid),
+        .global_request_ready(memory_global_request_ready),
+        .global_request_workgroup_id(memory_global_request_workgroup_id),
+        .global_request_wave_id(memory_global_request_wave_slot),
+        .global_request_epoch(memory_global_request_epoch),
+        .global_request_transaction_tag(memory_global_request_transaction_tag),
+        .global_request_write(memory_global_request_write),
+        .global_request_lane_mask(memory_global_request_lane_mask),
+        .global_request_byte_addresses_flat(memory_global_request_byte_addresses_flat),
+        .global_request_store_data_flat(memory_global_request_store_data_flat),
+        .global_response_valid(memory_global_response_valid),
+        .global_response_ready(memory_global_response_ready),
+        .global_response_workgroup_id(memory_global_response_workgroup_id),
+        .global_response_wave_id(memory_global_response_wave_slot),
+        .global_response_epoch(memory_global_response_epoch),
+        .global_response_transaction_tag(memory_global_response_transaction_tag),
+        .global_response_write(memory_global_response_write),
+        .global_response_lane_mask(memory_global_response_lane_mask),
+        .global_response_lane_data_flat(memory_global_response_lane_data_flat),
+        .global_response_fault_code(memory_global_response_fault_code),
+        .global_response_fault_lane(memory_global_response_fault_lane),
+        .writeback_valid(lsu_writeback_valid), .writeback_ready(memory_vgpr_write_ready),
+        .writeback_address_fault(lsu_writeback_address_fault),
+        .writeback_workgroup_id(lsu_writeback_workgroup_id),
+        .writeback_wave_slot(lsu_writeback_wave_slot),
+        .writeback_transaction_tag(lsu_writeback_transaction_tag),
+        .writeback_destination(lsu_writeback_destination),
+        .writeback_lane_mask(lsu_writeback_lane_mask),
+        .writeback_lane_data_flat(lsu_writeback_lane_data_flat),
+        .completion_valid(memory_completion_valid), .completion_ready(memory_completion_ready),
+        .completion_workgroup_id(memory_completion_workgroup_id),
+        .completion_wave_slot(memory_completion_wave_slot),
+        .completion_transaction_tag(memory_completion_transaction_tag),
+        .completion_write(memory_completion_write),
+        .fault_valid(lsu_fault_valid), .fault_ready(lsu_fault_ready),
+        .fault_workgroup_id(lsu_fault_workgroup_id), .fault_wave_slot(lsu_fault_wave_slot),
+        .fault_transaction_tag(lsu_fault_transaction_tag), .fault_code(lsu_fault_code),
+        .fault_lane(lsu_fault_lane)
+    );
+
+    assign memory_vgpr_write_ready = lsu_writeback_ready || lsu_writeback_address_fault;
 
     cgx1_workgroup_residency_barrier #(
         .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),
@@ -425,11 +657,11 @@ module cgx1_compute_workgroup_execution_frontend #(
         .barrier_release_workgroup_id(barrier_release_workgroup_id),
         .barrier_release_generation(barrier_release_generation),
         .barrier_release_wave_mask(barrier_release_wave_mask),
-        .terminate_wave_valid(terminate_wave_valid),
-        .terminate_wave_slot(terminate_wave_slot),
-        .terminate_wave_reason(terminate_wave_reason),
-        .terminate_wave_ready(terminate_wave_ready),
-        .terminate_wave_accepted(terminate_wave_accepted),
+        .terminate_wave_valid(barrier_terminate_valid),
+        .terminate_wave_slot(barrier_terminate_slot),
+        .terminate_wave_reason(barrier_terminate_reason),
+        .terminate_wave_ready(barrier_terminate_ready),
+        .terminate_wave_accepted(barrier_terminate_accepted),
         .workgroup_abort_valid(workgroup_abort_valid),
         .workgroup_abort_id(workgroup_abort_id),
         .workgroup_abort_ready(workgroup_abort_ready),
@@ -479,16 +711,23 @@ module cgx1_compute_workgroup_execution_frontend #(
         .vector_request_valid(vector_exec_request_valid), .vector_request_opcode(vector_request_opcode),
         .vector_request_source0(vector_request_source0), .vector_request_source1(vector_request_source1),
         .vector_request_destination(vector_request_destination), .vector_request_lane_mask(vector_request_lane_mask),
+        .memory_destination_pending_mask_flat(memory_destination_pending_mask_flat),
         .vector_request_accepted(vector_request_accepted), .vector_complete_valid(vector_complete_valid),
         .vector_complete_wave_slot(vector_complete_wave_slot), .vector_illegal_opcode(vector_illegal_opcode),
         .vector_address_fault(vector_address_fault), .vector_uninitialized_fault(vector_uninitialized_fault),
+        .memory_write_valid(lsu_writeback_valid), .memory_write_wave_slot(lsu_writeback_wave_slot),
+        .memory_write_destination(lsu_writeback_destination),
+        .memory_write_lane_mask(lsu_writeback_lane_mask),
+        .memory_write_data(lsu_writeback_lane_data_flat),
+        .memory_write_ready(lsu_writeback_ready),
+        .memory_write_address_fault(lsu_writeback_address_fault),
         .matrix_resident_wave_busy(matrix_busy_raw), .vector_busy(vector_busy_raw),
         .allocation_reserved_bitmap(allocation_reserved_bitmap),
         .allocation_active_bitmap(allocation_active_bitmap),
         .allocation_sanitized_bitmap(allocation_sanitized_bitmap),
         .allocation_row_base_flat(allocation_row_base_flat),
         .allocation_register_count_flat(allocation_register_count_flat),
-        .vector_execution_busy_bitmap(vector_execution_busy_bitmap)
+        .vector_execution_busy_bitmap(vector_execution_busy_bitmap_raw)
     );
 
     integer seq_index;

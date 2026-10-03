@@ -49,6 +49,41 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic vector_complete_valid;
     logic [SLOT_WIDTH-1:0] vector_complete_wave_slot;
     logic vector_illegal_opcode, vector_address_fault, vector_uninitialized_fault;
+    logic [31:0] memory_epoch;
+    logic [SLOTS-1:0] memory_issue_valid, memory_issue_ready, memory_issue_accepted;
+    logic [SLOTS-1:0] memory_issue_global, memory_issue_write;
+    logic [(SLOTS*8)-1:0] memory_issue_destination_flat;
+    logic [(SLOTS*32)-1:0] memory_issue_lane_mask_flat;
+    logic [(SLOTS*1024)-1:0] memory_issue_byte_addresses_flat, memory_issue_store_data_flat;
+    logic [SLOTS-1:0] memory_waiting_mask, memory_load_destination_pending_mask;
+    logic memory_completion_ready, memory_completion_valid, memory_completion_write;
+    logic [7:0] memory_completion_workgroup_id;
+    logic [SLOT_WIDTH-1:0] memory_completion_wave_slot;
+    logic [63:0] memory_completion_transaction_tag;
+    logic memory_fault_ready, memory_fault_valid;
+    logic [7:0] memory_fault_workgroup_id;
+    logic [SLOT_WIDTH-1:0] memory_fault_wave_slot;
+    logic [63:0] memory_fault_transaction_tag;
+    logic [2:0] memory_fault_code;
+    logic [5:0] memory_fault_lane;
+    logic memory_global_request_valid, memory_global_request_ready;
+    logic [7:0] memory_global_request_workgroup_id;
+    logic [SLOT_WIDTH-1:0] memory_global_request_wave_slot;
+    logic [31:0] memory_global_request_epoch;
+    logic [63:0] memory_global_request_transaction_tag;
+    logic memory_global_request_write;
+    logic [31:0] memory_global_request_lane_mask;
+    logic [1023:0] memory_global_request_byte_addresses_flat, memory_global_request_store_data_flat;
+    logic memory_global_response_valid, memory_global_response_ready;
+    logic [7:0] memory_global_response_workgroup_id;
+    logic [SLOT_WIDTH-1:0] memory_global_response_wave_slot;
+    logic [31:0] memory_global_response_epoch;
+    logic [63:0] memory_global_response_transaction_tag;
+    logic memory_global_response_write;
+    logic [31:0] memory_global_response_lane_mask;
+    logic [1023:0] memory_global_response_lane_data_flat;
+    logic [2:0] memory_global_response_fault_code;
+    logic [5:0] memory_global_response_fault_lane;
     logic [SLOTS-1:0] allocation_reserved_bitmap, allocation_active_bitmap, allocation_sanitized_bitmap;
     logic [(SLOTS*ROW_WIDTH)-1:0] allocation_row_base_flat;
     logic [(SLOTS*9)-1:0] allocation_register_count_flat;
@@ -60,6 +95,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [31:0] scalar_state_units_used, shared_local_bytes_used, other_workgroup_state_units_used;
     integer timeout, iteration, lane, physical_row, bank, register_number, base_row;
     integer map_before;
+    logic [63:0] tag0;
     logic [SLOTS-1:0] active_before, reserved_before;
     logic [(SLOTS*ROW_WIDTH)-1:0] row_base_before;
     logic [(SLOTS*9)-1:0] register_count_before;
@@ -197,6 +233,42 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     end
     endtask
 
+    task automatic issue_memory(input integer slot, input logic global_space,
+                                input logic write_access, input logic [7:0] destination,
+                                input logic [31:0] lane_mask, input logic [31:0] address0,
+                                input logic [31:0] value0);
+    begin
+        @(negedge clk);
+        memory_issue_global[slot] = global_space;
+        memory_issue_write[slot] = write_access;
+        memory_issue_destination_flat[(slot*8)+:8] = destination;
+        memory_issue_lane_mask_flat[(slot*32)+:32] = lane_mask;
+        memory_issue_byte_addresses_flat[(slot*1024)+:1024] = '0;
+        memory_issue_store_data_flat[(slot*1024)+:1024] = '0;
+        memory_issue_byte_addresses_flat[(slot*1024)+:32] = address0;
+        memory_issue_store_data_flat[(slot*1024)+:32] = value0;
+        memory_issue_valid[slot] = 1'b1; #1;
+        if (memory_issue_ready[slot] !== 1'b1 || memory_issue_accepted[slot] !== 1'b1)
+            $fatal(1, "integrated LSU did not accept slot %0d", slot);
+        @(posedge clk); #1; @(negedge clk); memory_issue_valid[slot] = 1'b0;
+    end
+    endtask
+
+    task automatic wait_memory_completion(input integer slot);
+    begin
+        timeout = 0;
+        while (!memory_completion_valid || memory_completion_wave_slot != slot) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 200) $fatal(1, "integrated memory completion timed out for slot %0d state=%0d wait=%b local_req=%b/%b local_rsp=%b outstanding=%b", slot, dut.lsu.state_q[slot], memory_waiting_mask, dut.local_memory_request_valid, dut.local_memory_request_accepted, dut.local_memory_response_valid, dut.shared_memory_outstanding_wave_bitmap);
+        end
+        if (!memory_completion_ready) begin
+            @(negedge clk); memory_completion_ready = 1'b1;
+        end
+        @(posedge clk); #1; @(negedge clk);
+        memory_completion_ready = 1'b0;
+    end
+    endtask
+
     task automatic wait_vector_complete(input logic [SLOT_WIDTH-1:0] slot);
     begin
         timeout = 0;
@@ -272,6 +344,16 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         matrix_request_d_base = 0; matrix_request_a_base = 0; matrix_request_b_base = 0;
         vector_request_valid = 0; vector_request_opcode = 0; vector_request_source0 = 0;
         vector_request_source1 = 0; vector_request_destination = 0; vector_request_lane_mask = 0;
+        memory_epoch = 32'd1; memory_issue_valid = '0; memory_issue_global = '0;
+        memory_issue_write = '0; memory_issue_destination_flat = '0;
+        memory_issue_lane_mask_flat = '0; memory_issue_byte_addresses_flat = '0;
+        memory_issue_store_data_flat = '0; memory_completion_ready = 1'b1;
+        memory_fault_ready = 1'b1; memory_global_request_ready = 1'b0;
+        memory_global_response_valid = 1'b0; memory_global_response_workgroup_id = '0;
+        memory_global_response_wave_slot = '0; memory_global_response_epoch = '0;
+        memory_global_response_transaction_tag = '0; memory_global_response_write = 1'b0;
+        memory_global_response_lane_mask = '0; memory_global_response_lane_data_flat = '0;
+        memory_global_response_fault_code = '0; memory_global_response_fault_lane = '0;
         repeat (3) @(posedge clk); @(negedge clk); reset_n = 1;
 
         // Exact-size rejection and maximum-fit complete admission use the actual allocator.
@@ -623,7 +705,218 @@ module cgx1_compute_workgroup_execution_frontend_tb;
             || shared_local_bytes_used != 0 || workgroup_active_mask != '0)
             $fatal(1, "release-backpressure recovery did not retire the whole workgroup");
 
-        $display("[pass] authoritative pooled workgroup admission, rollback, actual mixed execution, barrier generations, release backpressure, quiescent fault/kill, reset, and 5,100 randomized arrivals passed.");
+        // Local LSU requests use the admitted workgroup region, retain their
+        // captured payload, block only their owner, and coexist with barriers.
+        dispatch_with_resource_demand(8'd70, 2, 16, 16, 0, 0, 0, 64, 0, 0);
+        set_register(1, 0, 10); set_register(1, 1, 3);
+        set_register(0, 1, 1);
+        memory_completion_ready = 1'b0;
+        issue_memory(0, 1'b0, 1'b1, 8'd0, 32'd1, 32'd0, 32'hc0decafe);
+        if (memory_waiting_mask !== 4'b0001 || issuable_wave_mask !== 4'b0011)
+            $fatal(1, "local store wait did not preserve sibling issue eligibility");
+        memory_issue_byte_addresses_flat[0+:32] = 32'd128;
+        memory_issue_store_data_flat[0+:32] = 32'hdeadbeef;
+        issue_vector(1, 0, 1, 2);
+        wait_vector_complete(1);
+        arrive(8'd70, 4'b0010, 1'b0, 0);
+        wait_memory_completion(0);
+        memory_completion_ready = 1'b0;
+        issue_memory(0, 1'b0, 1'b0, 8'd5, 32'd1, 32'd0, 32'd0);
+        vector_request_opcode[0+:4] = 4'd0;
+        vector_request_source0[0+:8] = 8'd5;
+        vector_request_source1[0+:8] = 8'd1;
+        vector_request_destination[0+:8] = 8'd6;
+        vector_request_lane_mask[0+:32] = 32'hffffffff;
+        vector_request_valid[0] = 1'b1;
+        #1;
+        if (memory_waiting_mask[0] !== 1'b1 || vector_request_accepted[0]
+            || barrier_release_valid)
+            $fatal(1, "load dependency or barrier membership escaped while response was pending");
+        wait_memory_completion(0);
+        timeout = 0;
+        while (!vector_request_accepted[0]) begin
+            @(negedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "load-dependent vector instruction did not resume");
+        end
+        @(posedge clk); #1; @(negedge clk); vector_request_valid[0] = 1'b0;
+        wait_vector_complete(0);
+        base_row = $unsigned(allocation_row_base_flat[(0*ROW_WIDTH)+:ROW_WIDTH]);
+        if (dut.execution_frontend.pooled.storage.data[base_row][6][0+:32]
+            != 32'hc0decaff)
+            $fatal(1, "local load did not write its captured destination before dependent issue");
+        arrive(8'd70, 4'b0001, 1'b1, 0);
+        abort_group(8'd70);
+
+        // Reallocate local memory after a complete workgroup release, then
+        // prove the new owner can store and reload through its own region.
+        dispatch_with_resource_demand(8'd73, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        set_register(0, 1, 10); set_register(0, 2, 3);
+        vector_request_opcode[0+:4] = 4'd0;
+        vector_request_source0[0+:8] = 8'd1;
+        vector_request_source1[0+:8] = 8'd2;
+        vector_request_destination[0+:8] = 8'd3;
+        vector_request_lane_mask[0+:32] = 32'hffffffff;
+        memory_completion_ready = 1'b0;
+        @(negedge clk);
+        vector_request_valid[0] = 1'b1;
+        memory_issue_global[0] = 1'b0; memory_issue_write[0] = 1'b1;
+        memory_issue_destination_flat[0+:8] = '0;
+        memory_issue_lane_mask_flat[0+:32] = 32'd1;
+        memory_issue_byte_addresses_flat[0+:1024] = '0;
+        memory_issue_store_data_flat[0+:1024] = '0;
+        memory_issue_store_data_flat[0+:32] = 32'h73a55a73;
+        memory_issue_valid[0] = 1'b1; #1;
+        if (!vector_request_valid[0] || memory_issue_ready[0])
+            $fatal(1, "simultaneous vector/memory issue did not give the older vector request priority");
+        timeout = 0;
+        while (!vector_request_accepted[0]) begin
+            @(negedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100)
+                $fatal(1, "simultaneous vector/memory issue deadlocked both requesters");
+        end
+        @(posedge clk); #1; @(negedge clk); vector_request_valid[0] = 1'b0;
+        if (memory_issue_ready[0])
+            $fatal(1, "memory request overtook an earlier same-wave vector operation");
+        timeout = 0;
+        while (!memory_issue_ready[0]) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "memory request did not resume after vector completion");
+        end
+        if (!memory_issue_accepted[0])
+            $fatal(1, "deferred same-wave memory request did not become acceptable");
+        @(posedge clk); #1; @(negedge clk); memory_issue_valid[0] = 1'b0;
+        wait_memory_completion(0);
+        memory_completion_ready = 1'b0;
+        issue_memory(0, 1'b0, 1'b0, 8'd4, 32'd1, 32'd0, 32'd0);
+        wait_memory_completion(0);
+        base_row = $unsigned(allocation_row_base_flat[(0*ROW_WIDTH)+:ROW_WIDTH]);
+        if (dut.execution_frontend.pooled.storage.data[base_row][4][0+:32]
+            != 32'h73a55a73)
+            $fatal(1, "reused local-memory region did not preserve the new workgroup's access");
+        abort_group(8'd73);
+
+        // One wave may wait on global memory while its sibling reaches a
+        // barrier; the barrier retains the waiting wave until it can arrive.
+        dispatch_with_resource_demand(8'd74, 2, 16, 16, 0, 0, 0, 64, 0, 0);
+        memory_completion_ready = 1'b0;
+        issue_memory(0, 1'b1, 1'b0, 8'd6, 32'd1, 32'h741000, 32'd0);
+        tag0 = memory_global_request_transaction_tag;
+        @(negedge clk); memory_global_request_ready = 1'b1;
+        @(posedge clk); #1; @(negedge clk); memory_global_request_ready = 1'b0;
+        arrive(8'd74, 4'b0010, 1'b0, 0);
+        if (!barrier_waiting_mask[1] || !memory_waiting_mask[0]
+            || live_wave_mask != 4'b0011 || barrier_release_valid)
+            $fatal(1, "barrier membership changed while a surviving sibling waited on memory");
+        set_register(0, 1, 10); set_register(0, 2, 3);
+        issue_vector(0, 1, 2, 7);
+        wait_vector_complete(0);
+        if (!memory_waiting_mask[0] || !barrier_waiting_mask[1])
+            $fatal(1, "independent same-wave work did not progress alongside memory wait");
+        memory_global_response_workgroup_id = 8'd74;
+        memory_global_response_wave_slot = 0;
+        memory_global_response_epoch = memory_epoch;
+        memory_global_response_transaction_tag = tag0;
+        memory_global_response_write = 1'b0;
+        memory_global_response_lane_mask = 32'd1;
+        memory_global_response_lane_data_flat = '0;
+        memory_global_response_lane_data_flat[0+:32] = 32'h74107410;
+        memory_global_response_fault_code = '0;
+        memory_global_response_fault_lane = 6'h3f;
+        memory_global_response_valid = 1'b1; #1;
+        if (!memory_global_response_ready || !dut.lsu.writeback_valid)
+            $fatal(1, "delayed barrier wave response did not reach pooled writeback");
+        @(posedge clk); #1; @(negedge clk); memory_global_response_valid = 1'b0;
+        wait_memory_completion(0);
+        arrive(8'd74, 4'b0001, 1'b1, 0);
+        if (barrier_release_wave_mask != 4'b0011)
+            $fatal(1, "memory-delayed barrier did not release the whole surviving workgroup");
+        abort_group(8'd74);
+
+        // A global request is stable under downstream backpressure. Aborting
+        // after acceptance holds the wave allocation until the matching response.
+        dispatch_with_resource_demand(8'd71, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        issue_memory(0, 1'b1, 1'b0, 8'd7, 32'd1, 32'h12345000, 32'd0);
+        if (!memory_global_request_valid || memory_global_request_workgroup_id != 8'd71
+            || memory_global_request_wave_slot != 0
+            || memory_global_request_byte_addresses_flat[0+:32] != 32'h12345000)
+            $fatal(1, "global LSU request lost captured identity or address");
+        tag0 = memory_global_request_transaction_tag;
+        repeat (2) begin
+            @(posedge clk); #1;
+            if (!memory_global_request_valid
+                || memory_global_request_transaction_tag != tag0
+                || memory_global_request_byte_addresses_flat[0+:32] != 32'h12345000)
+                $fatal(1, "global request changed while ready was low");
+        end
+        @(negedge clk); workgroup_abort_id = 8'd71; workgroup_abort_valid = 1'b1; #1;
+        if (!workgroup_abort_ready || !workgroup_abort_accepted
+            || !memory_global_request_valid
+            || memory_global_request_transaction_tag != tag0)
+            $fatal(1, "abort under global backpressure withdrew an already-presented request");
+        @(posedge clk); #1; @(negedge clk); workgroup_abort_valid = 1'b0;
+        if (!memory_global_request_valid
+            || memory_global_request_transaction_tag != tag0
+            || memory_global_request_byte_addresses_flat[0+:32] != 32'h12345000)
+            $fatal(1, "killed stalled global request was not held stable through handshake");
+        memory_global_request_ready = 1'b1;
+        @(posedge clk); #1; @(negedge clk); memory_global_request_ready = 1'b0;
+        if (!release_pending_wave_mask[0] || !allocation_active_bitmap[0]
+            || !memory_waiting_mask[0])
+            $fatal(1, "killed accepted global request did not hold VGPR release until response");
+        memory_global_response_workgroup_id = 8'd71;
+        memory_global_response_wave_slot = 0;
+        memory_global_response_epoch = 32'd1;
+        memory_global_response_transaction_tag = tag0;
+        memory_global_response_write = 1'b0;
+        memory_global_response_lane_mask = 32'd1;
+        memory_global_response_lane_data_flat = '0;
+        memory_global_response_lane_data_flat[0+:32] = 32'hface1234;
+        memory_global_response_fault_code = 0;
+        memory_global_response_fault_lane = 6'h3f;
+        memory_global_response_valid = 1'b1; #1;
+        if (!memory_global_response_ready || dut.lsu.writeback_valid)
+            $fatal(1, "killed global response was not discarded without VGPR writeback");
+        @(posedge clk); #1; @(negedge clk); memory_global_response_valid = 1'b0;
+        timeout = 0;
+        while (release_pending_wave_mask[0]) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "aborted global operation did not drain for release");
+        end
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "global response drain did not release the workgroup allocation");
+
+        // A memory fault is delivered with identity and terminates its wave;
+        // whole-workgroup resources retire only through the ordinary quiescent path.
+        dispatch_with_resource_demand(8'd72, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        memory_fault_ready = 1'b0;
+        issue_memory(0, 1'b0, 1'b0, 8'd8, 32'd1, 32'd64, 32'd0);
+        timeout = 0;
+        while (!memory_fault_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "invalid local address did not produce a memory fault");
+        end
+        vector_request_opcode[0+:4] = 4'd0;
+        vector_request_source0[0+:8] = 8'd1;
+        vector_request_source1[0+:8] = 8'd2;
+        vector_request_destination[0+:8] = 8'd9;
+        vector_request_lane_mask[0+:32] = 32'hffffffff;
+        vector_request_valid[0] = 1'b1; #1;
+        if (vector_request_accepted[0] || issuable_wave_mask[0])
+            $fatal(1, "fault-pending memory wave issued vector work under fault backpressure");
+        @(negedge clk); vector_request_valid[0] = 1'b0;
+        if (memory_fault_workgroup_id != 8'd72 || memory_fault_wave_slot != 0
+            || memory_fault_code != 3'd3 || memory_fault_lane != 0)
+            $fatal(1, "local bounds fault lost its architectural identity or cause");
+        memory_fault_ready = 1'b1;
+        timeout = 0;
+        while (workgroup_active_mask != '0) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "faulted memory wave did not retire its workgroup");
+        end
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "memory fault leaked VGPR or local-region ownership");
+
+        $display("[pass] authoritative residency, barriers, integrated LSU, writeback dependencies, fault/kill drain, region reuse, and randomized arrivals passed.");
         $finish;
     end
 endmodule

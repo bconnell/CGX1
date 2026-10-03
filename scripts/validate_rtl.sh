@@ -459,6 +459,7 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_execution_frontend_tb -o build/r
     source/rtl/cgx1_compute_mixed_service_policy.sv \
     source/rtl/cgx1_compute_int8_vector_execution_frontend.sv \
     source/rtl/cgx1_cu_shared_local_memory.sv \
+    source/rtl/cgx1_compute_workgroup_lsu.sv \
     source/rtl/cgx1_compute_workgroup_execution_frontend.sv \
     source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv
 echo "==> Run authoritative pooled workgroup execution frontend RTL"
@@ -471,5 +472,14 @@ iverilog -g2012 -Wall -s cgx1_cu_shared_local_memory_tb \
     source/rtl/tests/cgx1_cu_shared_local_memory_tb.sv
 echo "==> Run CU shared/local memory RTL"
 timeout 30s vvp build/rtl/cgx1_cu_shared_local_memory_tb.vvp
+
+echo "==> Compile per-wave workgroup LSU RTL"
+iverilog -g2012 -Wall -s cgx1_compute_workgroup_lsu_tb \
+    -o build/rtl/cgx1_compute_workgroup_lsu_tb.vvp \
+    source/rtl/cgx1_cu_shared_local_memory.sv \
+    source/rtl/cgx1_compute_workgroup_lsu.sv \
+    source/rtl/tests/cgx1_compute_workgroup_lsu_tb.sv
+echo "==> Run per-wave workgroup LSU RTL"
+timeout 30s vvp build/rtl/cgx1_compute_workgroup_lsu_tb.vvp
 
 echo "[pass] CGX 1 RTL validation completed."

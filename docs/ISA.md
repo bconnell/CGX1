@@ -64,6 +64,8 @@ The 4-bit opcode is a major opcode within its class. Class value 15 is reserved 
 
 Unsupported or reserved opcode combinations raise an illegal-instruction fault; they must not execute as an undocumented alias.
 
+The current LSU implementation begins at an already-decoded wave request boundary. This document does not yet assign memory opcodes or define address, mask, store-data, and destination operand encodings, so the RTL slice does not establish a base-ISA memory encoding.
+
 ## Divergence and reconvergence
 
 Branches may change the active-lane mask. Divergent paths execute under masks and reconverge at compiler/runtime-defined reconvergence points.

@@ -48,6 +48,7 @@ module cgx1_cu_shared_local_memory_tb;
     logic cancel_accepted;
     logic [31:0] allocated_bytes_used;
     logic [7:0] outstanding_transaction_bitmap;
+    logic [7:0] outstanding_wave_bitmap;
 
     cgx1_cu_shared_local_memory #(
         .CU_SHARED_BYTES(128),

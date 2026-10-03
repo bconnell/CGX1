@@ -840,6 +840,8 @@ if (-not [bool]$workgroupBoundary.workgroup_execution_frontend_integrated -or
 
 $sharedLocalMemory = $architecture.execution_model.shared_local_memory_reference
 if (-not [bool]$sharedLocalMemory.reference_model_implemented -or
+    -not [bool]$sharedLocalMemory.reference_workgroup_admission_integrated -or
+    -not [bool]$sharedLocalMemory.reference_memory_wait_issue_gated -or
     -not [bool]$sharedLocalMemory.rtl_component_implemented -or
     -not [bool]$sharedLocalMemory.rtl_testbench_implemented -or
     -not [bool]$sharedLocalMemory.local_reference_tests_passed -or
@@ -856,7 +858,7 @@ if (-not [bool]$sharedLocalMemory.reference_model_implemented -or
 }
 if ([bool]$sharedLocalMemory.rtl_integrated_with_workgroup_frontend -or
     [bool]$sharedLocalMemory.vector_isa_memory_issue_integrated -or
-    [bool]$sharedLocalMemory.memory_wait_scheduler_integrated -or
+    [bool]$sharedLocalMemory.rtl_memory_wait_scheduler_integrated -or
     [bool]$sharedLocalMemory.global_memory_integrated -or
     [bool]$sharedLocalMemory.subword_accesses_implemented -or
     [bool]$sharedLocalMemory.atomics_implemented -or
@@ -865,7 +867,7 @@ if ([bool]$sharedLocalMemory.rtl_integrated_with_workgroup_frontend -or
     [bool]$sharedLocalMemory.timing_closure_validated -or
     [bool]$sharedLocalMemory.area_validated -or
     [bool]$sharedLocalMemory.power_validated) {
-    Add-Finding "design/cgx1_architecture.json: shared/local memory must not claim scheduler/LSU integration, exact hosted simulation, or physical implementation"
+    Add-Finding "design/cgx1_architecture.json: shared/local memory must not claim RTL admission/LSU integration, exact hosted simulation, or physical implementation"
 }
 if (-not (Test-Path -LiteralPath (Join-Path $repoRoot "source\rtl\cgx1_cu_shared_local_memory.sv") -PathType Leaf) -or
     -not (Test-Path -LiteralPath (Join-Path $repoRoot "source\rtl\tests\cgx1_cu_shared_local_memory_tb.sv") -PathType Leaf) -or

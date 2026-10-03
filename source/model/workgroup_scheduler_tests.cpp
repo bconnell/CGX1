@@ -13,6 +13,9 @@
 #define CHECK(x) do { if (!(x)) { std::cerr << "[fail] " #x " line " << __LINE__ << '\n'; return 1; } } while (false)
 
 using namespace cgx1::compute;
+using cgx1::memory::AccessKind;
+using cgx1::memory::MemoryRequest;
+using cgx1::memory::SubmitStatus;
 
 CuResourceLimits Limits(
     std::uint32_t waveSlots = 8U,
@@ -36,7 +39,19 @@ WorkgroupDemand Demand(
     std::uint32_t otherUnits = 0U)
 {
     return WorkgroupDemand{
-        id, waves, vgprs, scalarPerWave, sharedBytes, otherUnits};
+        id, waves, vgprs, scalarPerWave, sharedBytes, otherUnits, {}};
+}
+
+MemoryRequest LocalMemoryRequest(
+    std::uint64_t workgroupId,
+    std::uint32_t waveId,
+    std::uint64_t tag,
+    AccessKind access,
+    std::uint32_t laneMask,
+    const std::array<std::uint32_t, 32U>& addresses,
+    const std::array<std::uint32_t, 32U>& data = {})
+{
+    return {workgroupId, waveId, tag, access, laneMask, addresses, data};
 }
 
 int TestAdmissionAndResourceBoundaries()
@@ -50,6 +65,9 @@ int TestAdmissionAndResourceBoundaries()
     CHECK(scheduler.UsedSharedLocalBytes() == 4096U);
     CHECK(scheduler.UsedOtherWorkgroupUnits() == 9U);
     CHECK(scheduler.AllLiveWavesResident(1U));
+    const auto maximumRegion = scheduler.SharedLocalMemoryRegionForWorkgroup(1U);
+    CHECK(maximumRegion.has_value());
+    CHECK(maximumRegion->byteCount == 4096U);
 
     ComputeUnitWorkgroupScheduler vgpr(Limits(4U, 63U));
     CHECK(vgpr.Admit(Demand(2U, 2U, 256U))
@@ -278,10 +296,12 @@ int TestAuthoritativePoolTransactionsAndQuiescence()
     std::array<cgx1::matrix::ResidentWaveVgprAllocation, 8U> before{};
     for (std::uint32_t slot = 0U; slot < before.size(); ++slot)
         before[slot] = fragmented.AllocationForSlot(slot);
-    auto fragmentedDemand = Demand(64U, 2U, 16U);
+    auto fragmentedDemand = Demand(64U, 2U, 16U, 2U, 256U);
     fragmentedDemand.vgprRegisterCountsByWave = {8U, 40U};
     CHECK(fragmented.Admit(fragmentedDemand)
         == AdmissionFailure::VgprCapacityFragmented);
+    CHECK(fragmented.UsedSharedLocalBytes() == 0U);
+    CHECK(!fragmented.SharedLocalMemoryRegionForWorkgroup(64U).has_value());
     for (std::uint32_t slot = 0U; slot < before.size(); ++slot)
     {
         const auto& after = fragmented.AllocationForSlot(slot);
@@ -335,6 +355,240 @@ int TestAuthoritativePoolTransactionsAndQuiescence()
     return 0;
 }
 
+int TestSharedMemoryAdmissionAndFragmentation()
+{
+    ComputeUnitWorkgroupScheduler fragmented(Limits(8U, 16U, 64U, 1024U, 6U, 64U));
+    for (std::uint64_t id = 1U; id <= 4U; ++id)
+        CHECK(fragmented.Admit(Demand(id, 1U, 8U, 1U, 256U))
+            == AdmissionFailure::None);
+    CHECK(fragmented.UsedSharedLocalBytes() == 1024U);
+    CHECK(fragmented.KillWorkgroup(2U));
+    CHECK(fragmented.KillWorkgroup(4U));
+    CHECK(fragmented.UsedSharedLocalBytes() == 512U);
+
+    CHECK(fragmented.Admit(Demand(5U, 1U, 8U, 1U, 384U))
+        == AdmissionFailure::SharedLocalMemoryFragmented);
+    CHECK(fragmented.WorkgroupCount() == 2U);
+    CHECK(fragmented.ResidentWaveCount() == 2U);
+    CHECK(fragmented.OccupiedVgprRows() == 2U);
+    CHECK(fragmented.UsedSharedLocalBytes() == 512U);
+    CHECK(!fragmented.SharedLocalMemoryRegionForWorkgroup(5U).has_value());
+
+    CHECK(fragmented.Admit(Demand(6U, 1U, 8U, 1U, 256U))
+        == AdmissionFailure::None);
+    CHECK(fragmented.UsedSharedLocalBytes() == 768U);
+    CHECK(fragmented.CheckInvariants());
+    return 0;
+}
+
+int TestSharedMemoryWaitBarrierAndResponseLifecycle()
+{
+    ComputeUnitWorkgroupScheduler scheduler(Limits(8U, 64U, 128U, 256U, 4U, 64U));
+    CHECK(scheduler.Admit(Demand(80U, 2U, 16U, 2U, 128U))
+        == AdmissionFailure::None);
+    CHECK(scheduler.Admit(Demand(81U, 1U, 16U, 2U, 128U))
+        == AdmissionFailure::None);
+
+    std::array<std::uint32_t, 32U> addresses{};
+    std::array<std::uint32_t, 32U> data{};
+    addresses[0] = 0U;
+    addresses[1] = 4U;
+    data[0] = 0x12345678U;
+    data[1] = 0xabcdef01U;
+    const auto request = LocalMemoryRequest(
+        80U, 0U, 700U, AccessKind::Store, 0x3U, addresses, data);
+    CHECK(scheduler.SubmitSharedLocalMemoryRequest(request).status
+        == SubmitStatus::Accepted);
+    CHECK(!scheduler.CanIssue(80U, 0U));
+    CHECK(scheduler.CanIssue(80U, 1U));
+    CHECK(scheduler.CanIssue(81U, 0U));
+    CHECK(scheduler.GetWorkgroupState(80U).memoryWaitingWaves[0U]);
+    CHECK(scheduler.ArriveAtBarrier(80U, {0U}).status == BarrierStatus::WaveBusy);
+    CHECK(scheduler.ArriveAtBarrier(80U, {1U}).status == BarrierStatus::Waiting);
+    CHECK(scheduler.SubmitSharedLocalMemoryRequest(LocalMemoryRequest(
+        80U, 1U, 702U, AccessKind::Load, 0x1U, addresses)).status
+        == SubmitStatus::WaveNotIssuable);
+
+    CHECK(scheduler.BeginWaveExecution(81U, 0U));
+    CHECK(scheduler.SubmitSharedLocalMemoryRequest(LocalMemoryRequest(
+        81U, 0U, 703U, AccessKind::Load, 0x1U, addresses)).status
+        == SubmitStatus::WaveNotIssuable);
+    CHECK(scheduler.CompleteWaveExecution(81U, 0U));
+
+    const auto siblingSlot = *scheduler.GetWorkgroupState(81U).waveSlots[0U];
+    CHECK(scheduler.SelectIssuableWave(std::vector<bool>(8U, true)) == siblingSlot);
+    CHECK(scheduler.ServiceSharedLocalMemoryCycle() == 2U);
+    CHECK(!scheduler.CanIssue(80U, 0U));
+    CHECK(scheduler.ArriveAtBarrier(80U, {0U}).status == BarrierStatus::WaveBusy);
+    const auto storeResponse = scheduler.TakeSharedLocalMemoryResponse();
+    CHECK(storeResponse.has_value() && storeResponse->transactionTag == 700U);
+    CHECK(!scheduler.GetWorkgroupState(80U).memoryWaitingWaves[0U]);
+    CHECK(scheduler.CanIssue(80U, 0U));
+    CHECK(scheduler.ArriveAtBarrier(80U, {0U}).status == BarrierStatus::Released);
+    CHECK(scheduler.BarrierGeneration(80U) == 1U);
+
+    const auto load = LocalMemoryRequest(
+        80U, 0U, 701U, AccessKind::Load, 0x3U, addresses);
+    CHECK(scheduler.SubmitSharedLocalMemoryRequest(load).status
+        == SubmitStatus::Accepted);
+    CHECK(scheduler.ServiceSharedLocalMemoryCycle() == 2U);
+    const auto loadResponse = scheduler.TakeSharedLocalMemoryResponse();
+    CHECK(loadResponse.has_value());
+    CHECK(loadResponse->laneData[0] == data[0]);
+    CHECK(loadResponse->laneData[1] == data[1]);
+    CHECK(scheduler.CanIssue(80U, 0U));
+    CHECK(scheduler.KillWorkgroup(80U));
+    CHECK(scheduler.KillWorkgroup(81U));
+    CHECK(scheduler.UsedSharedLocalBytes() == 0U);
+    CHECK(scheduler.CheckInvariants());
+    return 0;
+}
+
+int TestSharedMemoryTerminalDrainAndReset()
+{
+    ComputeUnitWorkgroupScheduler scheduler(Limits(4U, 32U, 64U, 256U, 4U, 64U));
+    CHECK(scheduler.Admit(Demand(90U, 1U, 16U, 2U, 256U))
+        == AdmissionFailure::None);
+    const auto canceledSlot = *scheduler.GetWorkgroupState(90U).waveSlots[0U];
+    std::array<std::uint32_t, 32U> conflictAddresses{};
+    std::array<std::uint32_t, 32U> data{};
+    conflictAddresses[0] = 0U;
+    conflictAddresses[1] = 128U;
+    const auto pending = LocalMemoryRequest(
+        90U, 0U, 900U, AccessKind::Store, 0x3U, conflictAddresses, data);
+    CHECK(scheduler.SubmitSharedLocalMemoryRequest(pending).status
+        == SubmitStatus::Accepted);
+    CHECK(scheduler.FaultWave(90U, 0U));
+    CHECK(scheduler.WorkgroupCount() == 1U);
+    CHECK(scheduler.UsedSharedLocalBytes() == 256U);
+    CHECK(scheduler.GetWorkgroupState(90U).memoryWaitingWaves[0U]);
+    CHECK(scheduler.AllocationForSlot(canceledSlot).state
+        == cgx1::matrix::VgprAllocationState::Active);
+    CHECK(scheduler.CheckInvariants());
+    CHECK(scheduler.ServiceSharedLocalMemoryCycle() == 1U);
+    CHECK(scheduler.WorkgroupCount() == 1U);
+    CHECK(scheduler.CheckInvariants());
+    CHECK(scheduler.ServiceSharedLocalMemoryCycle() == 1U);
+    CHECK(scheduler.WorkgroupCount() == 0U);
+    CHECK(scheduler.UsedSharedLocalBytes() == 0U);
+    CHECK(!scheduler.TakeSharedLocalMemoryResponse().has_value());
+
+    CHECK(scheduler.Admit(Demand(93U, 2U, 16U, 2U, 256U))
+        == AdmissionFailure::None);
+    CHECK(scheduler.SubmitSharedLocalMemoryRequest(LocalMemoryRequest(
+        93U, 0U, 903U, AccessKind::Store, 0x3U, conflictAddresses, data)).status
+        == SubmitStatus::Accepted);
+    CHECK(scheduler.ArriveAtBarrier(93U, {1U}).status == BarrierStatus::Waiting);
+    CHECK(scheduler.FaultWave(93U, 0U));
+    CHECK(scheduler.BarrierGeneration(93U) == 1U);
+    CHECK(scheduler.CanIssue(93U, 1U));
+    CHECK(scheduler.GetWorkgroupState(93U).memoryWaitingWaves[0U]);
+    CHECK(scheduler.UsedSharedLocalBytes() == 256U);
+    CHECK(scheduler.ServiceSharedLocalMemoryCycle() == 1U);
+    CHECK(scheduler.ServiceSharedLocalMemoryCycle() == 1U);
+    CHECK(!scheduler.TakeSharedLocalMemoryResponse().has_value());
+    CHECK(scheduler.WorkgroupCount() == 1U);
+    CHECK(scheduler.UsedSharedLocalBytes() == 256U);
+    CHECK(scheduler.TerminateWave(93U, 1U));
+    CHECK(scheduler.WorkgroupCount() == 0U);
+    CHECK(scheduler.UsedSharedLocalBytes() == 0U);
+
+    CHECK(scheduler.Admit(Demand(91U, 1U, 16U, 2U, 128U))
+        == AdmissionFailure::None);
+    std::array<std::uint32_t, 32U> oneAddress{};
+    const auto completed = LocalMemoryRequest(
+        91U, 0U, 901U, AccessKind::Load, 0x1U, oneAddress);
+    CHECK(scheduler.SubmitSharedLocalMemoryRequest(completed).status
+        == SubmitStatus::Accepted);
+    CHECK(scheduler.ServiceSharedLocalMemoryCycle() == 1U);
+    CHECK(scheduler.KillWorkgroup(91U));
+    CHECK(scheduler.WorkgroupCount() == 0U);
+    CHECK(!scheduler.TakeSharedLocalMemoryResponse().has_value());
+    CHECK(scheduler.UsedSharedLocalBytes() == 0U);
+
+    CHECK(scheduler.Admit(Demand(92U, 1U, 16U, 2U, 256U))
+        == AdmissionFailure::None);
+    CHECK(scheduler.SubmitSharedLocalMemoryRequest(LocalMemoryRequest(
+        92U, 0U, 902U, AccessKind::Load, 0x3U, conflictAddresses)).status
+        == SubmitStatus::Accepted);
+    CHECK(scheduler.ServiceSharedLocalMemoryCycle() == 1U);
+    scheduler.Reset();
+    CHECK(scheduler.WorkgroupCount() == 0U);
+    CHECK(scheduler.ResidentWaveCount() == 0U);
+    CHECK(scheduler.OccupiedVgprRows() == 0U);
+    CHECK(scheduler.UsedSharedLocalBytes() == 0U);
+    CHECK(!scheduler.TakeSharedLocalMemoryResponse().has_value());
+    CHECK(scheduler.CheckInvariants());
+    CHECK(scheduler.Admit(Demand(92U, 1U)) == AdmissionFailure::None);
+    CHECK(scheduler.KillWorkgroup(92U));
+    return 0;
+}
+
+int TestRandomizedSharedMemoryScheduling()
+{
+    ComputeUnitWorkgroupScheduler scheduler(Limits(8U, 64U, 128U, 1024U, 4U, 64U));
+    CHECK(scheduler.Admit(Demand(100U, 2U, 16U, 2U, 512U))
+        == AdmissionFailure::None);
+    CHECK(scheduler.Admit(Demand(101U, 2U, 16U, 2U, 512U))
+        == AdmissionFailure::None);
+    std::mt19937 random(0x5A17C0DEU);
+    std::uint64_t tag = 1000U;
+    std::uint32_t completions = 0U;
+    std::uint32_t barrierReleases = 0U;
+    for (std::uint32_t cycle = 0U; cycle < 5000U; ++cycle)
+    {
+        const auto group = 100U + (random() % 2U);
+        const auto wave = static_cast<std::uint32_t>(random() % 2U);
+        const auto state = scheduler.GetWorkgroupState(group);
+        if (state.liveWaves[wave] && !state.waitingWaves[wave]
+            && !state.memoryWaitingWaves[wave] && scheduler.CanIssue(group, wave))
+        {
+            switch (random() % 4U)
+            {
+                case 0U:
+                {
+                    std::array<std::uint32_t, 32U> addresses{};
+                    std::array<std::uint32_t, 32U> data{};
+                    addresses[0] = 4U * (random() % 128U);
+                    data[0] = static_cast<std::uint32_t>(random());
+                    const auto access = (random() & 1U) == 0U
+                        ? AccessKind::Load : AccessKind::Store;
+                    const auto result = scheduler.SubmitSharedLocalMemoryRequest(
+                        LocalMemoryRequest(
+                            group, wave, tag++, access, 1U, addresses, data));
+                    CHECK(result.status == SubmitStatus::Accepted);
+                    break;
+                }
+                case 1U:
+                    if (scheduler.ArriveAtBarrier(group, {wave}).status
+                        == BarrierStatus::Released)
+                        ++barrierReleases;
+                    break;
+                default:
+                    break;
+            }
+        }
+        (void)scheduler.ServiceSharedLocalMemoryCycle();
+        if (scheduler.TakeSharedLocalMemoryResponse())
+            ++completions;
+        CHECK(scheduler.CheckInvariants());
+    }
+    CHECK(completions != 0U);
+    CHECK(barrierReleases != 0U);
+    CHECK(scheduler.KillWorkgroup(100U));
+    CHECK(scheduler.KillWorkgroup(101U));
+    for (std::uint32_t cycle = 0U; cycle < 8U && scheduler.WorkgroupCount() != 0U; ++cycle)
+    {
+        (void)scheduler.ServiceSharedLocalMemoryCycle();
+        while (scheduler.TakeSharedLocalMemoryResponse())
+            ++completions;
+    }
+    CHECK(scheduler.WorkgroupCount() == 0U);
+    CHECK(scheduler.UsedSharedLocalBytes() == 0U);
+    CHECK(scheduler.CheckInvariants());
+    return 0;
+}
+
 int TestRandomizedForwardProgress()
 {
     ComputeUnitWorkgroupScheduler scheduler(Limits(16U, 128U, 512U, 8192U, 8U, 256U));
@@ -346,11 +600,13 @@ int TestRandomizedForwardProgress()
         const auto action = random() % 100U;
         if (action < 22U)
         {
-            const auto waves = 1U + (random() % 5U);
-            const auto registers = 1U + (random() % 256U);
-            const auto scalar = random() % 9U;
-            const auto shared = random() % 2049U;
-            const auto other = random() % 17U;
+            const auto waves = static_cast<std::uint32_t>(
+                1U + (random() % 5U));
+            const auto registers = static_cast<std::uint32_t>(
+                1U + (random() % 256U));
+            const auto scalar = static_cast<std::uint32_t>(random() % 9U);
+            const auto shared = static_cast<std::uint32_t>(random() % 2049U);
+            const auto other = static_cast<std::uint32_t>(random() % 17U);
             (void)scheduler.Admit(Demand(
                 nextId++, waves, registers, scalar, shared, other));
         }
@@ -462,7 +718,11 @@ int main()
     if (TestBarrierArrivalsAndIssue() != 0) return 1;
     if (TestFragmentationAndLifecycle() != 0) return 1;
     if (TestAuthoritativePoolTransactionsAndQuiescence() != 0) return 1;
+    if (TestSharedMemoryAdmissionAndFragmentation() != 0) return 1;
+    if (TestSharedMemoryWaitBarrierAndResponseLifecycle() != 0) return 1;
+    if (TestSharedMemoryTerminalDrainAndReset() != 0) return 1;
+    if (TestRandomizedSharedMemoryScheduling() != 0) return 1;
     if (TestRandomizedForwardProgress() != 0) return 1;
-    std::cout << "[pass] whole-workgroup residency, resource admission, barriers, lifecycle, and randomized forward progress passed.\n";
+    std::cout << "[pass] whole-workgroup admission, shared-memory ownership/waits, barriers, lifecycle, and randomized forward progress passed.\n";
     return 0;
 }

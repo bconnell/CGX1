@@ -20,7 +20,7 @@
 - virtual-memory/page-fault architecture;
 - queue scheduling, preemption and reset containment model;
 - authoritative complete-workgroup residency reference and RTL frontend composed with the actual pooled VGPR allocator, mixed matrix/vector execution, barrier generations, and quiescent retirement;
-- executable shared/local-memory reference and parameterized banked RTL component for workgroup-scoped wave32 dword access; connect its region allocator, memory waits, and tagged responses to authoritative workgroup admission and vector LSU before calling memory execution integrated;
+- shared/local-memory reference integrated with executable workgroup admission and memory-wait issue gating, plus a standalone parameterized banked RTL component; connect the RTL allocator and waits to authoritative workgroup admission, then add vector LSU issue and tagged writeback;
 - per-tile DVFS, clock/power-gating architecture and executable policy/invariant model;
 - validation and repository integrity checks.
 

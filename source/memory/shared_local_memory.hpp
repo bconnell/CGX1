@@ -41,7 +41,8 @@ enum class SubmitStatus : std::uint8_t
     Accepted = 0,
     WaveBusy,
     DuplicateTransactionTag,
-    InvalidAccessKind
+    InvalidAccessKind,
+    WaveNotIssuable
 };
 
 enum class MemoryFault : std::uint8_t

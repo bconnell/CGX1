@@ -9,9 +9,9 @@ This is a first implementation slice in the long-running GPU goal. The RTL block
 ## Current evidence and constraints
 
 - The implementation started from commit `13a188b1128f6b626d5e4bfd063b66a39893803a` in the existing `bconnell/CGX1` checkout; `origin` resolves to `https://github.com/bconnell/CGX1.git`.
-- The remote completeness branch remains at `d8be39e44999bde5877c9e938c928f9040c9c4e1`. Its exact GitHub `validate` and `simulate` check runs completed successfully; no workflow run remains pending for that revision. The shared/local-memory checkpoint is local and has not been hosted-validated.
-- Existing workgroup admission still keeps provisional shared/local byte accounting and is not connected to the memory array or load/store access path.
-- Workgroup barriers and pooled VGPR allocation are authoritative and must remain unchanged by this model-only slice.
+- Hosted `validate` and `simulate` checks passed for baseline `d8be39e44999bde5877c9e938c928f9040c9c4e1`. The shared/local-memory checkpoint `33a5241` was pushed afterward and is not covered by those recorded results.
+- The RTL workgroup admission frontend still keeps provisional shared/local byte accounting. A follow-up C++ scheduler integration now owns the memory pool and wait lifecycle; RTL admission/LSU integration remains open.
+- Workgroup barriers and pooled VGPR allocation remain authoritative. Reference memory waits are separate from barrier arrivals; no wave swapping is introduced.
 - Repository-local instructions require preserving existing work, executable behavior, bounded claims, exact reviewed commits, and continuation through safe coherent batches.
 
 ## Contract for this slice

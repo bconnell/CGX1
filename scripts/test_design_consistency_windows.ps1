@@ -251,7 +251,7 @@ try {
         -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
         -WorkingDirectory $repoRoot
     if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted unintegrated shared/local memory as scheduler-integrated." }
-    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "must not claim scheduler/LSU integration") {
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "must not claim RTL admission/LSU integration") {
         throw "Shared/local-memory integration negative control did not report the expected invariant."
     }
 
@@ -264,7 +264,7 @@ try {
         -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
         -WorkingDirectory $repoRoot
     if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted unverified exact-revision shared-memory simulation evidence." }
-    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "must not claim scheduler/LSU integration, exact hosted simulation") {
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "must not claim RTL admission/LSU integration, exact hosted simulation") {
         throw "Shared/local-memory evidence negative control did not report the expected invariant."
     }
     Write-Host "[pass] Design consistency negative controls were rejected."

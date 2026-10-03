@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../matrix/cgx1_matrix_vgpr_pool.hpp"
+#include "../memory/shared_local_memory.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -56,7 +57,9 @@ enum class AdmissionFailure : std::uint8_t
     SharedLocalMemoryExceedsCuCapacity,
     SharedLocalMemoryUnavailable,
     OtherWorkgroupStateExceedsCuCapacity,
-    OtherWorkgroupStateUnavailable
+    OtherWorkgroupStateUnavailable,
+    SharedLocalMemoryFragmented,
+    SharedLocalMemoryAllocationFailed
 };
 
 enum class BarrierStatus : std::uint8_t
@@ -83,6 +86,7 @@ struct WorkgroupStateSnapshot
     std::uint32_t generation = 0U;
     std::vector<bool> liveWaves;
     std::vector<bool> waitingWaves;
+    std::vector<bool> memoryWaitingWaves;
     std::vector<bool> busyWaves;
     std::vector<bool> allocatedWaves;
     std::vector<std::optional<std::uint32_t>> waveSlots;
@@ -95,6 +99,7 @@ public:
         : limits_(limits),
           vgprPool_(limits.pooledVgprRows, limits.residentWaveSlots),
           vgprStorage_(limits.pooledVgprRows),
+          sharedLocalMemory_(limits.sharedLocalBytes, 32U, limits.barrierContexts),
           waveOwners_(limits.residentWaveSlots)
     {
         if (limits_.residentWaveSlots == 0U || limits_.pooledVgprRows == 0U
@@ -184,12 +189,35 @@ public:
         for (std::uint32_t wave = 0U; wave < demand.waveCount; ++wave)
         {
             stagedWorkgroup.waves.push_back(
-                Wave{freeSlots[wave], false, false, false, false});
+                Wave{freeSlots[wave], false, false, false, false, false});
         }
         auto [staged, inserted] =
             workgroups_.emplace(demand.id, std::move(stagedWorkgroup));
         if (!inserted)
             return AdmissionFailure::DuplicateWorkgroupId;
+
+        memory::AllocationStatus memoryAllocation = memory::AllocationStatus::Allocated;
+        try
+        {
+            memoryAllocation = sharedLocalMemory_.AllocateWorkgroup(
+                demand.id, demand.sharedLocalBytes);
+        }
+        catch (const std::exception&)
+        {
+            workgroups_.erase(staged);
+            return AdmissionFailure::SharedLocalMemoryAllocationFailed;
+        }
+        if (memoryAllocation != memory::AllocationStatus::Allocated)
+        {
+            workgroups_.erase(staged);
+            if (memoryAllocation == memory::AllocationStatus::CapacityFragmented)
+                return AdmissionFailure::SharedLocalMemoryFragmented;
+            if (memoryAllocation == memory::AllocationStatus::CapacityUnavailable)
+                return AdmissionFailure::SharedLocalMemoryUnavailable;
+            if (memoryAllocation == memory::AllocationStatus::ExceedsCapacity)
+                return AdmissionFailure::SharedLocalMemoryExceedsCuCapacity;
+            return AdmissionFailure::SharedLocalMemoryAllocationFailed;
+        }
 
         // Keep ownership private until every wave has a real, sanitized,
         // active allocation from the authoritative first-fit pool.
@@ -202,6 +230,7 @@ public:
                         freeSlots[wave], registersForWave(wave)))
                 {
                     RollbackAllocations(freeSlots, reserved);
+                    (void)sharedLocalMemory_.ReleaseWorkgroup(demand.id);
                     workgroups_.erase(staged);
                     return AdmissionFailure::VgprCapacityFragmented;
                 }
@@ -215,6 +244,7 @@ public:
                 if (!vgprPool_.Activate(slot))
                 {
                     RollbackAllocations(freeSlots, reserved);
+                    (void)sharedLocalMemory_.ReleaseWorkgroup(demand.id);
                     workgroups_.erase(staged);
                     return AdmissionFailure::VgprAllocationFailed;
                 }
@@ -223,6 +253,7 @@ public:
         catch (const std::exception&)
         {
             RollbackAllocations(freeSlots, reserved);
+            (void)sharedLocalMemory_.ReleaseWorkgroup(demand.id);
             workgroups_.erase(staged);
             return AdmissionFailure::VgprAllocationFailed;
         }
@@ -261,7 +292,7 @@ public:
                 return {BarrierStatus::InvalidWaveIndex, workgroup.generation, 0U};
             if (wave.waiting)
                 return {BarrierStatus::WaveAlreadyWaiting, workgroup.generation, 0U};
-            if (wave.busy)
+            if (wave.busy || wave.memoryWaiting)
                 return {BarrierStatus::WaveBusy, workgroup.generation, 0U};
         }
 
@@ -291,7 +322,8 @@ public:
 
         wave.live = false;
         wave.waiting = false;
-        if (!wave.busy)
+        CancelWaveMemoryIfWaiting(workgroupId, waveIndex, wave);
+        if (!wave.busy && !wave.memoryWaiting)
             ReleaseWaveResources(wave);
         std::uint32_t ignoredReleasedWaveCount = 0U;
         (void)ReleaseBarrierIfComplete(workgroup, ignoredReleasedWaveCount);
@@ -310,7 +342,7 @@ public:
         if (found == workgroups_.end() || waveIndex >= found->second.waves.size())
             return false;
         auto& wave = found->second.waves[waveIndex];
-        if (!wave.live || wave.waiting || wave.busy)
+        if (!wave.live || wave.waiting || wave.memoryWaiting || wave.busy)
             return false;
         wave.busy = true;
         return true;
@@ -326,7 +358,7 @@ public:
         if (!wave.busy)
             return false;
         wave.busy = false;
-        if (!wave.live)
+        if (!wave.live && !wave.memoryWaiting)
             ReleaseWaveResources(wave);
         EraseIfResourcesReleased(found);
         return true;
@@ -342,12 +374,56 @@ public:
         return DestroyWorkgroup(workgroupId);
     }
 
+    [[nodiscard]] memory::SubmitResult SubmitSharedLocalMemoryRequest(
+        const memory::MemoryRequest& request)
+    {
+        if (!CanIssue(request.workgroupId, request.waveId))
+            return {memory::SubmitStatus::WaveNotIssuable, memory::MemoryFault::None, std::nullopt};
+        auto result = sharedLocalMemory_.Submit(request);
+        if (result.status == memory::SubmitStatus::Accepted)
+            workgroups_.at(request.workgroupId).waves[request.waveId].memoryWaiting = true;
+        return result;
+    }
+
+    [[nodiscard]] std::uint32_t ServiceSharedLocalMemoryCycle()
+    {
+        const auto serviced = sharedLocalMemory_.ServiceCycle();
+        ReapDrainedTerminalMemoryWaves();
+        return serviced;
+    }
+
+    [[nodiscard]] std::optional<memory::MemoryResponse>
+    TakeSharedLocalMemoryResponse()
+    {
+        auto response = sharedLocalMemory_.TakeResponse();
+        if (!response)
+            return std::nullopt;
+        const auto found = workgroups_.find(response->workgroupId);
+        if (found == workgroups_.end() || response->waveId >= found->second.waves.size())
+            throw std::logic_error("shared-memory response has no resident scheduler owner");
+        auto& wave = found->second.waves[response->waveId];
+        if (!wave.memoryWaiting)
+            throw std::logic_error("shared-memory response reached a wave without a memory wait");
+        wave.memoryWaiting = false;
+        if (!wave.live && !wave.busy)
+            ReleaseWaveResources(wave);
+        EraseIfResourcesReleased(found);
+        return response;
+    }
+
+    [[nodiscard]] std::optional<memory::MemoryRegion>
+    SharedLocalMemoryRegionForWorkgroup(std::uint64_t workgroupId) const
+    {
+        return sharedLocalMemory_.AllocationForWorkgroup(workgroupId);
+    }
+
     void Reset()
     {
         workgroups_.clear();
         std::fill(waveOwners_.begin(), waveOwners_.end(), std::nullopt);
         vgprPool_.Reset();
         vgprStorage_.Reset();
+        sharedLocalMemory_.Reset();
         nextIssueSlot_ = 0U;
     }
 
@@ -360,6 +436,7 @@ public:
             && waveIndex < found->second.waves.size()
             && found->second.waves[waveIndex].live
             && !found->second.waves[waveIndex].waiting
+            && !found->second.waves[waveIndex].memoryWaiting
             && !found->second.waves[waveIndex].busy;
     }
 
@@ -425,6 +502,7 @@ public:
         {
             snapshot.liveWaves.push_back(wave.live);
             snapshot.waitingWaves.push_back(wave.waiting);
+            snapshot.memoryWaitingWaves.push_back(wave.memoryWaiting);
             snapshot.busyWaves.push_back(wave.busy);
             snapshot.allocatedWaves.push_back(wave.resourceHeld);
             snapshot.waveSlots.push_back(
@@ -553,13 +631,7 @@ public:
 
     [[nodiscard]] std::uint32_t UsedSharedLocalBytes() const noexcept
     {
-        std::uint64_t total = 0U;
-        for (const auto& [id, workgroup] : workgroups_)
-        {
-            (void)id;
-            total += workgroup.demand.sharedLocalBytes;
-        }
-        return static_cast<std::uint32_t>(total);
+        return sharedLocalMemory_.AllocatedBytes();
     }
 
     [[nodiscard]] std::uint32_t UsedOtherWorkgroupUnits() const noexcept
@@ -586,21 +658,33 @@ public:
             return false;
         }
 
+        std::uint64_t expectedSharedBytes = 0U;
         std::vector<bool> observedSlots(waveOwners_.size(), false);
         for (const auto& [id, workgroup] : workgroups_)
         {
+            expectedSharedBytes += workgroup.demand.sharedLocalBytes;
+            const auto region = sharedLocalMemory_.AllocationForWorkgroup(id);
+            if (!region || region->byteCount != workgroup.demand.sharedLocalBytes)
+                return false;
+
             bool anyResourceHeld = false;
             bool anyLive = false;
             bool allLiveWaiting = true;
             for (std::uint32_t local = 0U; local < workgroup.waves.size(); ++local)
             {
                 const auto& wave = workgroup.waves[local];
-                if (wave.waiting && (!wave.live || wave.busy))
+                if (wave.memoryWaiting
+                    != sharedLocalMemory_.IsWaveWaiting(id, local))
+                    return false;
+                if (wave.waiting
+                    && (!wave.live || wave.busy || wave.memoryWaiting))
+                    return false;
+                if (wave.memoryWaiting && !wave.resourceHeld)
                     return false;
                 anyLive = anyLive || wave.live;
                 if (!wave.live)
                 {
-                    if (wave.waiting || wave.busy && !wave.resourceHeld)
+                    if (wave.waiting || (wave.busy && !wave.resourceHeld))
                         return false;
                 }
                 if (wave.live)
@@ -630,6 +714,9 @@ public:
                 return false;
         }
 
+        if (expectedSharedBytes != UsedSharedLocalBytes())
+            return false;
+
         for (std::uint32_t slot = 0U; slot < waveOwners_.size(); ++slot)
         {
             if (waveOwners_[slot].has_value() != observedSlots[slot])
@@ -652,6 +739,7 @@ private:
         bool waiting;
         bool busy;
         bool resourceHeld;
+        bool memoryWaiting;
     };
 
     struct Workgroup
@@ -695,8 +783,9 @@ private:
     {
         if (!wave.resourceHeld)
             return;
-        if (wave.busy || !vgprPool_.Release(wave.slot, !wave.busy))
-            throw std::logic_error("attempted to release a busy VGPR allocation");
+        if (wave.busy || wave.memoryWaiting
+            || !vgprPool_.Release(wave.slot, !wave.busy))
+            throw std::logic_error("attempted to release a busy or memory-waiting VGPR allocation");
         waveOwners_[wave.slot].reset();
         wave.resourceHeld = false;
     }
@@ -709,7 +798,42 @@ private:
             found->second.waves.begin(), found->second.waves.end(),
             [](const Wave& wave) { return wave.resourceHeld; });
         if (!anyResourcesHeld)
+        {
+            if (!sharedLocalMemory_.ReleaseWorkgroup(found->first))
+                throw std::logic_error(
+                    "workgroup resources retired before shared-memory operations drained");
             workgroups_.erase(found);
+        }
+    }
+
+    void CancelWaveMemoryIfWaiting(
+        std::uint64_t workgroupId,
+        std::uint32_t waveIndex,
+        Wave& wave)
+    {
+        if (!wave.memoryWaiting)
+            return;
+        (void)sharedLocalMemory_.CancelWave(workgroupId, waveIndex);
+        wave.memoryWaiting = sharedLocalMemory_.IsWaveWaiting(workgroupId, waveIndex);
+    }
+
+    void ReapDrainedTerminalMemoryWaves()
+    {
+        for (auto iterator = workgroups_.begin(); iterator != workgroups_.end();)
+        {
+            const auto current = iterator++;
+            for (std::uint32_t local = 0U;
+                local < current->second.waves.size(); ++local)
+            {
+                auto& wave = current->second.waves[local];
+                if (wave.memoryWaiting
+                    && !sharedLocalMemory_.IsWaveWaiting(current->first, local))
+                    wave.memoryWaiting = false;
+                if (!wave.live && !wave.busy && !wave.memoryWaiting)
+                    ReleaseWaveResources(wave);
+            }
+            EraseIfResourcesReleased(current);
+        }
     }
 
     [[nodiscard]] bool ReleaseBarrierIfComplete(
@@ -745,11 +869,14 @@ private:
         if (found == workgroups_.end())
             return false;
         auto& workgroup = found->second;
-        for (auto& wave : workgroup.waves)
+        for (std::uint32_t waveIndex = 0U;
+            waveIndex < workgroup.waves.size(); ++waveIndex)
         {
+            auto& wave = workgroup.waves[waveIndex];
             wave.live = false;
             wave.waiting = false;
-            if (!wave.busy)
+            CancelWaveMemoryIfWaiting(workgroupId, waveIndex, wave);
+            if (!wave.busy && !wave.memoryWaiting)
                 ReleaseWaveResources(wave);
         }
         EraseIfResourcesReleased(found);
@@ -759,6 +886,7 @@ private:
     CuResourceLimits limits_;
     matrix::ResidentWaveVgprPool vgprPool_;
     matrix::PooledVgprStorage vgprStorage_;
+    memory::CuSharedLocalMemory sharedLocalMemory_;
     std::unordered_map<std::uint64_t, Workgroup> workgroups_;
     std::vector<std::optional<WaveOwner>> waveOwners_;
     std::uint32_t nextIssueSlot_ = 0U;

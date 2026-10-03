@@ -2,36 +2,35 @@
 
 ## Outcome
 
-Make the executable workgroup scheduler own the shared/local-memory region allocator and transaction lifecycle. A shared-byte demand must receive a real contiguous range as part of complete-workgroup admission. A wave that issues a local-memory request becomes non-issuable until its tagged response is consumed. Barriers, wave termination, workgroup abort, and reset must account for memory wait and accepted service without releasing state early.
-
-This is a C++ scheduler integration slice. The RTL memory component remains standalone during this phase. Vector load/store opcodes, LSU datapath integration, RTL dispatch coupling, and hardware wait-mask integration remain subsequent work. No wave swapping is introduced.
+Make shared/local-memory region ownership authoritative across complete-workgroup admission and retirement in both the executable scheduler reference and the RTL workgroup frontend. Preserve complete workgroup residency and workgroup-boundary preemption. The current RTL slice integrates region allocation only; vector load/store issue and scheduler memory-wait handling remain separate work.
 
 ## Current state
 
-- The standalone C++ memory model and parameterized RTL component are committed in `33a5241`.
-- The scheduler now owns real shared-memory regions at admission and couples accepted requests, tagged response consumption, barrier exclusion, terminal cancellation/drain, and reset to wave eligibility and resource lifetime.
-- The focused scheduler executable and focused CTest passed; strict GCC with `-Wconversion -Wsign-conversion -Werror` passed; the complete CTest suite passed 23/23.
-- Public hygiene, repository integrity, design consistency, their negative controls, and Markdown link checks passed. The Windows validation runner then stopped because `cmake.exe` is unavailable on Windows PATH; the WSL CMake build and CTest suite passed.
-- The recorded hosted successes are for earlier baseline `d8be39e`; the exact hosted lookup for `33a5241` returned no check runs, so no hosted success is claimed for either that commit or the current uncommitted candidate.
+- The C++ `ComputeUnitWorkgroupScheduler` owns actual pooled VGPR allocations and shared/local-memory regions. It gates memory-waiting waves, rejects barrier arrival during a memory wait, drains terminal operations, and releases a region after whole-workgroup quiescence.
+- The current RTL workgroup frontend composes `cgx1_cu_shared_local_memory` as its real region allocator. Admission allocates and scrubs the region before reserving/activating VGPR waves. A late VGPR failure rolls back both resources. Final shared-memory and VGPR release handshake in the same cycle only after execution, restore, and allocator guards are quiescent; a held restore request proves the region remains reserved during release backpressure.
+- The RTL allocator's load/store request, response, and cancellation interfaces are tied off in this slice. Vector memory instructions, RTL memory-wait issue gating, hardware queue/runtime dispatch and completion, and physical implementation remain open.
+- The last pushed candidate is `cabc0e63b3e574fab2dbf14142383f000b792899`. RTL CI run `37087657492` and Windows CI run `37087657321` both completed successfully for that exact SHA. Neither run covers the current local RTL region-allocation changes.
+- The focused workgroup frontend test and the full `scripts/validate_rtl.sh` gate pass on the final local RTL candidate, including shared-region preservation when later VGPR admission fails and final-release backpressure while same-wave restore traffic is active. The 23-target Release CTest suite passed. The Windows validation wrapper passed public hygiene, repository integrity, design consistency and negative controls, and Markdown links, then stopped at CMake because `cmake.exe` is not on Windows PATH.
 
 ## Contract
 
-- Complete-workgroup admission transactionally reserves both pooled VGPR state and one shared/local-memory region. A failed region or VGPR reservation leaves neither resource allocated.
-- Shared-memory capacity fragmentation is reported distinctly from aggregate capacity exhaustion.
-- Only an admitted, issuable wave may submit a local-memory request. Acceptance adds a memory wait separate from barrier arrival and execution-busy state.
-- A wave remains non-issuable until its response is consumed. A barrier arrival attempted during that wait is rejected; other waves and workgroups remain issuable.
-- Terminal waves cancel response delivery but retain VGPR and workgroup-local memory ownership until accepted service drains. Workgroup-local memory is released only after all waves' execution and memory operations are quiescent.
-- Reset destroys all memory allocations, transactions, responses, and scheduler wait state.
+- Reserve a real contiguous shared/local-memory range as part of complete-workgroup admission, before any wave is made resident or issuable.
+- Do not publish a partially admitted group. If subsequent per-wave VGPR allocation fails, release all reserved VGPR state and the provisional shared-memory range before reporting dispatch failure.
+- Report shared-memory fragmentation separately from aggregate capacity exhaustion.
+- Keep the range owned while any wave of the admitted workgroup remains resident. On terminal release, wait for execution quiescence and release the region with the final wave's allocator entry.
+- Reset clears both allocator state and barrier/workgroup membership.
+- Keep RTL memory request/response/cancel tied off until the vector LSU and memory-wait issue-mask lifecycle are implemented together.
 
 ## Implementation and validation sequence
 
-1. [x] Add failing scheduler tests for real region admission, fragmented rollback, memory-wait issue blocking, barrier interaction, response consumption, terminal drain, and reset.
-2. [x] Integrate the memory object with transactional admission and workgroup resource release.
-3. [x] Add scheduler memory-request, service, and response-consumption APIs; represent memory waiting separately from barrier waiting and execution busy.
-4. [x] Extend invariants and deterministic mixed scheduler/memory sequences to catch leaked ownership and blocked waves.
-5. [x] Run focused tests, strict GCC, all CTest targets, the full RTL gate, and the affected documentation/design gates; review the coherent checkpoint. The Windows wrapper's missing `cmake.exe` is an environment limitation, with equivalent WSL build/CTest evidence recorded above.
-6. Next dependency: connect shared/local-memory allocation and wait state to RTL workgroup admission, then add LSU integration as a separate vertical slice.
+1. [x] Integrate shared-memory regions and memory waits in the C++ workgroup reference, including rollback, drain, and reset behavior.
+2. [x] Instantiate the actual shared-memory allocator inside the RTL workgroup frontend and expose its allocated-byte count as the authoritative usage.
+3. [x] Couple dispatch allocation, scrub completion, late VGPR-failure rollback, and last-quiescent-wave release to the shared-memory allocator.
+4. [x] Add RTL regressions for maximum-fit allocation, fragmented-region rejection, hole reuse, and VGPR-fragmentation rollback across both allocators.
+5. [x] Run the final RTL gate, focused frontend/barrier/memory coverage, repository consistency and negative-control gates, Markdown links, and CTest. RTL and CTest passed; Windows text gates passed before the documented missing-CMake environment stop.
+6. [x] Inspect the exact hosted workflow results for `cabc0e6`: both RTL CI and Windows CI completed successfully on the exact SHA. The current local changes still need their own published-checkpoint evidence.
+7. Next slice: connect vector load/store decode and tagged memory responses to per-wave memory-wait issue gating, terminal cancellation/drain, and workgroup resource release.
 
 ## Evidence boundary
 
-Passing C++ tests establish this executable scheduler/reference behavior only. They do not establish RTL scheduler/LSU integration, exact hosted checks, synthesis, timing, area, power, or physical behavior.
+Local Icarus simulation establishes the tested RTL region-allocation and lifecycle behavior for the exact local candidate. It does not establish hosted CI for that candidate, memory-instruction/LSU integration, synthesis, timing, area, power, physical implementation, or silicon behavior.

@@ -7,6 +7,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     localparam integer ROW_WIDTH = 5;
     localparam integer SLOT_WIDTH = 2;
     localparam integer COUNT_WIDTH = 3;
+    localparam logic [4:0] FAIL_SHARED_MEMORY_FRAGMENTED = 5'd16;
     logic clk = 0, reset_n = 0;
     logic dispatch_valid, dispatch_ready;
     logic [7:0] dispatch_workgroup_id;
@@ -62,6 +63,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [SLOTS-1:0] active_before, reserved_before;
     logic [(SLOTS*ROW_WIDTH)-1:0] row_base_before;
     logic [(SLOTS*9)-1:0] register_count_before;
+    logic [31:0] shared_bytes_before;
 
     always #5 clk = ~clk;
 
@@ -95,7 +97,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         timeout = 0;
         while (!dispatch_result_valid) begin
             @(posedge clk); #1; timeout = timeout + 1;
-            if (timeout > 500) $fatal(1, "workgroup admission transaction timed out");
+            if (timeout > 2048) $fatal(1, "workgroup admission transaction timed out");
         end
         if (dispatch_failure != expected_failure || dispatch_accepted != (expected_failure == 0))
             $fatal(1, "dispatch %0d result mismatch: accepted=%0b failure=%0d expected=%0d",
@@ -134,7 +136,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         timeout = 0;
         while (!dispatch_result_valid) begin
             @(posedge clk); #1; timeout = timeout + 1;
-            if (timeout > 500) $fatal(1, "workgroup admission transaction timed out");
+            if (timeout > 2048) $fatal(1, "workgroup admission transaction timed out");
         end
         if (dispatch_failure != expected_failure || dispatch_accepted != (expected_failure == 0))
             $fatal(1, "resource-demand dispatch %0d mismatch: accepted=%0b failure=%0d expected=%0d",
@@ -317,12 +319,16 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         reserved_before = allocation_reserved_bitmap;
         row_base_before = allocation_row_base_flat;
         register_count_before = allocation_register_count_flat;
-        dispatch(8'd20, 2, 8, 72, 0, 0, 5'd9);
+        shared_bytes_before = shared_local_bytes_used;
+        dispatch_with_resource_demand(8'd20, 2, 8, 72, 0, 0,
+            16'd0, 32'd64, 16'd0, 5'd9);
         if (allocation_active_bitmap != active_before || allocation_reserved_bitmap != reserved_before
             || allocation_row_base_flat != row_base_before
             || allocation_register_count_flat != register_count_before
-            || live_wave_mask != 4'b0101)
-            $fatal(1, "fragmented partial admission was visible or failed to roll back exactly");
+            || live_wave_mask != 4'b0101 || shared_local_bytes_used != shared_bytes_before)
+            $fatal(1, "fragmented partial admission mismatch active=%b/%b reserved=%b/%b live=%b shared=%0d/%0d",
+                allocation_active_bitmap, active_before, allocation_reserved_bitmap,
+                reserved_before, live_wave_mask, shared_local_bytes_used, shared_bytes_before);
         abort_group(8'd10); abort_group(8'd12);
 
         dispatch(8'd30, 2, 9, 17, 0, 0, 0);
@@ -530,6 +536,45 @@ module cgx1_compute_workgroup_execution_frontend_tb;
             $fatal(1, "reset during partial admission left allocator or barrier ownership");
         repeat (2) @(posedge clk); @(negedge clk); reset_n = 1;
 
+        // Shared memory must be a real contiguous allocation owned by the
+        // complete workgroup, including maximum-fit admission and retirement.
+        dispatch_with_resource_demand(8'd59, 1, 8, 0, 0, 0, 0, 4096, 0,
+            0);
+        if (shared_local_bytes_used != 4096)
+            $fatal(1, "maximum-fit workgroup did not retain its complete shared-memory allocation");
+        abort_group(8'd59);
+        if (shared_local_bytes_used != 0)
+            $fatal(1, "workgroup retirement did not release its shared-memory region");
+
+        // Leave two 1024-byte holes in a full 4096-byte pool. Aggregate
+        // capacity permits 1536 bytes, but no contiguous region does.
+        dispatch_with_resource_demand(8'd60, 1, 8, 0, 0, 0, 0, 1024, 0,
+            0);
+        dispatch_with_resource_demand(8'd61, 1, 8, 0, 0, 0, 0, 1024, 0,
+            0);
+        dispatch_with_resource_demand(8'd62, 1, 8, 0, 0, 0, 0, 1024, 0,
+            0);
+        dispatch_with_resource_demand(8'd63, 1, 8, 0, 0, 0, 0, 1024, 0,
+            0);
+        abort_group(8'd60);
+        abort_group(8'd62);
+        if (shared_local_bytes_used != 2048)
+            $fatal(1, "workgroup release did not return its memory regions to the allocator");
+        dispatch_with_resource_demand(8'd64, 1, 8, 0, 0, 0, 0, 1536, 0,
+            FAIL_SHARED_MEMORY_FRAGMENTED);
+        if (shared_local_bytes_used != 2048 || resident_wave_count != 2
+            || allocation_active_bitmap != 4'b1010)
+            $fatal(1, "fragmented memory rejection changed resident CU resources");
+        dispatch_with_resource_demand(8'd65, 1, 8, 0, 0, 0, 0, 1024, 0,
+            0);
+        if (shared_local_bytes_used != 3072 || resident_wave_count != 3)
+            $fatal(1, "workgroup did not reuse a free shared-memory region after fragmentation");
+        abort_group(8'd61);
+        abort_group(8'd63);
+        abort_group(8'd65);
+        if (shared_local_bytes_used != 0 || resident_wave_count != 0)
+            $fatal(1, "shared-memory fragmentation sequence leaked workgroup resources");
+
         // Long randomized arrival order sequence. Every admitted wave is resident,
         // and each generation completes even though the arrival order varies.
         dispatch(8'd50, 3, 16, 16, 16, 0, 0);
@@ -548,7 +593,37 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         end
         abort_group(8'd50);
 
-        $display("[pass] authoritative pooled workgroup admission, rollback, actual mixed execution, barrier generations, quiescent fault/kill, reset, and 5,100 randomized arrivals passed.");
+        // A shared region must not retire before the pooled allocator accepts
+        // the final wave release. Keep a same-wave restore request active to
+        // exercise the allocator's release backpressure path.
+        dispatch_with_resource_demand(8'd58, 1, 8, 0, 0, 0, 0, 64, 0, 0);
+        if (allocation_active_bitmap != 4'b0001 || shared_local_bytes_used != 64)
+            $fatal(1, "release-backpressure setup did not own one wave and one region");
+        @(negedge clk);
+        workgroup_abort_id = 8'd58;
+        workgroup_abort_valid = 1'b1;
+        restore_valid = 1'b1;
+        restore_wave_slot = 0;
+        restore_register = 0;
+        restore_data = '0;
+        #1;
+        if (!workgroup_abort_ready || !workgroup_abort_accepted)
+            $fatal(1, "release-backpressure abort was not accepted");
+        @(posedge clk); #1; @(negedge clk); workgroup_abort_valid = 1'b0;
+        repeat (2) @(posedge clk); #1;
+        if (allocation_active_bitmap != 4'b0001 || shared_local_bytes_used != 64
+            || workgroup_active_mask == '0)
+            $fatal(1, "shared region retired before final pooled VGPR release was accepted");
+        @(negedge clk); restore_valid = 1'b0;
+        timeout = 0;
+        while (release_pending_wave_mask != '0 && timeout < 100) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+        end
+        if (timeout >= 100 || allocation_active_bitmap != '0
+            || shared_local_bytes_used != 0 || workgroup_active_mask != '0)
+            $fatal(1, "release-backpressure recovery did not retire the whole workgroup");
+
+        $display("[pass] authoritative pooled workgroup admission, rollback, actual mixed execution, barrier generations, release backpressure, quiescent fault/kill, reset, and 5,100 randomized arrivals passed.");
         $finish;
     end
 endmodule

@@ -109,6 +109,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     localparam logic [4:0] FAIL_SHARED_MEMORY_BUSY = 5'd13;
     localparam logic [4:0] FAIL_OTHER_STATE_EXCEEDS_CU = 5'd14;
     localparam logic [4:0] FAIL_OTHER_STATE_BUSY = 5'd15;
+    localparam logic [4:0] FAIL_SHARED_MEMORY_FRAGMENTED = 5'd16;
+    localparam logic [4:0] FAIL_SHARED_MEMORY_ALLOCATION_FAILED = 5'd17;
 
     localparam logic [2:0] ST_IDLE = 3'd0;
     localparam logic [2:0] ST_RESERVE = 3'd1;
@@ -116,6 +118,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     localparam logic [2:0] ST_ACTIVATE = 3'd3;
     localparam logic [2:0] ST_COMMIT = 3'd4;
     localparam logic [2:0] ST_ROLLBACK = 3'd5;
+    localparam logic [2:0] ST_ALLOCATE_SHARED = 3'd6;
+    localparam logic [2:0] ST_RELEASE_SHARED_ROLLBACK = 3'd7;
 
     logic [2:0] txn_state_q;
     logic [4:0] txn_failure_q;
@@ -151,6 +155,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [RESIDENT_WAVE_SLOTS-1:0] barrier_release_pending_mask;
     logic [WAVE_COUNT_WIDTH-1:0] barrier_resident_count;
     logic [MAX_WORKGROUP_CONTEXTS-1:0] barrier_active_mask;
+    logic [RESIDENT_WAVE_SLOTS-1:0] barrier_final_wave_release_mask;
+    logic [(RESIDENT_WAVE_SLOTS*WORKGROUP_ID_WIDTH)-1:0] barrier_slot_workgroup_id_flat;
     logic [31:0] barrier_scalar_used, barrier_shared_used, barrier_other_used;
     logic reserve_valid, reserve_ready, reserve_accepted;
     logic [WAVE_SLOT_WIDTH-1:0] reserve_wave_slot;
@@ -160,8 +166,21 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic release_valid, release_ready, release_accepted;
     logic [WAVE_SLOT_WIDTH-1:0] release_wave_slot;
     logic release_quiescent;
+    logic allocator_release_valid;
+    logic shared_memory_allocation_valid, shared_memory_allocation_ready;
+    logic shared_memory_allocation_result_valid, shared_memory_allocation_accepted;
+    logic [2:0] shared_memory_allocation_failure;
+    logic [WORKGROUP_ID_WIDTH-1:0] shared_memory_allocation_workgroup_id;
+    logic [31:0] shared_memory_allocation_byte_count;
+    logic shared_memory_release_valid, shared_memory_release_ready;
+    logic shared_memory_release_accepted;
+    logic [WORKGROUP_ID_WIDTH-1:0] shared_memory_release_workgroup_id;
+    logic [31:0] shared_memory_allocated_bytes;
+    logic shared_memory_owned_q;
+    logic shared_memory_allocation_submitted_q;
     logic [RESIDENT_WAVE_SLOTS-1:0] matrix_busy_raw;
     logic vector_busy_raw;
+    logic selected_release_is_final_wave;
     integer release_candidate;
     integer active_contexts;
     integer free_slots;
@@ -193,7 +212,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         requested_rows = 0;
         requested_scalar = 0;
         used_scalar = barrier_scalar_used;
-        used_shared = barrier_shared_used;
+        used_shared = shared_local_bytes_used;
         used_other = barrier_other_used;
         scalar_demand = $unsigned(dispatch_scalar_state_units_per_wave)
             * $unsigned(dispatch_wave_count);
@@ -276,15 +295,23 @@ module cgx1_compute_workgroup_execution_frontend #(
         activate_valid = (txn_state_q == ST_ACTIVATE);
         activate_wave_slot = reserve_wave_slot;
         release_valid = 1'b0;
+        allocator_release_valid = 1'b0;
         release_wave_slot = '0;
         release_quiescent = 1'b1;
         release_candidate = -1;
+        selected_release_is_final_wave = 1'b0;
+        shared_memory_release_valid = 1'b0;
+        shared_memory_release_workgroup_id = '0;
         if (txn_state_q == ST_ROLLBACK) begin
             release_valid = 1'b1;
+            allocator_release_valid = 1'b1;
             release_wave_slot = txn_wave_slot_map_flat_q[(rollback_index_q*WAVE_SLOT_WIDTH)+:WAVE_SLOT_WIDTH];
+        end else if (txn_state_q == ST_RELEASE_SHARED_ROLLBACK) begin
+            shared_memory_release_valid = shared_memory_owned_q;
+            shared_memory_release_workgroup_id = txn_workgroup_id_q;
         end else if ((txn_state_q == ST_IDLE) || (txn_state_q == ST_RESERVE)
             || (txn_state_q == ST_WAIT_SANITIZE) || (txn_state_q == ST_ACTIVATE)
-            || (txn_state_q == ST_COMMIT)) begin
+            || (txn_state_q == ST_COMMIT) || (txn_state_q == ST_ALLOCATE_SHARED)) begin
             for (integer scan_slot = RESIDENT_WAVE_SLOTS-1; scan_slot >= 0; scan_slot = scan_slot - 1) begin
                 if (barrier_release_pending_mask[scan_slot] && !(busy_bitmap[scan_slot]))
                     release_candidate = scan_slot;
@@ -292,6 +319,17 @@ module cgx1_compute_workgroup_execution_frontend #(
             if (release_candidate >= 0) begin
                 release_valid = 1'b1;
                 release_wave_slot = release_candidate[WAVE_SLOT_WIDTH-1:0];
+                selected_release_is_final_wave =
+                    barrier_final_wave_release_mask[release_candidate];
+                if (selected_release_is_final_wave) begin
+                    shared_memory_release_valid = release_ready;
+                    shared_memory_release_workgroup_id =
+                        barrier_slot_workgroup_id_flat[(release_candidate*WORKGROUP_ID_WIDTH)
+                            +: WORKGROUP_ID_WIDTH];
+                    allocator_release_valid = shared_memory_release_ready;
+                end else begin
+                    allocator_release_valid = 1'b1;
+                end
             end
         end
         txn_slot = reserve_wave_slot;
@@ -309,7 +347,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     assign workgroup_active_mask = barrier_active_mask;
     assign resident_wave_count = barrier_resident_count;
     assign scalar_state_units_used = barrier_scalar_used;
-    assign shared_local_bytes_used = barrier_shared_used;
+    assign shared_local_bytes_used = shared_memory_allocated_bytes;
     assign other_workgroup_state_units_used = barrier_other_used;
     assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask;
     assign vector_exec_request_valid = vector_request_valid & issuable_wave_mask;
@@ -318,6 +356,44 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [RESIDENT_WAVE_SLOTS-1:0] release_done_mask;
     logic [RESIDENT_WAVE_SLOTS-1:0] commit_slot_mask_unused;
     logic [RESIDENT_WAVE_SLOTS-1:0] group_release_pending_unused;
+
+    assign shared_memory_allocation_valid =
+        (txn_state_q == ST_ALLOCATE_SHARED)
+        && !shared_memory_allocation_submitted_q;
+    assign shared_memory_allocation_workgroup_id = txn_workgroup_id_q;
+    assign shared_memory_allocation_byte_count = txn_shared_bytes_q;
+
+    cgx1_cu_shared_local_memory #(
+        .CU_SHARED_BYTES(SHARED_LOCAL_MEMORY_BYTES),
+        .MAX_WORKGROUP_CONTEXTS(MAX_WORKGROUP_CONTEXTS),
+        .WORKGROUP_ID_WIDTH(WORKGROUP_ID_WIDTH),
+        .WAVE_ID_WIDTH(WAVE_SLOT_WIDTH)
+    ) shared_local_memory (
+        .clk(clk), .reset_n(reset_n),
+        .allocation_valid(shared_memory_allocation_valid),
+        .allocation_ready(shared_memory_allocation_ready),
+        .allocation_workgroup_id(shared_memory_allocation_workgroup_id),
+        .allocation_byte_count(shared_memory_allocation_byte_count),
+        .allocation_result_valid(shared_memory_allocation_result_valid),
+        .allocation_accepted(shared_memory_allocation_accepted),
+        .allocation_failure(shared_memory_allocation_failure),
+        .allocation_base_byte_address(),
+        .release_valid(shared_memory_release_valid),
+        .release_workgroup_id(shared_memory_release_workgroup_id),
+        .release_ready(shared_memory_release_ready),
+        .release_accepted(shared_memory_release_accepted),
+        .request_valid(1'b0), .request_workgroup_id('0), .request_wave_id('0),
+        .request_transaction_tag('0), .request_write(1'b0),
+        .request_lane_mask('0), .request_byte_addresses_flat('0),
+        .request_store_data_flat('0), .request_ready(), .request_accepted(),
+        .response_valid(), .response_ready(1'b1), .response_workgroup_id(),
+        .response_wave_id(), .response_transaction_tag(), .response_write(),
+        .response_lane_mask(), .response_lane_data_flat(), .response_fault_code(),
+        .response_fault_lane(), .cancel_valid(1'b0), .cancel_workgroup_id('0),
+        .cancel_wave_id('0), .cancel_ready(), .cancel_accepted(),
+        .allocated_bytes_used(shared_memory_allocated_bytes),
+        .outstanding_transaction_bitmap()
+    );
 
     cgx1_workgroup_residency_barrier #(
         .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),
@@ -369,6 +445,8 @@ module cgx1_compute_workgroup_execution_frontend #(
         .issuable_wave_mask(barrier_issuable_mask),
         .release_pending_wave_mask(barrier_release_pending_mask),
         .workgroup_active_mask(barrier_active_mask),
+        .final_wave_release_mask(barrier_final_wave_release_mask),
+        .slot_workgroup_id_flat(barrier_slot_workgroup_id_flat),
         .resident_wave_count(barrier_resident_count),
         .scalar_state_units_used(barrier_scalar_used),
         .shared_local_bytes_used(barrier_shared_used),
@@ -387,7 +465,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         .reserve_register_count(reserve_register_count), .reserve_ready(reserve_ready),
         .reserve_accepted(reserve_accepted), .activate_valid(activate_valid),
         .activate_wave_slot(activate_wave_slot), .activate_ready(activate_ready),
-        .activate_accepted(activate_accepted), .release_valid(release_valid),
+        .activate_accepted(activate_accepted), .release_valid(allocator_release_valid),
         .release_wave_slot(release_wave_slot), .release_quiescent(release_quiescent),
         .release_ready(release_ready), .release_accepted(release_accepted),
         .restore_valid(restore_valid), .restore_wave_slot(restore_wave_slot),
@@ -428,6 +506,8 @@ module cgx1_compute_workgroup_execution_frontend #(
             txn_wave_index_q <= 0;
             txn_reserved_count_q <= 0;
             rollback_index_q <= 0;
+            shared_memory_owned_q <= 1'b0;
+            shared_memory_allocation_submitted_q <= 1'b0;
             dispatch_result_valid <= 1'b0;
             dispatch_accepted <= 1'b0;
             dispatch_failure <= '0;
@@ -435,6 +515,8 @@ module cgx1_compute_workgroup_execution_frontend #(
             dispatch_result_valid <= 1'b0;
             dispatch_accepted <= 1'b0;
             dispatch_failure <= '0;
+            if (shared_memory_allocation_valid && shared_memory_allocation_ready)
+                shared_memory_allocation_submitted_q <= 1'b1;
             case (txn_state_q)
                 ST_IDLE: begin
                     if (dispatch_valid && dispatch_ready) begin
@@ -451,7 +533,28 @@ module cgx1_compute_workgroup_execution_frontend #(
                             txn_other_units_q <= dispatch_other_workgroup_state_units;
                             txn_wave_index_q <= 0;
                             txn_reserved_count_q <= 0;
+                            txn_state_q <= ST_ALLOCATE_SHARED;
+                        end
+                    end
+                end
+                ST_ALLOCATE_SHARED: begin
+                    if (shared_memory_allocation_result_valid) begin
+                        shared_memory_allocation_submitted_q <= 1'b0;
+                        if (shared_memory_allocation_accepted) begin
+                            shared_memory_owned_q <= 1'b1;
                             txn_state_q <= ST_RESERVE;
+                        end else begin
+                            dispatch_result_valid <= 1'b1;
+                            case (shared_memory_allocation_failure)
+                                3'd1: dispatch_failure <= FAIL_SHARED_MEMORY_EXCEEDS_CU;
+                                3'd2: dispatch_failure <= FAIL_SHARED_MEMORY_BUSY;
+                                3'd3: dispatch_failure <= FAIL_SHARED_MEMORY_FRAGMENTED;
+                                3'd4: dispatch_failure <= FAIL_BARRIER_CONTEXTS;
+                                3'd5: dispatch_failure <= FAIL_DUPLICATE_WORKGROUP;
+                                default: dispatch_failure
+                                    <= FAIL_SHARED_MEMORY_ALLOCATION_FAILED;
+                            endcase
+                            txn_state_q <= ST_IDLE;
                         end
                     end
                 end
@@ -463,9 +566,7 @@ module cgx1_compute_workgroup_execution_frontend #(
                         txn_failure_q <= FAIL_VGPR_FRAGMENTED;
                         rollback_index_q <= 0;
                         if (txn_reserved_count_q == 0) begin
-                            dispatch_result_valid <= 1'b1;
-                            dispatch_failure <= FAIL_VGPR_FRAGMENTED;
-                            txn_state_q <= ST_IDLE;
+                            txn_state_q <= ST_RELEASE_SHARED_ROLLBACK;
                         end else begin
                             txn_state_q <= ST_ROLLBACK;
                         end
@@ -490,19 +591,26 @@ module cgx1_compute_workgroup_execution_frontend #(
                         dispatch_result_valid <= 1'b1;
                         dispatch_accepted <= 1'b1;
                         dispatch_failure <= 5'd0;
+                        shared_memory_owned_q <= 1'b0;
                         txn_state_q <= ST_IDLE;
                     end
                 end
                 ST_ROLLBACK: begin
                     if (release_accepted) begin
                         if (rollback_index_q + 1 >= txn_reserved_count_q) begin
-                            dispatch_result_valid <= 1'b1;
-                            dispatch_failure <= txn_failure_q;
-                            txn_state_q <= ST_IDLE;
                             txn_reserved_count_q <= 0;
+                            txn_state_q <= ST_RELEASE_SHARED_ROLLBACK;
                         end else begin
                             rollback_index_q <= rollback_index_q + 1;
                         end
+                    end
+                end
+                ST_RELEASE_SHARED_ROLLBACK: begin
+                    if (shared_memory_release_accepted) begin
+                        shared_memory_owned_q <= 1'b0;
+                        dispatch_result_valid <= 1'b1;
+                        dispatch_failure <= txn_failure_q;
+                        txn_state_q <= ST_IDLE;
                     end
                 end
                 default: txn_state_q <= ST_IDLE;
@@ -521,6 +629,12 @@ module cgx1_compute_workgroup_execution_frontend #(
     always_ff @(posedge clk) begin
         if (reset_n && (issuable_wave_mask & ~allocation_active_bitmap) != '0)
             $fatal(1, "workgroup issue mask contains a wave without an active allocator entry");
+        if (reset_n && (txn_state_q == ST_IDLE)
+            && (shared_memory_allocated_bytes != barrier_shared_used))
+            $fatal(1, "shared-memory region ownership disagrees with workgroup admission metadata");
+        if (reset_n && selected_release_is_final_wave
+            && (shared_memory_release_accepted != release_accepted))
+            $fatal(1, "final wave VGPR and shared-memory releases must be accepted together");
         if (reset_n && (matrix_request_accepted & ~issuable_wave_mask) != '0)
             $fatal(1, "matrix frontend accepted a non-issuable workgroup wave");
         if (reset_n && (vector_request_accepted & ~issuable_wave_mask) != '0)

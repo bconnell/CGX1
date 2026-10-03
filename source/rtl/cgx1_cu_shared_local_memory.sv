@@ -56,6 +56,7 @@ module cgx1_cu_shared_local_memory #(
     output logic cancel_ready,
     output logic cancel_accepted,
 
+    output logic [31:0] allocated_bytes_used,
     output logic [MAX_OUTSTANDING_TRANSACTIONS-1:0] outstanding_transaction_bitmap
 );
     localparam integer CU_WORD_COUNT = (CU_SHARED_BYTES + 3) / 4;
@@ -147,6 +148,7 @@ module cgx1_cu_shared_local_memory #(
     integer ff_word_address;
 
     assign allocation_ready = !allocation_scrub_active_q;
+    assign allocated_bytes_used = used_bytes_q;
 
     always_comb begin : allocation_decode
         integer context_index;

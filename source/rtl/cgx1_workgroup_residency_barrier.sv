@@ -64,6 +64,8 @@ module cgx1_workgroup_residency_barrier #(
     output logic [RESIDENT_WAVE_SLOTS-1:0] issuable_wave_mask,
     output logic [RESIDENT_WAVE_SLOTS-1:0] release_pending_wave_mask,
     output logic [MAX_WORKGROUP_CONTEXTS-1:0] workgroup_active_mask,
+    output logic [RESIDENT_WAVE_SLOTS-1:0] final_wave_release_mask,
+    output logic [(RESIDENT_WAVE_SLOTS*WORKGROUP_ID_WIDTH)-1:0] slot_workgroup_id_flat,
     output logic [WAVE_COUNT_WIDTH-1:0] resident_wave_count,
     output logic [31:0] scalar_state_units_used,
     output logic [31:0] shared_local_bytes_used,
@@ -113,6 +115,8 @@ module cgx1_workgroup_residency_barrier #(
         used_other = 0;
         owned_count = 0;
         resident_wave_mask = slot_owned_q;
+        final_wave_release_mask = '0;
+        slot_workgroup_id_flat = '0;
         live_wave_mask = '0;
         barrier_waiting_mask = '0;
         issuable_wave_mask = '0;
@@ -144,6 +148,11 @@ module cgx1_workgroup_residency_barrier #(
                 local_index = $unsigned(slot_local_q[slot_index]);
                 group_index = $unsigned(slot_group_q[slot_index]);
                 if (group_active_q[group_index]) begin
+                    slot_workgroup_id_flat[(slot_index*WORKGROUP_ID_WIDTH)
+                        +: WORKGROUP_ID_WIDTH] = group_id_q[group_index];
+                    if ((group_live_local_q[group_index] == '0)
+                        && (CountOnes(group_owned_local_q[group_index]) == 1))
+                        final_wave_release_mask[slot_index] = 1'b1;
                     if (group_live_local_q[group_index][local_index]) begin
                         live_wave_mask[slot_index] = 1'b1;
                         if (group_arrived_local_q[group_index][local_index])

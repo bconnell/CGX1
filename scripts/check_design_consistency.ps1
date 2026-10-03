@@ -827,6 +827,9 @@ if (-not [bool]$workgroupBoundary.workgroup_execution_frontend_integrated -or
     -not [bool]$workgroupBoundary.terminal_wave_release_waits_for_actual_matrix_vector_quiescence -or
     -not [bool]$workgroupBoundary.workgroup_context_retained_until_last_allocator_release -or
     -not [bool]$workgroupBoundary.transactional_fragmentation_rollback_tested -or
+    -not [bool]$workgroupBoundary.rtl_shared_local_region_allocator_integrated -or
+    -not [bool]$workgroupBoundary.rtl_shared_local_region_transactional_rollback_tested -or
+    -not [bool]$workgroupBoundary.rtl_shared_local_region_final_release_quiescence_gated -or
     [bool]$workgroupBoundary.full_compute_unit_scheduler_integrated -or
     [bool]$workgroupBoundary.shared_local_memory_datapath_integrated -or
     [bool]$workgroupBoundary.full_runtime_memory_queue_dispatch_fault_and_completion_integration -or
@@ -846,6 +849,9 @@ if (-not [bool]$sharedLocalMemory.reference_model_implemented -or
     -not [bool]$sharedLocalMemory.rtl_testbench_implemented -or
     -not [bool]$sharedLocalMemory.local_reference_tests_passed -or
     -not [bool]$sharedLocalMemory.local_rtl_simulation_passed -or
+    -not [bool]$sharedLocalMemory.rtl_region_allocator_integrated_with_workgroup_frontend -or
+    -not [bool]$sharedLocalMemory.rtl_region_allocation_transactionally_coupled_to_vgpr -or
+    -not [bool]$sharedLocalMemory.rtl_region_release_gated_by_final_quiescent_wave -or
     [int]$sharedLocalMemory.wave_size -ne 32 -or
     [int]$sharedLocalMemory.default_bank_count -ne 32 -or
     [bool]$sharedLocalMemory.bank_count_frozen -or

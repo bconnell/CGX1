@@ -46,6 +46,7 @@ module cgx1_cu_shared_local_memory_tb;
     logic [2:0] cancel_wave_id = '0;
     logic cancel_ready;
     logic cancel_accepted;
+    logic [31:0] allocated_bytes_used;
     logic [7:0] outstanding_transaction_bitmap;
 
     cgx1_cu_shared_local_memory #(

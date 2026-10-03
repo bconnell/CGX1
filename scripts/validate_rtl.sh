@@ -458,6 +458,7 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_execution_frontend_tb -o build/r
     source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv \
     source/rtl/cgx1_compute_mixed_service_policy.sv \
     source/rtl/cgx1_compute_int8_vector_execution_frontend.sv \
+    source/rtl/cgx1_cu_shared_local_memory.sv \
     source/rtl/cgx1_compute_workgroup_execution_frontend.sv \
     source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv
 echo "==> Run authoritative pooled workgroup execution frontend RTL"

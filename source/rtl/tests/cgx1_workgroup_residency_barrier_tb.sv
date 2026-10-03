@@ -38,6 +38,8 @@ module cgx1_workgroup_residency_barrier_tb;
     logic [SLOTS-1:0] resident_wave_mask, live_wave_mask, barrier_waiting_mask;
     logic [SLOTS-1:0] issuable_wave_mask, release_pending_wave_mask;
     logic [GROUPS-1:0] workgroup_active_mask;
+    logic [SLOTS-1:0] final_wave_release_mask;
+    logic [(SLOTS*8)-1:0] slot_workgroup_id_flat;
     logic [COUNT_WIDTH-1:0] resident_wave_count;
     logic [31:0] scalar_state_units_used, shared_local_bytes_used, other_workgroup_state_units_used;
     integer generation;

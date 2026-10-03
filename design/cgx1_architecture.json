@@ -242,6 +242,9 @@
       "full_compute_unit_scheduler_integrated": false,
       "actual_pooled_vgpr_allocator_integrated": true,
       "mixed_matrix_vector_frontend_integrated": true,
+      "rtl_shared_local_region_allocator_integrated": true,
+      "rtl_shared_local_region_transactional_rollback_tested": true,
+      "rtl_shared_local_region_final_release_quiescence_gated": true,
       "shared_local_memory_datapath_integrated": false,
       "full_runtime_memory_queue_dispatch_fault_and_completion_integration": false,
       "wave_save_restore_or_swapping_implemented": false,
@@ -253,7 +256,7 @@
       "power_validated": false
     },
     "shared_local_memory_reference": {
-      "status": "C++ workgroup scheduler integrates finite shared-memory regions and memory waits; parameterized banked RTL component remains standalone and is not connected to RTL admission or vector LSU",
+      "status": "C++ workgroup scheduler integrates finite shared-memory regions and memory waits; RTL workgroup admission owns real shared-memory regions, while banked load/store requests and vector LSU issue remain disconnected",
       "reference_model_implemented": true,
       "reference_workgroup_admission_integrated": true,
       "reference_memory_wait_issue_gated": true,
@@ -281,6 +284,9 @@
       "per_bank_round_robin_request_arbitration": true,
       "cancelled_service_drains_before_release": true,
       "workgroup_release_waits_for_service_and_response": true,
+      "rtl_region_allocator_integrated_with_workgroup_frontend": true,
+      "rtl_region_allocation_transactionally_coupled_to_vgpr": true,
+      "rtl_region_release_gated_by_final_quiescent_wave": true,
       "rtl_integrated_with_workgroup_frontend": false,
       "vector_isa_memory_issue_integrated": false,
       "rtl_memory_wait_scheduler_integrated": false,

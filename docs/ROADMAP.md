@@ -5,11 +5,12 @@
 ## Current design package
 
 - architecture specification and machine readable target file;
+- machine-readable subsystem completeness matrix with explicit evidence-level states;
 - revised card and thermal dock envelopes;
 - selected prototype fan, radiator, and pump/reservoir references;
 - analytical thermal, power, fit, and FP32 model;
 - reference power state firmware;
-- top level RTL state scaffold;
+- top-level P0-P4 fallback with per-tile scheduler-eligibility and emergency-isolation RTL;
 - prototype procurement and cost planning;
 - software implementation plan;
 - native wave32 ISA and executable base instruction encoder/decoder;
@@ -20,8 +21,8 @@
 - virtual-memory/page-fault architecture;
 - queue scheduling, preemption and reset containment model;
 - authoritative complete-workgroup residency reference and RTL frontend composed with the actual pooled VGPR allocator, mixed matrix/vector execution, barrier generations, and quiescent retirement;
-- shared/local-memory reference integrated with executable workgroup admission and memory-wait issue gating, plus RTL region allocation coupled transactionally to authoritative workgroup admission; add vector LSU issue, memory-wait issue gating, and tagged writeback;
-- per-tile DVFS, clock/power-gating architecture and executable policy/invariant model;
+- shared/local-memory reference and RTL integrated with workgroup-owned regions, a decoded per-wave LSU, memory-wait issue gating, tagged global ready/valid responses, load writeback, fault/cancel handling, and quiescent release; base-ISA memory decode and a physical global-memory backend remain open;
+- per-tile DVFS, clock/power-gating architecture and executable policy model, plus an RTL eligibility/emergency-isolation authority; tile-state sequencing and physical actuation remain open;
 - validation and repository integrity checks.
 
 ## P0 manufacturing package
@@ -58,6 +59,7 @@
 ## Architecture implementation
 
 - implement the complete ISA semantics and assembler/disassembler;
+- turn the high-level control-flow/divergence contract into executable wave PC, branch, active-mask, and explicit reconvergence behavior before full instruction-stream dispatch;
 - build an instruction-level emulator and shader execution tests;
 - implement command processor and queue packet ABI;
 - implement page tables, translation caches and replayable-fault model;
@@ -70,7 +72,7 @@
 - validate every advertised precision profile against the numeric and physical architecture references, then add compiler/API lowering;
 - characterize finer-than-workgroup preemption cost before adding it to the baseline;
 - characterize real per-tile V/F curves, leakage, transition latency, and controller hysteresis;
-- implement and verify the I/O-die power manager, tile isolation, retention, clock gating, and power-gating RTL.
+- implement the tile-state sequencer, orderly drain/retention transitions, and physical isolation, clock-gating, and power-gating RTL after control/status and physical timing contracts are established.
 
 ## Custom silicon
 

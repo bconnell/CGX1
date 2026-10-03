@@ -13,6 +13,7 @@ if ([string]::IsNullOrWhiteSpace($ArchitecturePath)) {
 }
 
 $architecture = Get-Content -LiteralPath $ArchitecturePath -Raw | ConvertFrom-Json
+$validatedRtlRevision = [string]$architecture.power_management.rtl_eligibility_manager.validated_revision
 $findings = New-Object System.Collections.Generic.List[string]
 $invariant = [Globalization.CultureInfo]::InvariantCulture
 $multiply = [char]0x00D7
@@ -54,6 +55,57 @@ function Forbid-Literal {
     $text = [IO.File]::ReadAllText($path)
     if ($text.Contains($Forbidden)) {
         Add-Finding "$($RelativePath): forbidden value is present: $Forbidden"
+    }
+}
+
+$completenessPath = Join-Path $repoRoot "design\cgx1_completeness_matrix.json"
+if (-not (Test-Path -LiteralPath $completenessPath -PathType Leaf)) {
+    Add-Finding "design/cgx1_completeness_matrix.json: file is missing"
+} else {
+    $completeness = Get-Content -LiteralPath $completenessPath -Raw | ConvertFrom-Json
+    $requiredEvidenceColumns = @(
+        "contract", "reference_model", "executable_tests", "rtl", "rtl_simulation",
+        "subsystem_integration", "cu_integration", "gpu_integration",
+        "software_toolchain_integration", "synthesis", "timing", "area", "power",
+        "physical_implementation", "silicon_measurement"
+    )
+    $allowedEvidenceStates = @("not_started", "specified", "implemented", "validated", "partial")
+    $actualEvidenceColumns = @($completeness.evidence_columns)
+    foreach ($column in $requiredEvidenceColumns) {
+        if ($actualEvidenceColumns -notcontains $column) {
+            Add-Finding "design/cgx1_completeness_matrix.json: evidence column is missing: $column"
+        }
+    }
+
+    $requiredSubsystems = @(
+        "pooled_vgpr_matrix_vector_execution", "workgroup_residency_barriers",
+        "shared_local_lsu_memory_waits", "tile_power_eligibility", "control_flow_divergence",
+        "complete_cu_scheduler_dispatch", "cache_global_memory_virtual_memory",
+        "multi_cu_multi_tile_fabric", "graphics_texture_compression",
+        "command_queue_runtime_toolchain", "physical_implementation"
+    )
+    foreach ($subsystemId in $requiredSubsystems) {
+        $row = $completeness.subsystems | Where-Object { $_.id -eq $subsystemId } | Select-Object -First 1
+        if ($null -eq $row) {
+            Add-Finding "design/cgx1_completeness_matrix.json: subsystem row is missing: $subsystemId"
+            continue
+        }
+        foreach ($column in $requiredEvidenceColumns) {
+            $state = $row.evidence.$column
+            if ($allowedEvidenceStates -notcontains $state) {
+                Add-Finding "design/cgx1_completeness_matrix.json: $subsystemId has an invalid $column state"
+            }
+        }
+    }
+
+    foreach ($subsystemId in @(
+        "pooled_vgpr_matrix_vector_execution", "workgroup_residency_barriers",
+        "shared_local_lsu_memory_waits", "tile_power_eligibility"
+    )) {
+        $row = $completeness.subsystems | Where-Object { $_.id -eq $subsystemId } | Select-Object -First 1
+        if ($null -ne $row -and $row.evidence.rtl_simulation -ne "validated") {
+            Add-Finding "design/cgx1_completeness_matrix.json: $subsystemId has no validated RTL simulation state"
+        }
     }
 }
 
@@ -156,6 +208,7 @@ Require-Literal "source/firmware/test_power.c" "telemetry.external48VPresent = f
 Require-Literal "source/rtl/cgx1_top.sv" "active_power_state <= P0;"
 Require-Literal "source/rtl/cgx1_top.sv" ".scheduler_eligible_mask(tile_enable)"
 Require-Literal "source/rtl/cgx1_top.sv" ".emergency_isolation_request(tile_isolation_request)"
+Require-Literal "design/cgx1_architecture.json" '"rtl_tile_enable_semantics": "scheduler eligibility, not physical power-gate control"'
 Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "P0: tile_state_limit = T2_IDLE;"
 Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "P1: tile_state_limit = T3_ECO;"
 Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "P2: tile_state_limit = T4_NOMINAL;"
@@ -642,18 +695,19 @@ if (-not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.implemented -or
     -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.matrix_capture_connected -or
     -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.matrix_writeback_connected -or
     -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.resident_int8_engine_connected -or
+    -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.ordinary_vector_execution_datapath_integrated -or
     -not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.rtl_testbenches_implemented) {
     Add-Finding "design/cgx1_architecture.json: pooled resident-wave VGPR RTL contract is incomplete"
 }
-if ([bool]$architecture.matrix_engine.pooled_vgpr_rtl.simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: pooled resident-wave VGPR simulation evidence must remain false until the exact published revision passes RTL CI"
+if (-not [bool]$architecture.matrix_engine.pooled_vgpr_rtl.simulation_exercised -or
+    [string]$architecture.matrix_engine.pooled_vgpr_rtl.status -notlike "*$validatedRtlRevision*") {
+    Add-Finding "design/cgx1_architecture.json: pooled resident-wave VGPR must record exact-revision RTL simulation evidence"
 }
-if ([bool]$architecture.matrix_engine.pooled_vgpr_rtl.ordinary_vector_execution_datapath_integrated -or
-    [bool]$architecture.matrix_engine.pooled_vgpr_rtl.physical_macro_selected -or
+if ([bool]$architecture.matrix_engine.pooled_vgpr_rtl.physical_macro_selected -or
     [bool]$architecture.matrix_engine.pooled_vgpr_rtl.timing_closure_validated -or
     [bool]$architecture.matrix_engine.pooled_vgpr_rtl.area_validated -or
     [bool]$architecture.matrix_engine.pooled_vgpr_rtl.power_validated) {
-    Add-Finding "design/cgx1_architecture.json: pooled VGPR RTL must not claim unfinished vector or physical implementation evidence"
+    Add-Finding "design/cgx1_architecture.json: pooled VGPR RTL must not claim unfinished physical implementation evidence"
 }
 
 $matrixEngineCount = [double]$architecture.silicon.compute_units_total * [double]$architecture.silicon.matrix_engines_per_compute_unit
@@ -780,8 +834,9 @@ if (-not [bool]$vectorRtl.implemented -or
     -not [bool]$vectorRtl.rtl_testbenches_implemented) {
     Add-Finding "design/cgx1_architecture.json: ordinary vector RTL contract is incomplete"
 }
-if ([bool]$vectorRtl.simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: ordinary vector RTL simulation evidence must remain false until exact-revision RTL CI passes"
+if (-not [bool]$vectorRtl.simulation_exercised -or
+    [string]$vectorRtl.status -notlike "*$validatedRtlRevision*") {
+    Add-Finding "design/cgx1_architecture.json: ordinary vector RTL must record exact-revision simulation evidence"
 }
 if ([bool]$vectorRtl.timing_closure_validated -or
     [bool]$vectorRtl.area_validated -or
@@ -808,8 +863,9 @@ if (-not [bool]$mixedFrontend.implemented -or
     -not [bool]$mixedFrontend.rtl_testbench_implemented) {
     Add-Finding "design/cgx1_architecture.json: mixed matrix/vector frontend RTL contract is incomplete"
 }
-if ([bool]$mixedFrontend.simulation_exercised) {
-    Add-Finding "design/cgx1_architecture.json: mixed matrix/vector frontend simulation evidence must remain false until exact-revision RTL CI passes"
+if (-not [bool]$mixedFrontend.simulation_exercised -or
+    [string]$mixedFrontend.status -notlike "*$validatedRtlRevision*") {
+    Add-Finding "design/cgx1_architecture.json: mixed matrix/vector frontend must record exact-revision simulation evidence"
 }
 if ([bool]$mixedFrontend.timing_closure_validated -or
     [bool]$mixedFrontend.area_validated -or
@@ -858,11 +914,13 @@ if (-not [bool]$workgroupBoundary.workgroup_execution_frontend_integrated -or
     -not [bool]$workgroupBoundary.rtl_shared_local_region_allocator_integrated -or
     -not [bool]$workgroupBoundary.rtl_shared_local_region_transactional_rollback_tested -or
     -not [bool]$workgroupBoundary.rtl_shared_local_region_final_release_quiescence_gated -or
+    -not [bool]$workgroupBoundary.decoded_per_wave_lsu_integrated -or
+    -not [bool]$workgroupBoundary.shared_local_memory_datapath_integrated -or
+    -not [bool]$workgroupBoundary.simulation_exercised -or
+    [string]$workgroupBoundary.status -notlike "*$validatedRtlRevision*" -or
     [bool]$workgroupBoundary.full_compute_unit_scheduler_integrated -or
-    [bool]$workgroupBoundary.shared_local_memory_datapath_integrated -or
     [bool]$workgroupBoundary.full_runtime_memory_queue_dispatch_fault_and_completion_integration -or
     [bool]$workgroupBoundary.wave_save_restore_or_swapping_implemented -or
-    [bool]$workgroupBoundary.simulation_exercised -or
     [bool]$workgroupBoundary.timing_closure_validated -or
     [bool]$workgroupBoundary.area_validated -or
     [bool]$workgroupBoundary.power_validated) {
@@ -880,6 +938,11 @@ if (-not [bool]$sharedLocalMemory.reference_model_implemented -or
     -not [bool]$sharedLocalMemory.rtl_region_allocator_integrated_with_workgroup_frontend -or
     -not [bool]$sharedLocalMemory.rtl_region_allocation_transactionally_coupled_to_vgpr -or
     -not [bool]$sharedLocalMemory.rtl_region_release_gated_by_final_quiescent_wave -or
+    -not [bool]$sharedLocalMemory.rtl_integrated_with_workgroup_frontend -or
+    -not [bool]$sharedLocalMemory.rtl_memory_wait_scheduler_integrated -or
+    -not [bool]$sharedLocalMemory.abstract_global_ready_valid_boundary_integrated -or
+    -not [bool]$sharedLocalMemory.simulation_exercised -or
+    [string]$sharedLocalMemory.status -notlike "*$validatedRtlRevision*" -or
     [int]$sharedLocalMemory.wave_size -ne 32 -or
     [int]$sharedLocalMemory.default_bank_count -ne 32 -or
     [bool]$sharedLocalMemory.bank_count_frozen -or
@@ -890,18 +953,15 @@ if (-not [bool]$sharedLocalMemory.reference_model_implemented -or
     -not [bool]$sharedLocalMemory.cancelled_service_drains_before_release) {
     Add-Finding "design/cgx1_architecture.json: shared/local-memory reference contract or local proof status is incomplete"
 }
-if ([bool]$sharedLocalMemory.rtl_integrated_with_workgroup_frontend -or
-    [bool]$sharedLocalMemory.vector_isa_memory_issue_integrated -or
-    [bool]$sharedLocalMemory.rtl_memory_wait_scheduler_integrated -or
+if ([bool]$sharedLocalMemory.vector_isa_memory_issue_integrated -or
     [bool]$sharedLocalMemory.global_memory_integrated -or
     [bool]$sharedLocalMemory.subword_accesses_implemented -or
     [bool]$sharedLocalMemory.atomics_implemented -or
     [bool]$sharedLocalMemory.memory_ordering_scopes_implemented -or
-    [bool]$sharedLocalMemory.simulation_exercised -or
     [bool]$sharedLocalMemory.timing_closure_validated -or
     [bool]$sharedLocalMemory.area_validated -or
     [bool]$sharedLocalMemory.power_validated) {
-    Add-Finding "design/cgx1_architecture.json: shared/local memory must not claim RTL admission/LSU integration, exact hosted simulation, or physical implementation"
+    Add-Finding "design/cgx1_architecture.json: shared/local memory must not claim base-ISA memory issue, global-memory implementation, or physical implementation"
 }
 if (-not (Test-Path -LiteralPath (Join-Path $repoRoot "source\rtl\cgx1_cu_shared_local_memory.sv") -PathType Leaf) -or
     -not (Test-Path -LiteralPath (Join-Path $repoRoot "source\rtl\tests\cgx1_cu_shared_local_memory_tb.sv") -PathType Leaf) -or

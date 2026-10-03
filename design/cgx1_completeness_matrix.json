@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "purpose": "Track concrete CGX1 evidence by subsystem and maturity level without percentage estimates.",
+  "status_values": {
+    "not_started": "No inspectable implementation or validation exists at this level.",
+    "specified": "A repository contract or target exists at this level.",
+    "implemented": "A reference, RTL, or software artifact exists at this level.",
+    "validated": "The artifact passed its applicable executable validation at this level.",
+    "partial": "Some behavior exists, but the complete subsystem boundary is not present at this level."
+  },
+  "evidence_columns": [
+    "contract",
+    "reference_model",
+    "executable_tests",
+    "rtl",
+    "rtl_simulation",
+    "subsystem_integration",
+    "cu_integration",
+    "gpu_integration",
+    "software_toolchain_integration",
+    "synthesis",
+    "timing",
+    "area",
+    "power",
+    "physical_implementation",
+    "silicon_measurement"
+  ],
+  "validated_candidate": {
+    "commit": "68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+    "hosted_rtl_ci_run": "37145496015",
+    "hosted_windows_ci_run": "37145498188",
+    "local_rtl_command": "bash scripts/validate_rtl.sh",
+    "local_cpp_command": "ctest --test-dir build --output-on-failure"
+  },
+  "next_dependency_candidate": "control_flow_divergence",
+  "subsystems": [
+    {
+      "id": "pooled_vgpr_matrix_vector_execution",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "implemented",
+        "rtl_simulation": "validated",
+        "subsystem_integration": "validated",
+        "cu_integration": "partial",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "Signed INT8 matrix and candidate INT32 vector operations use the pooled VGPR authority. Floating matrix formats, a complete CU scheduler, synthesis, and physical evidence remain open."
+    },
+    {
+      "id": "workgroup_residency_barriers",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "implemented",
+        "rtl_simulation": "validated",
+        "subsystem_integration": "validated",
+        "cu_integration": "partial",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A canonical CU scheduler and runtime dispatch remain open."
+    },
+    {
+      "id": "shared_local_lsu_memory_waits",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "implemented",
+        "rtl_simulation": "validated",
+        "subsystem_integration": "validated",
+        "cu_integration": "partial",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "Decoded per-wave requests, local-region access, global ready/valid boundary, writeback, faults, cancellation, barriers, and quiescent release are integrated in the workgroup frontend. ISA memory decode, full CU dispatch, caches, MMU, fabric, and physical memory remain open."
+    },
+    {
+      "id": "tile_power_eligibility",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "implemented",
+        "rtl_simulation": "validated",
+        "subsystem_integration": "validated",
+        "cu_integration": "not_started",
+        "gpu_integration": "partial",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "cgx1_top publishes per-tile scheduler eligibility and emergency isolation requests. Tile-state sequencing, scheduler consumption, and physical isolation or gating are not implemented."
+    },
+    {
+      "id": "control_flow_divergence",
+      "evidence": {
+        "contract": "partial",
+        "reference_model": "not_started",
+        "executable_tests": "not_started",
+        "rtl": "not_started",
+        "rtl_simulation": "not_started",
+        "subsystem_integration": "not_started",
+        "cu_integration": "not_started",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "ISA documentation identifies PC, active-lane masks, branch/call/return, and compiler/runtime reconvergence points, but decoded control semantics and encodings are not complete."
+    },
+    {
+      "id": "complete_cu_scheduler_dispatch",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "partial",
+        "executable_tests": "partial",
+        "rtl": "partial",
+        "rtl_simulation": "partial",
+        "subsystem_integration": "partial",
+        "cu_integration": "not_started",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "Workgroup admission and mixed execution are integrated, but a full CU scheduler with instruction control flow, dispatch queues, and runtime completion is absent."
+    },
+    {
+      "id": "cache_global_memory_virtual_memory",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "not_started",
+        "executable_tests": "not_started",
+        "rtl": "not_started",
+        "rtl_simulation": "not_started",
+        "subsystem_integration": "not_started",
+        "cu_integration": "not_started",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "Architecture targets exist; the global LSU boundary remains abstract and there is no cache, translation, or physical memory backend."
+    },
+    {
+      "id": "multi_cu_multi_tile_fabric",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "not_started",
+        "executable_tests": "not_started",
+        "rtl": "not_started",
+        "rtl_simulation": "not_started",
+        "subsystem_integration": "not_started",
+        "cu_integration": "not_started",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "Multi-CU placement, tile-to-fabric traffic, coherence, and contention are architecture targets without an integrated executable model or RTL path."
+    },
+    {
+      "id": "graphics_texture_compression",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "not_started",
+        "executable_tests": "not_started",
+        "rtl": "not_started",
+        "rtl_simulation": "not_started",
+        "subsystem_integration": "not_started",
+        "cu_integration": "not_started",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "Graphics, texture, and compression contracts exist, but no shared-machine graphics execution path is implemented."
+    },
+    {
+      "id": "command_queue_runtime_toolchain",
+      "evidence": {
+        "contract": "partial",
+        "reference_model": "partial",
+        "executable_tests": "partial",
+        "rtl": "not_started",
+        "rtl_simulation": "not_started",
+        "subsystem_integration": "not_started",
+        "cu_integration": "not_started",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "partial",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "A base ISA encoder/decoder and queue architecture exist, but the command-packet ABI, command processor, compiler, loader, and runtime submission path are open."
+    },
+    {
+      "id": "physical_implementation",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "not_started",
+        "executable_tests": "not_started",
+        "rtl": "partial",
+        "rtl_simulation": "partial",
+        "subsystem_integration": "not_started",
+        "cu_integration": "not_started",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "Some logical RTL exists, but no synthesis, timing, area, power, floorplan, placement, routing, or silicon evidence is present."
+    }
+  ]
+}

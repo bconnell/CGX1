@@ -33,16 +33,16 @@
     "local_cpp_command": "ctest --test-dir build --output-on-failure"
   },
   "local_working_tree_candidate": {
-    "base_commit": "19b61750bc5e36812749992cdd6d327ecd4a6247",
-    "source_fingerprint_sha256": "bde560d01a7919e7138028a732f63cfeb48f3253b96cc20fbbcabaf188098164",
-    "fingerprint_scope": "SHA-256 over UTF-8 newline-delimited records relative/path:SHA256(file-content), sorted by path for all files changed from HEAD (tracked and untracked), excluding this matrix file.",
+    "base_commit": "054c1e93bd88983e09026254c81d7dba280d6b12",
+    "source_fingerprint_sha256": "9eb65f8afd1c766c41236fa2a01f7aa2cce8fdcf68db255a70233e697605f9c6",
+    "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
     "local_build": "cmake --build build -j2 under Ubuntu WSL: passed",
-    "local_cpp": "ctest --test-dir build --output-on-failure under Ubuntu WSL: 24/24 passed",
-    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including the standalone control-flow, standalone residency-barrier, and integrated workgroup frontend testbenches",
-    "windows_validation": "public hygiene, repository integrity, design consistency, all negative controls, and Markdown links passed; wrapper stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
+    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 25/25 passed",
+    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including standalone dispatch, scheduler/frontend integration, workgroup LSU, and complete workgroup frontend testbenches",
+    "windows_validation": "scripts/validate_windows.ps1 passed hygiene, integrity, design consistency, all negative controls, and Markdown links, then stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "complete_cu_scheduler_dispatch",
+  "next_dependency_candidate": "command_queue_runtime_toolchain",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -63,7 +63,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Signed INT8 matrix and candidate INT32 vector operations use the pooled VGPR authority. Floating matrix formats, a complete CU scheduler, synthesis, and physical evidence remain open."
+      "limits": "Signed INT8 matrix and candidate INT32 vector operations use the pooled VGPR authority. Floating matrix formats, a full per-wave instruction-issue controller, synthesis, and physical evidence remain open."
     },
     {
       "id": "workgroup_residency_barriers",
@@ -84,7 +84,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A canonical CU scheduler and runtime dispatch remain open."
+      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A CU-local decoded workgroup dispatcher now feeds the authoritative frontend; global queue management and runtime dispatch remain open."
     },
     {
       "id": "shared_local_lsu_memory_waits",
@@ -105,7 +105,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Decoded per-wave requests, local-region access, global ready/valid boundary, writeback, faults, cancellation, barriers, and quiescent release are integrated in the workgroup frontend. ISA memory decode, full CU dispatch, caches, MMU, fabric, and physical memory remain open."
+      "limits": "Decoded per-wave requests, local-region access, global ready/valid boundary, writeback, faults, cancellation, barriers, quiescent release, and CU-local workgroup dispatch are integrated. ISA memory decode, global queue management, multi-CU placement, caches, MMU, fabric, and physical memory remain open."
     },
     {
       "id": "tile_power_eligibility",
@@ -126,7 +126,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "cgx1_tile_power_manager drives cgx1_top.tile_enable from board-state caps, actual per-tile operating state, and readiness inputs; cgx1_top_tb covers arbitrary eligible subsets and emergency masking. The previously reported hardwired P1/P2 count mismatch is not present in current RTL. A full CU scheduler consumer, tile-state sequencing, and physical isolation or gating remain open."
+      "limits": "cgx1_tile_power_manager drives cgx1_top.tile_enable from board-state caps, actual per-tile operating state, and readiness inputs; cgx1_top_tb covers arbitrary eligible subsets and emergency masking. The previously reported hardwired P1/P2 count mismatch is not present in current RTL. Connecting the eligibility producer through global placement into per-CU dispatch, tile-state sequencing, and physical isolation or gating remain open."
     },
     {
       "id": "control_flow_divergence",
@@ -147,18 +147,18 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Post-decode control supports a 57-bit aligned per-wave PC, live/active lane masks, branch joins, calls/returns with active-frame depth protection, structured loops with call-depth unwind, lane termination, and bounded-stack faults. The workgroup frontend integrates dispatch initialization, accepted-instruction PC advance, active vector/LSU masks, and barrier reconvergence through the residency authority's committed local-to-slot map. Focused C++ and RTL tests passed locally; the full RTL script did not complete on this candidate. Opcode formats, fetch/decode, compiler lowering, a complete CU scheduler, runtime dispatch, and physical evidence remain open."
+      "limits": "Post-decode control supports a 57-bit aligned per-wave PC, live/active lane masks, branch joins, calls/returns with active-frame depth protection, structured loops with call-depth unwind, lane termination, and bounded-stack faults. The workgroup frontend integrates dispatch initialization, accepted-instruction PC advance, active vector/LSU masks, and barrier reconvergence through the residency authority's committed local-to-slot map. C++ and full local RTL gates passed on the current candidate. Opcode formats, fetch/decode, compiler lowering, full per-wave instruction issue, runtime dispatch, and physical evidence remain open."
     },
     {
       "id": "complete_cu_scheduler_dispatch",
       "evidence": {
         "contract": "specified",
-        "reference_model": "partial",
-        "executable_tests": "partial",
-        "rtl": "partial",
-        "rtl_simulation": "partial",
-        "subsystem_integration": "partial",
-        "cu_integration": "not_started",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "implemented",
+        "rtl_simulation": "validated",
+        "subsystem_integration": "validated",
+        "cu_integration": "validated",
         "gpu_integration": "not_started",
         "software_toolchain_integration": "not_started",
         "synthesis": "not_started",
@@ -168,7 +168,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Workgroup admission and mixed execution are integrated, but a full CU scheduler with instruction control flow, dispatch queues, and runtime completion is absent."
+      "limits": "One CU has an executable and RTL decoded-compute workgroup dispatcher with bounded per-context FIFO storage, weighted priority service with aging, tile-eligibility and queue-fault gating, retryable versus terminal admission results, and integration with the authoritative workgroup frontend. The dispatcher arbitrates workgroups; it does not own per-wave instruction issue or queue-context allocation. The I/O-die global queue manager, command-packet ABI, graphics dispatch, multi-CU/tile placement, compiler/runtime submission and completion, calibrated performance, synthesis, and physical evidence remain open."
     },
     {
       "id": "cache_global_memory_virtual_memory",

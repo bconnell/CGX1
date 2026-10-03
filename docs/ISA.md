@@ -68,7 +68,9 @@ The current LSU implementation begins at an already-decoded wave request boundar
 
 ## Divergence and reconvergence
 
-Branches may change the active-lane mask. Divergent paths execute under masks and reconverge at compiler/runtime-defined reconvergence points.
+Branches may change the active-lane mask. The post-decode control-flow boundary maintains a 57-bit PC and live/active lane masks for each resident wave, supports explicit branch joins, call/return and structured-loop state, and advances the PC only when the decoded operation is accepted. The executable contract and current reference/RTL evidence are documented in [Decoded Control Flow](CONTROL_FLOW.md).
+
+This work does not assign control opcodes or operand encodings, implement fetch/decode, or establish compiler/runtime lowering. A decoder must provide the event fields and explicit join PC consumed by this boundary. Divergent paths execute under masks; software must use compiler/runtime-defined reconvergence points.
 
 Software must not assume inactive lanes make forward progress. Synchronization that requires all lanes must use subgroup or workgroup primitives rather than relying on branch timing.
 

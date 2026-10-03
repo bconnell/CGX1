@@ -1,0 +1,3 @@
+add_executable(cgx1_control_flow_tests tests.cpp)
+target_include_directories(cgx1_control_flow_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_control_flow_checks COMMAND cgx1_control_flow_tests)

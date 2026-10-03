@@ -15,6 +15,7 @@ add_subdirectory(source/isa)
 add_subdirectory(source/matrix)
 add_subdirectory(source/memory)
 add_subdirectory(source/power)
+add_subdirectory(source/control)
 
 add_executable(cgx1_firmware_tests
     source/firmware/cgx1_power.c

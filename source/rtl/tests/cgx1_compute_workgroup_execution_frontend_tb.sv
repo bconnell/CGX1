@@ -15,10 +15,33 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [7:0] dispatch_workgroup_id;
     logic [COUNT_WIDTH-1:0] dispatch_wave_count;
     logic [(SLOTS*9)-1:0] dispatch_vgpr_register_counts_flat;
+    logic [VA_WIDTH-1:0] dispatch_start_pc = '0;
+    logic [(SLOTS*32)-1:0] dispatch_initial_live_lane_mask_flat = '1;
     logic [15:0] dispatch_scalar_state_units_per_wave, dispatch_other_workgroup_state_units;
     logic [31:0] dispatch_shared_local_bytes;
     logic dispatch_result_valid, dispatch_accepted;
     logic [4:0] dispatch_failure;
+    logic [(SLOTS*VA_WIDTH)-1:0] decoded_sequential_pc_flat = '0;
+    logic control_event_valid = 1'b0;
+    logic [SLOT_WIDTH-1:0] control_event_wave_slot = '0;
+    logic [2:0] control_event_kind = '0;
+    logic [VA_WIDTH-1:0] control_event_sequential_pc = '0;
+    logic [VA_WIDTH-1:0] control_event_target_pc = '0;
+    logic [VA_WIDTH-1:0] control_event_fallthrough_pc = '0;
+    logic [VA_WIDTH-1:0] control_event_join_pc = '0;
+    logic [VA_WIDTH-1:0] control_event_return_pc = '0;
+    logic [VA_WIDTH-1:0] control_event_loop_test_pc = '0;
+    logic [VA_WIDTH-1:0] control_event_loop_body_pc = '0;
+    logic [VA_WIDTH-1:0] control_event_loop_exit_pc = '0;
+    logic [31:0] control_event_taken_mask = '0;
+    logic [31:0] control_event_continue_mask = '0;
+    logic control_event_ready, control_event_accepted;
+    logic [(SLOTS*VA_WIDTH)-1:0] control_pc_flat;
+    logic [(SLOTS*32)-1:0] control_live_lane_mask_flat, control_active_lane_mask_flat;
+    logic [SLOTS-1:0] control_reconverged_mask;
+    logic control_terminal_valid;
+    logic [SLOT_WIDTH-1:0] control_terminal_wave_slot;
+    logic [3:0] control_terminal_fault_code;
     logic barrier_arrive_valid;
     logic [7:0] barrier_arrive_workgroup_id;
     logic [SLOTS-1:0] barrier_arrive_local_wave_mask;
@@ -100,6 +123,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     integer timeout, iteration, lane, physical_row, bank, register_number, base_row;
     integer map_before;
     logic [63:0] tag0;
+    logic [31:0] epoch0;
     logic [SLOTS-1:0] active_before, reserved_before;
     logic [(SLOTS*ROW_WIDTH)-1:0] row_base_before;
     logic [(SLOTS*9)-1:0] register_count_before;
@@ -231,6 +255,11 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         timeout = 0;
         while (!vector_request_accepted[slot]) begin
             @(negedge clk); #1; timeout = timeout + 1;
+            if (dut.vector_request_lane_mask_effective[(slot*32)+:32]
+                !== (vector_request_lane_mask[(slot*32)+:32]
+                    & control_active_lane_mask_flat[(slot*32)+:32]
+                    & control_live_lane_mask_flat[(slot*32)+:32]))
+                $fatal(1, "vector lane mask did not follow the wave's active and live lanes");
             if (timeout > 100) $fatal(1, "vector request did not issue for slot %0d", slot);
         end
         @(posedge clk); #1; @(negedge clk); vector_request_valid[slot] = 0;
@@ -255,6 +284,39 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         if (memory_issue_ready[slot] !== 1'b1 || memory_issue_accepted[slot] !== 1'b1)
             $fatal(1, "integrated LSU did not accept slot %0d", slot);
         @(posedge clk); #1; @(negedge clk); memory_issue_valid[slot] = 1'b0;
+    end
+    endtask
+
+    task automatic send_control_event(input integer slot, input logic [2:0] kind,
+                                      input logic [VA_WIDTH-1:0] sequential_pc,
+                                      input logic [VA_WIDTH-1:0] target_pc,
+                                      input logic [VA_WIDTH-1:0] fallthrough_pc,
+                                      input logic [VA_WIDTH-1:0] join_pc,
+                                      input logic [VA_WIDTH-1:0] return_pc,
+                                      input logic [VA_WIDTH-1:0] loop_test_pc,
+                                      input logic [VA_WIDTH-1:0] loop_body_pc,
+                                      input logic [VA_WIDTH-1:0] loop_exit_pc,
+                                      input logic [31:0] taken_mask,
+                                      input logic [31:0] continue_mask);
+    begin
+        @(negedge clk);
+        control_event_wave_slot = slot[SLOT_WIDTH-1:0];
+        control_event_kind = kind;
+        control_event_sequential_pc = sequential_pc;
+        control_event_target_pc = target_pc;
+        control_event_fallthrough_pc = fallthrough_pc;
+        control_event_join_pc = join_pc;
+        control_event_return_pc = return_pc;
+        control_event_loop_test_pc = loop_test_pc;
+        control_event_loop_body_pc = loop_body_pc;
+        control_event_loop_exit_pc = loop_exit_pc;
+        control_event_taken_mask = taken_mask;
+        control_event_continue_mask = continue_mask;
+        control_event_valid = 1'b1;
+        #1;
+        if (!control_event_ready || !control_event_accepted)
+            $fatal(1, "decoded control event %0d was not accepted for slot %0d", kind, slot);
+        @(posedge clk); #1; @(negedge clk); control_event_valid = 1'b0;
     end
     endtask
 
@@ -383,6 +445,26 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         abort_group(8'd2);
         if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
             $fatal(1, "maximum-fit workgroup abort leaked allocator/common state");
+
+        // Control reconvergence is checked in the same local-wave identity
+        // space as the residency barrier, even when a different group owns slot 0.
+        dispatch(8'd40, 1, 16, 0, 0, 0, 0);
+        dispatch(8'd41, 1, 16, 0, 0, 0, 0);
+        send_control_event(0, 3'd1, 0, 57'h2000, 57'h2010, 57'h2020,
+            0, 0, 0, 0, 32'h1, 0);
+        arrive(8'd41, 4'b0001, 1'b1, 0);
+        abort_group(8'd40); abort_group(8'd41);
+
+        dispatch(8'd42, 1, 16, 0, 0, 0, 0);
+        dispatch(8'd43, 1, 16, 0, 0, 0, 0);
+        send_control_event(1, 3'd1, 0, 57'h3000, 57'h3010, 57'h3020,
+            0, 0, 0, 0, 32'h1, 0);
+        @(negedge clk); barrier_arrive_workgroup_id = 8'd43;
+        barrier_arrive_local_wave_mask = 4'b0001; barrier_arrive_valid = 1'b1; #1;
+        if (barrier_arrive_ready || barrier_arrive_accepted)
+            $fatal(1, "divergent nonzero-slot wave used another workgroup's reconvergence bit");
+        @(negedge clk); barrier_arrive_valid = 1'b0;
+        abort_group(8'd42); abort_group(8'd43);
 
         // Multiple independent complete workgroups share a CU without sharing slots.
         dispatch(8'd5, 1, 16, 0, 0, 0, 0);
@@ -920,7 +1002,148 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
             $fatal(1, "memory fault leaked VGPR or local-region ownership");
 
-        $display("[pass] authoritative residency, barriers, integrated LSU, writeback dependencies, fault/kill drain, region reuse, and randomized arrivals passed.");
+        // Dispatch initializes authoritative control state for each resident wave.
+        dispatch_start_pc = 57'h1000;
+        dispatch_initial_live_lane_mask_flat = '0;
+        dispatch_initial_live_lane_mask_flat[0+:32] = 32'hf;
+        dispatch_initial_live_lane_mask_flat[32+:32] = 32'h3;
+        dispatch_with_resource_demand(8'd73, 2, 16, 16, 0, 0, 0, 64, 0, 0);
+        if (control_pc_flat[0+:VA_WIDTH] != 57'h1000
+            || control_pc_flat[VA_WIDTH+:VA_WIDTH] != 57'h1000
+            || control_live_lane_mask_flat[0+:32] != 32'hf
+            || control_live_lane_mask_flat[32+:32] != 32'h3
+            || control_active_lane_mask_flat[0+:32] != 32'hf
+            || control_active_lane_mask_flat[32+:32] != 32'h3)
+            $fatal(1, "dispatch did not initialize per-wave PC and live-lane masks");
+        set_register(0, 1, 32'd10);
+        set_register(0, 2, 32'd20);
+        set_register(0, 8, 32'd100);
+
+        // A divergent branch masks vector/memory lanes and cannot enter a
+        // workgroup barrier before reconvergence.
+        send_control_event(0, 3'd1, 0, 57'h1100, 57'h1200, 57'h1300,
+            0, 0, 0, 0, 32'h3, 0);
+        if (control_active_lane_mask_flat[0+:32] != 32'h3 || control_reconverged_mask[0])
+            $fatal(1, "branch event did not expose its active lane path");
+        decoded_sequential_pc_flat[0+:VA_WIDTH] = 57'h1104;
+        issue_vector(0, 8'd1, 8'd2, 8'd8);
+        if (control_pc_flat[0+:VA_WIDTH] != 57'h1104)
+            $fatal(1, "accepted vector instruction did not advance its wave PC");
+        wait_vector_complete(0);
+        base_row = $unsigned(allocation_row_base_flat[0+:ROW_WIDTH]);
+        if (dut.execution_frontend.pooled.storage.data[base_row+1][0][0+:32] != 32'd30
+            || dut.execution_frontend.pooled.storage.data[base_row+1][0][32+:32] != 32'd32
+            || dut.execution_frontend.pooled.storage.data[base_row+1][0][64+:32] != 32'd102
+            || dut.execution_frontend.pooled.storage.data[base_row+1][0][96+:32] != 32'd103)
+            $fatal(1, "divergent vector write changed inactive lanes or missed active lanes");
+        barrier_arrive_workgroup_id = 8'd73;
+        barrier_arrive_local_wave_mask = 4'b0001;
+        barrier_arrive_valid = 1'b1; #1;
+        if (barrier_arrive_ready || barrier_arrive_accepted)
+            $fatal(1, "divergent wave reached a workgroup barrier before reconvergence");
+        @(negedge clk); barrier_arrive_valid = 1'b0;
+
+        // A global load carries only active lanes; delayed service leaves this
+        // wave waiting while its sibling can finish independent vector work.
+        decoded_sequential_pc_flat[0+:VA_WIDTH] = 57'h1108;
+        issue_memory(0, 1'b1, 1'b0, 8'd9, 32'hf, 57'h100000010000000, 32'd0);
+        if (!memory_global_request_valid || memory_global_request_lane_mask != 32'h3
+            || !memory_waiting_mask[0] || control_pc_flat[0+:VA_WIDTH] != 57'h1108)
+            $fatal(1, "divergent global memory request did not retain the active lane mask");
+        tag0 = memory_global_request_transaction_tag;
+        epoch0 = memory_global_request_epoch;
+        control_event_wave_slot = 0; control_event_kind = 3'd0;
+        control_event_sequential_pc = 57'h110c; control_event_valid = 1'b1; #1;
+        if (control_event_ready || control_event_accepted
+            || control_pc_flat[0+:VA_WIDTH] != 57'h1108)
+            $fatal(1, "memory-waiting wave changed control state under downstream backpressure");
+        @(negedge clk); control_event_valid = 1'b0;
+        memory_global_request_ready = 1'b1;
+        @(posedge clk); #1; @(negedge clk); memory_global_request_ready = 1'b0;
+        if (!memory_waiting_mask[0])
+            $fatal(1, "memory-waiting wave accepted another control event");
+
+        decoded_sequential_pc_flat[VA_WIDTH+:VA_WIDTH] = 57'h1004;
+        issue_vector(1, 8'd1, 8'd2, 8'd10);
+        timeout = 0;
+        while (vector_execution_busy_bitmap[1]) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "unrelated sibling vector operation did not complete");
+        end
+        arrive(8'd73, 4'b0010, 1'b0, 0);
+        if (!barrier_waiting_mask[1] || !memory_waiting_mask[0])
+            $fatal(1, "barrier did not retain a sibling while another wave waited on memory");
+
+        memory_global_response_workgroup_id = 8'd73;
+        memory_global_response_wave_slot = 0;
+        memory_global_response_epoch = epoch0;
+        memory_global_response_transaction_tag = tag0;
+        memory_global_response_write = 1'b0;
+        memory_global_response_lane_mask = 32'h3;
+        memory_global_response_lane_data_flat = '0;
+        memory_global_response_lane_data_flat[0+:32] = 32'h12345678;
+        memory_global_response_lane_data_flat[32+:32] = 32'h87654321;
+        memory_global_response_fault_code = 0;
+        memory_global_response_fault_lane = 6'h3f;
+        memory_global_response_valid = 1'b1; #1;
+        if (!memory_global_response_ready)
+            $fatal(1, "delayed global load response was not accepted");
+        @(posedge clk); #1; @(negedge clk); memory_global_response_valid = 1'b0;
+        wait_memory_completion(0);
+        base_row = $unsigned(allocation_row_base_flat[(0*ROW_WIDTH)+:ROW_WIDTH]);
+        if (dut.execution_frontend.pooled.storage.data[base_row][9][0+:32] != 32'h12345678
+            || dut.execution_frontend.pooled.storage.data[base_row][9][32+:32] != 32'h87654321)
+            $fatal(1, "delayed global response did not write back the captured destination lanes");
+        timeout = 0;
+        while (memory_waiting_mask[0]) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "global response did not release the waiting wave");
+        end
+
+        send_control_event(0, 3'd0, 57'h1300, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (control_active_lane_mask_flat[0+:32] != 32'hc)
+            $fatal(1, "first decoded path did not defer at its explicit join");
+        send_control_event(0, 3'd0, 57'h1300, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (control_active_lane_mask_flat[0+:32] != 32'hf || !control_reconverged_mask[0])
+            $fatal(1, "decoded paths did not reconverge");
+        arrive(8'd73, 4'b0001, 1'b1, 0);
+        abort_group(8'd73);
+
+        // Malformed control retires through the same terminal, barrier, and
+        // quiescent allocator path as other wave faults.
+        dispatch_start_pc = 57'h2000;
+        dispatch_initial_live_lane_mask_flat[0+:32] = 32'hf;
+        dispatch_with_resource_demand(8'd74, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        send_control_event(0, 3'd1, 0, 57'h2001, 57'h2010, 57'h2020,
+            0, 0, 0, 0, 32'h1, 0);
+        if (!control_terminal_valid || control_terminal_wave_slot != 0
+            || control_terminal_fault_code != 4'd1)
+            $fatal(1, "invalid control PC did not enter the wave terminal path");
+        timeout = 0;
+        while (workgroup_active_mask != '0) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "control fault did not drain workgroup resources");
+        end
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "control fault leaked VGPR or workgroup-local state");
+
+        // Abort drops a divergent resident wave and slot reuse starts from a
+        // fresh PC/mask with no saved path state.
+        dispatch_start_pc = 57'h3000;
+        dispatch_initial_live_lane_mask_flat[0+:32] = 32'hf;
+        dispatch_with_resource_demand(8'd75, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        send_control_event(0, 3'd1, 0, 57'h3100, 57'h3200, 57'h3300,
+            0, 0, 0, 0, 32'h3, 0);
+        abort_group(8'd75);
+        dispatch_start_pc = 57'h4000;
+        dispatch_with_resource_demand(8'd76, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        if (control_pc_flat[0+:VA_WIDTH] != 57'h4000
+            || control_live_lane_mask_flat[0+:32] != 32'hf
+            || control_active_lane_mask_flat[0+:32] != 32'hf)
+            $fatal(1, "reused resident slot retained prior control-flow state");
+        abort_group(8'd76);
+
+        $display("[pass] authoritative residency, barriers, LSU waits, decoded control flow, fault/kill drain, region reuse, and randomized arrivals passed.");
         $finish;
     end
 endmodule

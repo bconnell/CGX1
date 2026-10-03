@@ -18,6 +18,7 @@ module cgx1_workgroup_residency_barrier_tb;
     logic barrier_arrive_valid;
     logic [7:0] barrier_arrive_workgroup_id;
     logic [SLOTS-1:0] barrier_arrive_local_wave_mask, wave_execution_busy;
+    logic [SLOTS-1:0] wave_control_reconverged = '1;
     logic barrier_arrive_ready, barrier_arrive_accepted, barrier_release_valid;
     logic [7:0] barrier_release_workgroup_id;
     logic [31:0] barrier_release_generation;

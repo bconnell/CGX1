@@ -31,6 +31,7 @@ module cgx1_workgroup_residency_barrier #(
     input logic [WORKGROUP_ID_WIDTH-1:0] barrier_arrive_workgroup_id,
     input logic [RESIDENT_WAVE_SLOTS-1:0] barrier_arrive_local_wave_mask,
     input logic [RESIDENT_WAVE_SLOTS-1:0] wave_execution_busy,
+    input logic [RESIDENT_WAVE_SLOTS-1:0] wave_control_reconverged,
     output logic barrier_arrive_ready,
     output logic barrier_arrive_accepted,
     output logic barrier_release_valid,
@@ -214,7 +215,8 @@ module cgx1_workgroup_residency_barrier #(
                         || group_arrived_local_q[arrival_group_index][local_index]
                         || (mapped_slot < 0))
                         barrier_arrive_ready = 1'b0;
-                    else if (wave_execution_busy[mapped_slot])
+                    else if (wave_execution_busy[mapped_slot]
+                        || !wave_control_reconverged[mapped_slot])
                         barrier_arrive_ready = 1'b0;
                 end
             end

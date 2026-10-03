@@ -32,7 +32,17 @@
     "local_rtl_command": "bash scripts/validate_rtl.sh",
     "local_cpp_command": "ctest --test-dir build --output-on-failure"
   },
-  "next_dependency_candidate": "control_flow_divergence",
+  "local_working_tree_candidate": {
+    "base_commit": "19b61750bc5e36812749992cdd6d327ecd4a6247",
+    "source_fingerprint_sha256": "bde560d01a7919e7138028a732f63cfeb48f3253b96cc20fbbcabaf188098164",
+    "fingerprint_scope": "SHA-256 over UTF-8 newline-delimited records relative/path:SHA256(file-content), sorted by path for all files changed from HEAD (tracked and untracked), excluding this matrix file.",
+    "local_build": "cmake --build build -j2 under Ubuntu WSL: passed",
+    "local_cpp": "ctest --test-dir build --output-on-failure under Ubuntu WSL: 24/24 passed",
+    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including the standalone control-flow, standalone residency-barrier, and integrated workgroup frontend testbenches",
+    "windows_validation": "public hygiene, repository integrity, design consistency, all negative controls, and Markdown links passed; wrapper stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
+    "hosted_ci": "not run for this local candidate"
+  },
+  "next_dependency_candidate": "complete_cu_scheduler_dispatch",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -116,18 +126,18 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "cgx1_top publishes per-tile scheduler eligibility and emergency isolation requests. Tile-state sequencing, scheduler consumption, and physical isolation or gating are not implemented."
+      "limits": "cgx1_tile_power_manager drives cgx1_top.tile_enable from board-state caps, actual per-tile operating state, and readiness inputs; cgx1_top_tb covers arbitrary eligible subsets and emergency masking. The previously reported hardwired P1/P2 count mismatch is not present in current RTL. A full CU scheduler consumer, tile-state sequencing, and physical isolation or gating remain open."
     },
     {
       "id": "control_flow_divergence",
       "evidence": {
-        "contract": "partial",
-        "reference_model": "not_started",
-        "executable_tests": "not_started",
-        "rtl": "not_started",
-        "rtl_simulation": "not_started",
-        "subsystem_integration": "not_started",
-        "cu_integration": "not_started",
+        "contract": "specified",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "implemented",
+        "rtl_simulation": "validated",
+        "subsystem_integration": "validated",
+        "cu_integration": "partial",
         "gpu_integration": "not_started",
         "software_toolchain_integration": "not_started",
         "synthesis": "not_started",
@@ -137,7 +147,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "ISA documentation identifies PC, active-lane masks, branch/call/return, and compiler/runtime reconvergence points, but decoded control semantics and encodings are not complete."
+      "limits": "Post-decode control supports a 57-bit aligned per-wave PC, live/active lane masks, branch joins, calls/returns with active-frame depth protection, structured loops with call-depth unwind, lane termination, and bounded-stack faults. The workgroup frontend integrates dispatch initialization, accepted-instruction PC advance, active vector/LSU masks, and barrier reconvergence through the residency authority's committed local-to-slot map. Focused C++ and RTL tests passed locally; the full RTL script did not complete on this candidate. Opcode formats, fetch/decode, compiler lowering, a complete CU scheduler, runtime dispatch, and physical evidence remain open."
     },
     {
       "id": "complete_cu_scheduler_dispatch",

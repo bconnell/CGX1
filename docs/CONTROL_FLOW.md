@@ -1,0 +1,30 @@
+# Decoded Wave Control Flow
+
+[Documentation index](README.md) · [ISA and execution model](ISA.md) · [Scheduling and preemption](SCHEDULING_PREEMPTION.md) · [Validation](VALIDATION.md)
+
+## Boundary
+
+The ISA assigns the Control class to branch, call, return, mask, loop, and termination behavior, but does not yet define those opcode formats. A control-flow unit therefore consumes decoded control events; this contract does not assign opcodes, define instruction fetch, or derive operand fields. The decoder supplies the sequential PC so optional extension words do not require a fixed `PC + 4` rule.
+
+Each resident wave owns a 57-bit virtual PC, a live-lane mask, an active-lane mask, a bounded LIFO control stack, and a bounded call stack. The control stack contains both divergence and loop frames, preserving the actual nesting order when loops occur inside divergent paths or branches occur inside loops. PCs must be four-byte aligned and within the 57-bit GPU virtual-address range. The active mask must be a subset of the live mask. Stack storage is fixed per resident-wave slot, so complete-workgroup admission reserves it with the wave slot; overflow faults that wave and never causes partial workgroup residency.
+
+## Control events
+
+- **Advance:** update to the decoder-supplied sequential PC. Reaching the top divergence frame's join PC completes that path.
+- **Branch:** consume a taken-lane mask, target PC, fallthrough PC, and explicit join PC. A uniform branch redirects without a frame. A divergent branch saves the deferred path and switches to one nonempty path. The current RTL may use taken-first path selection for deterministic simulation; software must not rely on path scheduling order.
+- **Join:** when the first path reaches the explicit join PC, save its live lanes and schedule the deferred path. When the deferred path reaches the same join, merge both masks and pop the frame. Nested branch and loop frames are LIFO. Call depth must match the depth saved at the split before paths merge.
+- **Call/return:** a call pushes the decoder-supplied return PC and redirects to its target. Return may pop only while remaining at or above every active control frame's saved call-depth checkpoint; a return that would cross one faults before modifying the return stack. Stack underflow or overflow is a terminal control fault.
+- **Loop begin/test/backedge:** a decoded loop frame records test, body, exit, member, waiting-lane, and call-depth state on the same LIFO control stack as branch frames. Each loop test supplies the continuing-lane mask; lanes that leave accumulate in the frame while remaining lanes execute another body iteration. Once no lane continues, the saved exit lanes resume together at the exit PC and restore the loop-entry call depth. Tests and backedges require that saved depth and are valid only after any branch nested inside the loop has reconverged.
+- **Terminate active lanes:** remove the current active lanes from the live mask and every saved path mask. If a path empties, unwind the innermost control frame first: schedule a deferred branch path, resume saved join lanes, or resume pending loop-exit lanes as appropriate. If no live lane remains, terminate the wave and clear all control stacks. Kill, fault, abort, and reset also clear or retire the affected state.
+
+Invalid PCs, masks outside the active set, an outer join reached with an incompatible inner frame, unbalanced call/loop state at a join, and stack exhaustion fault the affected wave. Empty-path loop unwind restores the loop checkpoint so a terminated path's deeper calls cannot corrupt surviving lanes. The front end must block further issue from a faulted wave and use its normal terminal-wave path so barrier membership and resident resources retire consistently.
+
+## Issue and synchronization
+
+Control state stays with its resident wave while vector, matrix, or memory work is busy. A memory-waiting wave cannot accept another control event; independent resident waves remain eligible. Existing workgroup barriers accept a wave only when its active mask equals its live-lane mask. The residency barrier resolves workgroup-local wave indices through its committed local-to-resident-slot map before applying control reconvergence, so one workgroup's slot mask cannot gate another workgroup. A divergent path must reach its join before that wave arrives at a barrier.
+
+The baseline preemption boundary remains the workgroup boundary. This control-flow contract does not require saving, swapping, or restoring a subset of resident waves.
+
+## Validation boundary
+
+The executable reference and RTL tests cover branch masks and valid/malformed nested joins, calls and protected returns, loop iterations with different lane exit points, call-depth unwind, lane termination, stack limits, invalid control events, reset, and deterministic randomized transitions. The integrated frontend test checks accepted PC changes, divergent vector destination writes, memory-wait gating, and barrier mapping across workgroups in nonzero resident slots. These tests validate the decoded control-flow state machine and its existing workgroup boundary only. They do not establish instruction encoding, instruction fetch, compiler lowering, runtime dispatch, a complete CU scheduler, timing, area, power, or physical implementation.

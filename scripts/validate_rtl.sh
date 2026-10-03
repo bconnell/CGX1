@@ -431,6 +431,14 @@ iverilog -g2012 -Wall -s cgx1_workgroup_residency_barrier_tb \
 echo "==> Run whole-workgroup CU residency and barrier RTL"
 timeout 30s vvp build/rtl/cgx1_workgroup_residency_barrier_tb.vvp
 
+echo "==> Compile decoded per-wave control-flow RTL"
+iverilog -g2012 -Wall -s cgx1_wave_control_flow_tb \
+    -o build/rtl/cgx1_wave_control_flow_tb.vvp \
+    source/rtl/cgx1_wave_control_flow.sv \
+    source/rtl/tests/cgx1_wave_control_flow_tb.sv
+echo "==> Run decoded per-wave control-flow RTL"
+timeout 30s vvp build/rtl/cgx1_wave_control_flow_tb.vvp
+
 echo "==> Compile authoritative pooled workgroup execution frontend RTL"
 iverilog -g2012 -Wall -s cgx1_compute_workgroup_execution_frontend_tb -o build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp \
     source/rtl/cgx1_workgroup_residency_barrier.sv \
@@ -468,6 +476,7 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_execution_frontend_tb -o build/r
     source/rtl/cgx1_compute_int8_vector_execution_frontend.sv \
     source/rtl/cgx1_cu_shared_local_memory.sv \
     source/rtl/cgx1_compute_workgroup_lsu.sv \
+    source/rtl/cgx1_wave_control_flow.sv \
     source/rtl/cgx1_compute_workgroup_execution_frontend.sv \
     source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv
 echo "==> Run authoritative pooled workgroup execution frontend RTL"

@@ -22,6 +22,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     output logic dispatch_ready,
     input logic [WORKGROUP_ID_WIDTH-1:0] dispatch_workgroup_id,
     input logic [WAVE_COUNT_WIDTH-1:0] dispatch_wave_count,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] dispatch_start_pc,
+    input logic [(RESIDENT_WAVE_SLOTS*32)-1:0] dispatch_initial_live_lane_mask_flat,
     input logic [(RESIDENT_WAVE_SLOTS*9)-1:0] dispatch_vgpr_register_counts_flat,
     input logic [15:0] dispatch_scalar_state_units_per_wave,
     input logic [31:0] dispatch_shared_local_bytes,
@@ -49,6 +51,30 @@ module cgx1_compute_workgroup_execution_frontend #(
     input logic [WORKGROUP_ID_WIDTH-1:0] workgroup_abort_id,
     output logic workgroup_abort_ready,
     output logic workgroup_abort_accepted,
+
+    input logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] decoded_sequential_pc_flat,
+    input logic control_event_valid,
+    input logic [WAVE_SLOT_WIDTH-1:0] control_event_wave_slot,
+    input logic [2:0] control_event_kind,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_event_sequential_pc,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_event_target_pc,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_event_fallthrough_pc,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_event_join_pc,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_event_return_pc,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_event_loop_test_pc,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_event_loop_body_pc,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_event_loop_exit_pc,
+    input logic [31:0] control_event_taken_mask,
+    input logic [31:0] control_event_continue_mask,
+    output logic control_event_ready,
+    output logic control_event_accepted,
+    output logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] control_pc_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] control_live_lane_mask_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] control_active_lane_mask_flat,
+    output logic [RESIDENT_WAVE_SLOTS-1:0] control_reconverged_mask,
+    output logic control_terminal_valid,
+    output logic [WAVE_SLOT_WIDTH-1:0] control_terminal_wave_slot,
+    output logic [3:0] control_terminal_fault_code,
 
     input logic restore_valid,
     input logic [WAVE_SLOT_WIDTH-1:0] restore_wave_slot,
@@ -160,6 +186,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     localparam logic [4:0] FAIL_OTHER_STATE_BUSY = 5'd15;
     localparam logic [4:0] FAIL_SHARED_MEMORY_FRAGMENTED = 5'd16;
     localparam logic [4:0] FAIL_SHARED_MEMORY_ALLOCATION_FAILED = 5'd17;
+    localparam logic [4:0] FAIL_INVALID_CONTROL_ENTRY = 5'd18;
 
     localparam logic [2:0] ST_IDLE = 3'd0;
     localparam logic [2:0] ST_RESERVE = 3'd1;
@@ -176,6 +203,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [(RESIDENT_WAVE_SLOTS*9)-1:0] txn_register_counts_flat_q;
     logic [(RESIDENT_WAVE_SLOTS*WAVE_SLOT_WIDTH)-1:0] txn_wave_slot_map_flat_q;
     logic [WORKGROUP_ID_WIDTH-1:0] txn_workgroup_id_q;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] txn_start_pc_q;
+    logic [(RESIDENT_WAVE_SLOTS*32)-1:0] txn_initial_live_lane_mask_flat_q;
     logic [15:0] txn_scalar_units_q;
     logic [31:0] txn_shared_bytes_q;
     logic [15:0] txn_other_units_q;
@@ -193,6 +222,17 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [RESIDENT_WAVE_SLOTS-1:0] lsu_issue_ready;
     logic [RESIDENT_WAVE_SLOTS-1:0] lsu_issue_accepted;
     logic [RESIDENT_WAVE_SLOTS-1:0] memory_issue_slot_available;
+    logic [RESIDENT_WAVE_SLOTS-1:0] control_initialize_valid_mask;
+    logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] control_initialize_pc_flat;
+    logic [(RESIDENT_WAVE_SLOTS*32)-1:0] control_initialize_live_mask_flat;
+    logic [RESIDENT_WAVE_SLOTS-1:0] control_clear_mask;
+    logic [RESIDENT_WAVE_SLOTS-1:0] control_issue_eligible_mask;
+    logic [RESIDENT_WAVE_SLOTS-1:0] control_advance_valid_mask;
+    logic [RESIDENT_WAVE_SLOTS-1:0] control_event_slot_mask;
+    logic [(RESIDENT_WAVE_SLOTS*32)-1:0] vector_request_lane_mask_effective;
+    logic [(RESIDENT_WAVE_SLOTS*32)-1:0] memory_issue_lane_mask_effective;
+    logic barrier_state_arrive_ready, barrier_state_arrive_accepted;
+    logic control_terminal_ready, control_terminal_selected;
     logic [RESIDENT_WAVE_SLOTS-1:0] lsu_busy_mask;
     logic [(RESIDENT_WAVE_SLOTS*256)-1:0] memory_destination_pending_mask_flat;
     logic [RESIDENT_WAVE_SLOTS-1:0] busy_bitmap;
@@ -292,6 +332,9 @@ module cgx1_compute_workgroup_execution_frontend #(
     integer comb_slot;
     integer comb_count;
     integer memory_pending_slot;
+    integer control_init_wave;
+    integer control_init_slot;
+    logic control_entry_invalid;
 
     always_comb begin : admission_plan
         integer row_count;
@@ -315,6 +358,7 @@ module cgx1_compute_workgroup_execution_frontend #(
             * $unsigned(dispatch_wave_count);
         shared_demand = {32'b0, dispatch_shared_local_bytes};
         other_demand = $unsigned(dispatch_other_workgroup_state_units);
+        control_entry_invalid = (dispatch_start_pc[1:0] != 2'b00);
         for (comb_wave = 0; comb_wave < RESIDENT_WAVE_SLOTS; comb_wave = comb_wave + 1)
             plan_slot[comb_wave] = -1;
         for (comb_slot = 0; comb_slot < RESIDENT_WAVE_SLOTS; comb_slot = comb_slot + 1) begin
@@ -332,6 +376,8 @@ module cgx1_compute_workgroup_execution_frontend #(
         for (comb_wave = 0; comb_wave < RESIDENT_WAVE_SLOTS; comb_wave = comb_wave + 1) begin
             if (comb_wave < $unsigned(dispatch_wave_count)) begin
                 comb_count = $unsigned(dispatch_vgpr_register_counts_flat[(comb_wave*9)+:9]);
+                if (dispatch_initial_live_lane_mask_flat[(comb_wave*32)+:32] == 0)
+                    control_entry_invalid = 1'b1;
                 if ((comb_count < 1) || (comb_count > 256))
                     plan_failure = FAIL_INVALID_VGPR_DEMAND;
                 requested_rows = requested_rows + ((comb_count + 7) / 8);
@@ -343,6 +389,8 @@ module cgx1_compute_workgroup_execution_frontend #(
             plan_failure = FAIL_INVALID_WAVE_COUNT;
         else if ($unsigned(dispatch_wave_count) > RESIDENT_WAVE_SLOTS)
             plan_failure = FAIL_WORKGROUP_WAVE_LIMIT;
+        else if (control_entry_invalid)
+            plan_failure = FAIL_INVALID_CONTROL_ENTRY;
         else if (plan_failure == FAIL_INVALID_VGPR_DEMAND)
             plan_failure = FAIL_INVALID_VGPR_DEMAND;
         else if (query_workgroup_found)
@@ -381,6 +429,26 @@ module cgx1_compute_workgroup_execution_frontend #(
             slot_found = (comb_wave == $unsigned(dispatch_wave_count));
             if (!slot_found)
                 plan_failure = FAIL_WAVE_SLOTS_BUSY;
+        end
+    end
+
+    always_comb begin : control_state_initialization
+        control_initialize_valid_mask = '0;
+        control_initialize_pc_flat = '0;
+        control_initialize_live_mask_flat = '0;
+        if (commit_accepted) begin
+            for (control_init_wave = 0; control_init_wave < RESIDENT_WAVE_SLOTS;
+                control_init_wave = control_init_wave + 1) begin
+                if (control_init_wave < $unsigned(txn_wave_count_q)) begin
+                    control_init_slot = $unsigned(txn_wave_slot_map_flat_q[
+                        (control_init_wave*WAVE_SLOT_WIDTH)+:WAVE_SLOT_WIDTH]);
+                    control_initialize_valid_mask[control_init_slot] = 1'b1;
+                    control_initialize_pc_flat[(control_init_slot*VIRTUAL_ADDRESS_WIDTH)
+                        +:VIRTUAL_ADDRESS_WIDTH] = txn_start_pc_q;
+                    control_initialize_live_mask_flat[(control_init_slot*32)+:32]
+                        = txn_initial_live_lane_mask_flat_q[(control_init_wave*32)+:32];
+                end
+            end
         end
     end
 
@@ -441,32 +509,64 @@ module cgx1_compute_workgroup_execution_frontend #(
     assign live_wave_mask = barrier_live_mask & allocation_active_bitmap;
     assign barrier_waiting_mask = barrier_waiting_mask_raw & allocation_active_bitmap;
     assign issuable_wave_mask = barrier_issuable_mask & allocation_active_bitmap
-        & ~lsu_fault_block_mask;
+        & ~lsu_fault_block_mask & {RESIDENT_WAVE_SLOTS{!control_terminal_valid}};
     assign release_pending_wave_mask = barrier_release_pending_mask;
     assign workgroup_active_mask = barrier_active_mask;
     assign resident_wave_count = barrier_resident_count;
     assign scalar_state_units_used = barrier_scalar_used;
     assign shared_local_bytes_used = shared_memory_allocated_bytes;
     assign other_workgroup_state_units_used = barrier_other_used;
-    assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask & ~lsu_busy_mask;
-    assign vector_exec_request_valid = vector_request_valid & issuable_wave_mask;
+    assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask & ~lsu_busy_mask
+        & control_reconverged_mask & ~control_event_slot_mask;
+    assign vector_exec_request_valid = vector_request_valid & issuable_wave_mask
+        & ~control_event_slot_mask;
     // Preserve same-wave program order: an already-presented matrix/vector
     // request and any live execution finish before the LSU captures its next op.
     assign memory_issue_slot_available = issuable_wave_mask
         & ~matrix_busy_raw & ~vector_execution_busy_bitmap_raw
-        & ~matrix_request_valid & ~vector_request_valid;
+        & ~matrix_request_valid & ~vector_request_valid & ~control_event_slot_mask;
     assign lsu_issue_valid = memory_issue_valid & memory_issue_slot_available;
     assign memory_issue_ready = lsu_issue_ready & memory_issue_slot_available;
     assign memory_issue_accepted = lsu_issue_accepted;
+    assign control_advance_valid_mask = matrix_request_accepted
+        | vector_request_accepted | memory_issue_accepted;
+    assign control_clear_mask = release_done_mask;
+    assign control_issue_eligible_mask = issuable_wave_mask & ~busy_bitmap
+        & ~matrix_request_valid & ~vector_request_valid & ~memory_issue_valid;
 
+    always_comb begin : control_issue_masks
+        control_event_slot_mask = '0;
+        vector_request_lane_mask_effective = '0;
+        memory_issue_lane_mask_effective = '0;
+        if (control_event_valid && ($unsigned(control_event_wave_slot) < RESIDENT_WAVE_SLOTS))
+            control_event_slot_mask[control_event_wave_slot] = 1'b1;
+        for (integer lane_slot = 0; lane_slot < RESIDENT_WAVE_SLOTS; lane_slot = lane_slot + 1) begin
+            vector_request_lane_mask_effective[(lane_slot*32)+:32]
+                = vector_request_lane_mask[(lane_slot*32)+:32]
+                & control_active_lane_mask_flat[(lane_slot*32)+:32]
+                & control_live_lane_mask_flat[(lane_slot*32)+:32];
+            memory_issue_lane_mask_effective[(lane_slot*32)+:32]
+                = memory_issue_lane_mask_flat[(lane_slot*32)+:32]
+                & control_active_lane_mask_flat[(lane_slot*32)+:32]
+                & control_live_lane_mask_flat[(lane_slot*32)+:32];
+        end
+    end
+
+    assign control_terminal_selected = !terminate_wave_valid && control_terminal_valid;
+    assign memory_fault_to_barrier = !terminate_wave_valid && !control_terminal_valid
+        && lsu_fault_valid && memory_fault_ready;
     assign barrier_terminate_valid = terminate_wave_valid
-        || (lsu_fault_valid && memory_fault_ready);
-    assign barrier_terminate_slot = terminate_wave_valid ? terminate_wave_slot : lsu_fault_wave_slot;
-    assign barrier_terminate_reason = terminate_wave_valid ? terminate_wave_reason : 2'b10;
-    assign terminate_wave_ready = barrier_terminate_ready && !memory_fault_to_barrier;
+        || control_terminal_selected || memory_fault_to_barrier;
+    assign barrier_terminate_slot = terminate_wave_valid ? terminate_wave_slot
+        : control_terminal_selected ? control_terminal_wave_slot : lsu_fault_wave_slot;
+    assign barrier_terminate_reason = terminate_wave_valid ? terminate_wave_reason
+        : control_terminal_selected ? ((control_terminal_fault_code == 0) ? 2'b00 : 2'b10)
+        : 2'b10;
+    assign terminate_wave_ready = barrier_terminate_ready && terminate_wave_valid;
     assign terminate_wave_accepted = terminate_wave_valid && terminate_wave_ready;
-    assign memory_fault_to_barrier = !terminate_wave_valid && lsu_fault_valid && memory_fault_ready;
-    assign lsu_fault_ready = !terminate_wave_valid && memory_fault_ready && barrier_terminate_ready;
+    assign control_terminal_ready = control_terminal_selected && barrier_terminate_ready;
+    assign lsu_fault_ready = !terminate_wave_valid && !control_terminal_valid
+        && memory_fault_ready && barrier_terminate_ready;
     assign memory_fault_valid = lsu_fault_valid;
     assign memory_fault_workgroup_id = lsu_fault_workgroup_id;
     assign memory_fault_wave_slot = lsu_fault_wave_slot;
@@ -554,7 +654,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         .issue_valid(lsu_issue_valid), .issue_ready(lsu_issue_ready),
         .issue_accepted(lsu_issue_accepted), .issue_global(memory_issue_global),
         .issue_write(memory_issue_write), .issue_destination_flat(memory_issue_destination_flat),
-        .issue_lane_mask_flat(memory_issue_lane_mask_flat),
+        .issue_lane_mask_flat(memory_issue_lane_mask_effective),
         .issue_byte_addresses_flat(memory_issue_byte_addresses_flat),
         .issue_store_data_flat(memory_issue_store_data_flat),
         .memory_waiting_mask(memory_waiting_mask), .busy_mask(lsu_busy_mask),
@@ -629,6 +729,47 @@ module cgx1_compute_workgroup_execution_frontend #(
 
     assign memory_vgpr_write_ready = lsu_writeback_ready || lsu_writeback_address_fault;
 
+    assign barrier_arrive_ready = barrier_state_arrive_ready;
+    assign barrier_arrive_accepted = barrier_state_arrive_accepted;
+
+    cgx1_wave_control_flow #(
+        .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),
+        .VIRTUAL_ADDRESS_WIDTH(VIRTUAL_ADDRESS_WIDTH),
+        .WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH)
+    ) control_flow (
+        .clk(clk), .reset_n(reset_n),
+        .initialize_valid_mask(control_initialize_valid_mask),
+        .initialize_pc_flat(control_initialize_pc_flat),
+        .initialize_live_mask_flat(control_initialize_live_mask_flat),
+        .clear_mask(control_clear_mask),
+        .issue_eligible_mask(control_issue_eligible_mask),
+        .advance_valid_mask(control_advance_valid_mask),
+        .advance_sequential_pc_flat(decoded_sequential_pc_flat),
+        .control_event_valid(control_event_valid),
+        .control_event_wave_slot(control_event_wave_slot),
+        .control_event_kind(control_event_kind),
+        .control_event_sequential_pc(control_event_sequential_pc),
+        .control_event_target_pc(control_event_target_pc),
+        .control_event_fallthrough_pc(control_event_fallthrough_pc),
+        .control_event_join_pc(control_event_join_pc),
+        .control_event_return_pc(control_event_return_pc),
+        .control_event_loop_test_pc(control_event_loop_test_pc),
+        .control_event_loop_body_pc(control_event_loop_body_pc),
+        .control_event_loop_exit_pc(control_event_loop_exit_pc),
+        .control_event_taken_mask(control_event_taken_mask),
+        .control_event_continue_mask(control_event_continue_mask),
+        .control_event_ready(control_event_ready),
+        .control_event_accepted(control_event_accepted),
+        .current_pc_flat(control_pc_flat),
+        .live_lane_mask_flat(control_live_lane_mask_flat),
+        .active_lane_mask_flat(control_active_lane_mask_flat),
+        .reconverged_mask(control_reconverged_mask),
+        .terminal_valid(control_terminal_valid),
+        .terminal_wave_slot(control_terminal_wave_slot),
+        .terminal_fault_code(control_terminal_fault_code),
+        .terminal_ready(control_terminal_ready)
+    );
+
     cgx1_workgroup_residency_barrier #(
         .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),
         .MAX_WORKGROUP_CONTEXTS(MAX_WORKGROUP_CONTEXTS),
@@ -653,8 +794,9 @@ module cgx1_compute_workgroup_execution_frontend #(
         .barrier_arrive_workgroup_id(barrier_arrive_workgroup_id),
         .barrier_arrive_local_wave_mask(barrier_arrive_local_wave_mask),
         .wave_execution_busy(busy_bitmap),
-        .barrier_arrive_ready(barrier_arrive_ready),
-        .barrier_arrive_accepted(barrier_arrive_accepted),
+        .wave_control_reconverged(control_reconverged_mask),
+        .barrier_arrive_ready(barrier_state_arrive_ready),
+        .barrier_arrive_accepted(barrier_state_arrive_accepted),
         .barrier_release_valid(barrier_release_valid),
         .barrier_release_workgroup_id(barrier_release_workgroup_id),
         .barrier_release_generation(barrier_release_generation),
@@ -712,7 +854,8 @@ module cgx1_compute_workgroup_execution_frontend #(
         .matrix_illegal_wave_slot(matrix_illegal_wave_slot),
         .vector_request_valid(vector_exec_request_valid), .vector_request_opcode(vector_request_opcode),
         .vector_request_source0(vector_request_source0), .vector_request_source1(vector_request_source1),
-        .vector_request_destination(vector_request_destination), .vector_request_lane_mask(vector_request_lane_mask),
+        .vector_request_destination(vector_request_destination),
+        .vector_request_lane_mask(vector_request_lane_mask_effective),
         .memory_destination_pending_mask_flat(memory_destination_pending_mask_flat),
         .vector_request_accepted(vector_request_accepted), .vector_complete_valid(vector_complete_valid),
         .vector_complete_wave_slot(vector_complete_wave_slot), .vector_illegal_opcode(vector_illegal_opcode),
@@ -741,6 +884,8 @@ module cgx1_compute_workgroup_execution_frontend #(
             txn_register_counts_flat_q <= '0;
             txn_wave_slot_map_flat_q <= '0;
             txn_workgroup_id_q <= '0;
+            txn_start_pc_q <= '0;
+            txn_initial_live_lane_mask_flat_q <= '0;
             txn_scalar_units_q <= '0;
             txn_shared_bytes_q <= '0;
             txn_other_units_q <= '0;
@@ -770,6 +915,8 @@ module cgx1_compute_workgroup_execution_frontend #(
                             txn_register_counts_flat_q <= dispatch_vgpr_register_counts_flat;
                             txn_wave_slot_map_flat_q <= planned_slots_flat;
                             txn_scalar_units_q <= dispatch_scalar_state_units_per_wave;
+                            txn_start_pc_q <= dispatch_start_pc;
+                            txn_initial_live_lane_mask_flat_q <= dispatch_initial_live_lane_mask_flat;
                             txn_shared_bytes_q <= dispatch_shared_local_bytes;
                             txn_other_units_q <= dispatch_other_workgroup_state_units;
                             txn_wave_index_q <= 0;

@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+// Keep runtime checks active in optimized Release CTest builds.
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "cgx1_power_management.hpp"
 
 #include <cassert>
@@ -127,11 +131,16 @@ int main()
         }
     }
 
-    assert(EmergencyIsolationRequired(true, false, false, true, true));
-    assert(EmergencyIsolationRequired(false, true, false, true, true));
-    assert(EmergencyIsolationRequired(false, false, true, false, true));
-    assert(EmergencyIsolationRequired(false, false, true, true, false));
-    assert(!EmergencyIsolationRequired(false, false, true, true, true));
+    assert(EmergencyIsolationRequired(true, false, false, false, true, true));
+    assert(EmergencyIsolationRequired(false, true, false, false, true, true));
+    assert(EmergencyIsolationRequired(false, false, true, false, false, true));
+    assert(EmergencyIsolationRequired(false, false, true, false, true, false));
+    assert(EmergencyIsolationRequired(false, false, false, true, false, true));
+    assert(EmergencyIsolationRequired(false, false, false, true, true, false));
+    assert(EmergencyIsolationRequired(false, false, true, true, false, true));
+    assert(!EmergencyIsolationRequired(false, false, true, false, true, true));
+    assert(!EmergencyIsolationRequired(false, false, false, true, true, true));
+    assert(!EmergencyIsolationRequired(false, false, false, false, false, false));
 
     constexpr HysteresisConfig hysteresis{3U, 5U};
     static_assert(HysteresisConfigValid(hysteresis));

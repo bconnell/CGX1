@@ -247,12 +247,14 @@ inline constexpr bool EmergencyIsolationRequired(
     bool hardwareFault,
     bool emergencyThermal,
     bool activeDockState,
+    bool requestedDockState,
     bool dockPowerValid,
     bool coolantFlowValid)
 {
     return hardwareFault
         || emergencyThermal
-        || (activeDockState && (!dockPowerValid || !coolantFlowValid));
+        || ((activeDockState || requestedDockState)
+            && (!dockPowerValid || !coolantFlowValid));
 }
 
 inline constexpr bool HysteresisConfigValid(const HysteresisConfig& config)

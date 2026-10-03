@@ -12,39 +12,48 @@ module cgx1_top #(
     input  logic                  hardware_fault,
     input  logic [7:0]            requested_power_state,
     output logic [7:0]            active_power_state,
-    output logic [TILE_COUNT-1:0] tile_enable
+    output logic [TILE_COUNT-1:0] tile_enable,
+    input  logic                  emergency_thermal,
+    input  logic [(TILE_COUNT*3)-1:0] tile_operating_state_flat,
+    input  logic [TILE_COUNT-1:0] tile_power_good,
+    input  logic [TILE_COUNT-1:0] tile_clocks_stable,
+    input  logic [TILE_COUNT-1:0] tile_coherence_ready,
+    input  logic [TILE_COUNT-1:0] tile_isolation_asserted,
+    output logic [TILE_COUNT-1:0] tile_isolation_request
 );
 
     localparam logic [7:0] P0 = 8'd0;
-    localparam logic [7:0] P1 = 8'd1;
-    localparam logic [7:0] P2 = 8'd2;
-    localparam logic [7:0] P3 = 8'd3;
-    localparam logic [7:0] P4 = 8'd4;
+    logic emergency_isolation_required;
+    logic requested_board_state_valid;
+
+    cgx1_tile_power_manager #(
+        .TILE_COUNT(TILE_COUNT)
+    ) tile_power_manager (
+        .reset_n(reset_n),
+        .active_power_state(active_power_state),
+        .requested_power_state(requested_power_state),
+        .external_48v_present(external_48v_present),
+        .coolant_flow_valid(coolant_flow_valid),
+        .hardware_fault(hardware_fault),
+        .emergency_thermal(emergency_thermal),
+        .tile_operating_state_flat(tile_operating_state_flat),
+        .tile_power_good(tile_power_good),
+        .tile_clocks_stable(tile_clocks_stable),
+        .tile_coherence_ready(tile_coherence_ready),
+        .tile_isolation_asserted(tile_isolation_asserted),
+        .scheduler_eligible_mask(tile_enable),
+        .emergency_isolation_request(tile_isolation_request),
+        .emergency_isolation_required(emergency_isolation_required),
+        .requested_board_state_valid(requested_board_state_valid)
+    );
 
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             active_power_state <= P0;
-            tile_enable <= '0;
-        end else if (hardware_fault) begin
+        end else if (emergency_isolation_required || !requested_board_state_valid) begin
             active_power_state <= P0;
-            tile_enable <= '0;
-        end else if ((requested_power_state >= P3) &&
-                     (!external_48v_present || !coolant_flow_valid)) begin
-            active_power_state <= P0;
-            tile_enable <= '0;
         end else begin
             active_power_state <= requested_power_state;
-            unique case (requested_power_state)
-                P0: tile_enable <= '0;
-                P1: tile_enable <= {{(TILE_COUNT-1){1'b0}}, 1'b1};
-                P2: tile_enable <= {{(TILE_COUNT-2){1'b0}}, 2'b11};
-                P3: tile_enable <= '1;
-                P4: tile_enable <= '1;
-                default: begin
-                    active_power_state <= P0;
-                    tile_enable <= '0;
-                end
-            endcase
         end
     end
 

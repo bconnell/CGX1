@@ -100,7 +100,7 @@ The critical software-visible and multi-tile contracts are now defined rather th
 | Chiplet fabric | Central coherent I/O die; directory coherence; 7.2 TB/s aggregate read payload budget | [Chiplet Fabric](docs/CHIPLET_FABRIC.md) |
 | Virtual memory | 57-bit GPU VA; 4 KiB/64 KiB/2 MiB pages; replayable faults; ATS/PASID optional | [Virtual Memory](docs/VIRTUAL_MEMORY.md) |
 | Scheduling | 64 resident hardware queue contexts; 8 priorities; bounded preemption/reset escalation | [Scheduling and Preemption](docs/SCHEDULING_PREEMPTION.md) |
-| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state | [Power Management](docs/POWER_MANAGEMENT.md) |
+| Power management | Per-tile eligibility within unchanged P0-P4 board limits; RTL publishes scheduler eligibility while physical DVFS/gating remain open; no fixed tile count per P-state | [Power Management](docs/POWER_MANAGEMENT.md) |
 
 These values are design targets. They do not represent fabricated silicon capability or measured application performance.
 

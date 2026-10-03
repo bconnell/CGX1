@@ -4,7 +4,7 @@
 
 The public RTL currently contains limited, separately testable modules and composed execution boundaries:
 
-- `cgx1_top.sv` covers board power-state gating and compute-tile enable behavior.
+- `cgx1_top.sv` retains board-state fallback and connects `cgx1_tile_power_manager.sv`, which publishes the scheduler-eligibility mask and emergency isolation request from per-tile status.
 - `cgx1_matrix_pipeline_control.sv` covers matrix instruction legality, decode/capture/execute/writeback sequencing, VGPR address generation, source-release events, destination-complete events, 16-cycle reissue control, and matrix-to-matrix RAW/WAW interlocks against older pending destinations.
 - `cgx1_matrix_operand_staging.sv` implements the 2 KB capture buffer and separate 2 KB active-execution operand set, with commit on capture cycle 7.
 - `cgx1_matrix_wave_scoreboard.sv` tracks one wave's matrix source/destination VGPR reservations and reports ordinary-instruction RAW/WAW/WAR hazards plus matrix VGPR-port conflicts. Reservations use the pipeline controller's latched accepted register bases rather than live post-handshake issue inputs.
@@ -72,4 +72,4 @@ The gate requires Icarus Verilog and uses SystemVerilog 2012 mode. GitHub runs t
 
 A complete device still requires FP16/BF16/FP8 matrix arithmetic, physical register/storage and arithmetic implementation, caches, coherent fabric, HBM controllers and PHYs, raster, texture, ray traversal, command processors, PCIe, display, media, security, clock/reset, debug, testability, and fault management.
 
-The power-state scaffold keeps one important control rule explicit: loss of external 48 V or valid coolant flow during P3/P4 returns the state to P0 and disables compute tiles.
+The tile power manager caps each reported tile state against the stricter active/requested P-state, requires power-good, stable clocks, coherence readiness, and released isolation, and never infers a fixed tile count from P1/P2. Hardware or thermal faults, dock power/coolant loss while dock operation is active or requested, and reset immediately clear eligibility and assert all-tile isolation request; `cgx1_top.sv` retains the registered P0 fallback. Per-tile state is external status input. The RTL does not claim a tile-state sequencer, physical gate timing, DVFS behavior, watt allocation, or measured power.

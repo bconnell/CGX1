@@ -19,6 +19,14 @@ iverilog -V
 
 mkdir -p build/rtl
 
+echo "==> Compile top-level per-tile power eligibility RTL"
+iverilog -g2012 -Wall -s cgx1_top_tb -o build/rtl/cgx1_top_tb.vvp \
+    source/rtl/cgx1_tile_power_manager.sv \
+    source/rtl/cgx1_top.sv \
+    source/rtl/tests/cgx1_top_tb.sv
+echo "==> Run top-level per-tile power eligibility RTL"
+timeout 30s vvp build/rtl/cgx1_top_tb.vvp
+
 echo "==> Compile matrix pipeline control RTL"
 iverilog     -g2012     -Wall     -s cgx1_matrix_pipeline_control_tb     -o build/rtl/cgx1_matrix_pipeline_control_tb.vvp     source/rtl/cgx1_matrix_pipeline_control.sv     source/rtl/tests/cgx1_matrix_pipeline_control_tb.sv
 

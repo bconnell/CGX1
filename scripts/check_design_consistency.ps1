@@ -42,6 +42,21 @@ function Require-Literal {
     }
 }
 
+function Forbid-Literal {
+    param([string]$RelativePath, [string]$Forbidden)
+
+    $path = Join-Path $repoRoot ($RelativePath.Replace("/", "\"))
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        Add-Finding "$($RelativePath): file is missing"
+        return
+    }
+
+    $text = [IO.File]::ReadAllText($path)
+    if ($text.Contains($Forbidden)) {
+        Add-Finding "$($RelativePath): forbidden value is present: $Forbidden"
+    }
+}
+
 $length = Format-Number $architecture.mechanical_mm.length
 $height = Format-Number $architecture.mechanical_mm.height
 $thickness = Format-Number $architecture.mechanical_mm.thickness
@@ -139,7 +154,20 @@ Require-Literal "source/firmware/cgx1_power.c" "return $($fullPower)U;"
 Require-Literal "source/firmware/test_power.c" "telemetry.coolantFlowValid = false;"
 Require-Literal "source/firmware/test_power.c" "telemetry.external48VPresent = false;"
 Require-Literal "source/rtl/cgx1_top.sv" "active_power_state <= P0;"
-Require-Literal "source/rtl/cgx1_top.sv" "tile_enable <= '0;"
+Require-Literal "source/rtl/cgx1_top.sv" ".scheduler_eligible_mask(tile_enable)"
+Require-Literal "source/rtl/cgx1_top.sv" ".emergency_isolation_request(tile_isolation_request)"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "P0: tile_state_limit = T2_IDLE;"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "P1: tile_state_limit = T3_ECO;"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "P2: tile_state_limit = T4_NOMINAL;"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "P3, P4: tile_state_limit = T5_BOOST;"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "tile_power_good[slot]"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "tile_clocks_stable[slot]"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "tile_coherence_ready[slot]"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "!tile_isolation_asserted[slot]"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "hardware_fault || emergency_thermal"
+Require-Literal "source/rtl/cgx1_tile_power_manager.sv" "active_dock_state || requested_dock_state"
+Forbid-Literal "source/rtl/cgx1_top.sv" "P1: tile_enable <= {{(TILE_COUNT-1){1'b0}}, 1'b1};"
+Forbid-Literal "source/rtl/cgx1_top.sv" "P2: tile_enable <= {{(TILE_COUNT-2){1'b0}}, 2'b11};"
 
 Require-Literal "source/model/model.hpp" "kTargetLengthMm = $length;"
 Require-Literal "source/model/model.hpp" "kTargetHeightMm = $height;"
@@ -252,7 +280,7 @@ Require-Literal "docs/ENGINEERING_SPEC.md" "$l1Shared KB combined L1/shared memo
 Require-Literal "docs/ENGINEERING_SPEC.md" "$l2PerTile MB L2 slice per compute tile."
 Require-Literal "docs/ENGINEERING_SPEC.md" "$l2Total MB aggregate L2 target."
 Require-Literal "README.md" "| Package level cache target | $packageCache MB | Architecture target |"
-Require-Literal "README.md" "| Power management | Per-tile DVFS/power gating policy inside unchanged P0-P4 board limits; no fixed tile count per P-state |"
+Require-Literal "README.md" "| Power management | Per-tile eligibility within unchanged P0-P4 board limits; RTL publishes scheduler eligibility while physical DVFS/gating remain open; no fixed tile count per P-state |"
 
 if ([int]$architecture.schema_version -ne 21) {
     Add-Finding "design/cgx1_architecture.json: schema version must remain 21 for the pooled resident-wave workgroup RTL boundary"

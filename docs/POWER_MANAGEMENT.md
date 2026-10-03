@@ -142,7 +142,7 @@ The final hardware design must define timing and acknowledgement signals for eac
 
 Emergency safety has higher authority than orderly performance transitions.
 
-Hardware fault, emergency thermal protection, or dock/coolant loss while a docked state is active may require immediate isolation before normal drain/writeback can finish. In that case:
+Hardware fault, emergency thermal protection, or dock/coolant loss while a docked state is active or requested may require immediate isolation before normal drain/writeback can finish. In that case:
 
 - the tile is removed from scheduler eligibility immediately;
 - unfinished work may be lost;
@@ -174,6 +174,12 @@ The scheduler:
 
 Power management must not create a permanently starved queue simply because tile availability changes.
 
+## RTL eligibility authority
+
+`source/rtl/cgx1_tile_power_manager.sv` now publishes the scheduler-eligible mask connected to `cgx1_top.sv`'s existing `tile_enable` port. In this RTL boundary, `tile_enable` means **scheduler eligibility**, not direct control of a physical power gate. The manager consumes the active and requested P-state, each tile's reported T0-T5 operating state, power-good, clock-stable, coherence-ready, and isolation status. `tile_operating_state_flat[3*i +: 3]` carries tile *i*'s state (tile 0 occupies bits `[2:0]`). A tile is eligible only in T3-T5, at or below the stricter active/requested P-state ceiling, and after every readiness condition is true. This lets any subset of tiles qualify in P1/P2 without a fixed count or tile-index mapping.
+
+`cgx1_top.sv` still registers the active board state and falls back to P0 for invalid requests, hardware faults, emergency thermal protection, or dock-power/coolant loss while dock operation is active or requested. The manager masks eligibility immediately and asserts `tile_isolation_request` for every tile during reset or an emergency. That signal is an isolation request; this RTL does not model acknowledgement or physical isolation timing. Per-tile operating states and readiness remain status inputs from tile control. The RTL does not implement a tile-state sequencer, DVFS transitions, hysteresis timing, or an authorized watt-budget allocator.
+
 ## Reference implementation
 
 [`source/power/cgx1_power_management.hpp`](../source/power/cgx1_power_management.hpp) and its executable tests model:
@@ -192,4 +198,4 @@ Power management must not create a permanently starved queue simply because tile
 - emergency isolation conditions;
 - configurable hysteresis acceptance.
 
-The reference implementation is a policy/invariant model. It is not a regulator driver, physical power controller, or measured silicon power model.
+The executable reference is a policy/invariant model, and the RTL manager implements the eligibility and emergency mask at the top boundary. Neither is a regulator driver, physical power controller, or measured silicon power model.

@@ -9,8 +9,8 @@ Make shared/local-memory region ownership authoritative across complete-workgrou
 - The C++ `ComputeUnitWorkgroupScheduler` owns actual pooled VGPR allocations and shared/local-memory regions. It gates memory-waiting waves, rejects barrier arrival during a memory wait, drains terminal operations, and releases a region after whole-workgroup quiescence.
 - The current RTL workgroup frontend composes `cgx1_cu_shared_local_memory` as its real region allocator. Admission allocates and scrubs the region before reserving/activating VGPR waves. A late VGPR failure rolls back both resources. Final shared-memory and VGPR release handshake in the same cycle only after execution, restore, and allocator guards are quiescent; a held restore request proves the region remains reserved during release backpressure.
 - The RTL allocator's load/store request, response, and cancellation interfaces are tied off in this slice. Vector memory instructions, RTL memory-wait issue gating, hardware queue/runtime dispatch and completion, and physical implementation remain open.
-- The last pushed candidate is `cabc0e63b3e574fab2dbf14142383f000b792899`. RTL CI run `37087657492` and Windows CI run `37087657321` both completed successfully for that exact SHA. Neither run covers the current local RTL region-allocation changes.
-- The focused workgroup frontend test and the full `scripts/validate_rtl.sh` gate pass on the final local RTL candidate, including shared-region preservation when later VGPR admission fails and final-release backpressure while same-wave restore traffic is active. The 23-target Release CTest suite passed. The Windows validation wrapper passed public hygiene, repository integrity, design consistency and negative controls, and Markdown links, then stopped at CMake because `cmake.exe` is not on Windows PATH.
+- The last pushed candidate is `56dde4cd92c261063d62c7019d81f6d8b4c8cc01`. RTL CI run `37091104373` and Windows CI run `37091104769` both completed successfully for that exact SHA.
+- The focused workgroup frontend test and the full `scripts/validate_rtl.sh` gate pass on the pushed candidate, including shared-region preservation when later VGPR admission fails and final-release backpressure while same-wave restore traffic is active. The 23-target Release CTest suite passed. The local Windows wrapper passed public hygiene, repository integrity, design consistency and negative controls, and Markdown links, then stopped at CMake because `cmake.exe` is not on Windows PATH; hosted Windows CI for the exact pushed SHA passed.
 
 ## Contract
 
@@ -28,7 +28,7 @@ Make shared/local-memory region ownership authoritative across complete-workgrou
 3. [x] Couple dispatch allocation, scrub completion, late VGPR-failure rollback, and last-quiescent-wave release to the shared-memory allocator.
 4. [x] Add RTL regressions for maximum-fit allocation, fragmented-region rejection, hole reuse, and VGPR-fragmentation rollback across both allocators.
 5. [x] Run the final RTL gate, focused frontend/barrier/memory coverage, repository consistency and negative-control gates, Markdown links, and CTest. RTL and CTest passed; Windows text gates passed before the documented missing-CMake environment stop.
-6. [x] Inspect the exact hosted workflow results for `cabc0e6`: both RTL CI and Windows CI completed successfully on the exact SHA. The current local changes still need their own published-checkpoint evidence.
+6. [x] Inspect the exact hosted workflow results for `56dde4c`: both RTL CI and Windows CI completed successfully on the exact SHA.
 7. Next slice: connect vector load/store decode and tagged memory responses to per-wave memory-wait issue gating, terminal cancellation/drain, and workgroup resource release.
 
 ## Evidence boundary

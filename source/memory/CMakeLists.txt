@@ -1,0 +1,3 @@
+add_executable(cgx1_shared_local_memory_tests shared_local_memory_tests.cpp)
+target_include_directories(cgx1_shared_local_memory_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME cgx1_shared_local_memory_checks COMMAND cgx1_shared_local_memory_tests)

@@ -838,6 +838,42 @@ if (-not [bool]$workgroupBoundary.workgroup_execution_frontend_integrated -or
     Add-Finding "design/cgx1_architecture.json: authoritative workgroup frontend integration or evidence boundary is inconsistent"
 }
 
+$sharedLocalMemory = $architecture.execution_model.shared_local_memory_reference
+if (-not [bool]$sharedLocalMemory.reference_model_implemented -or
+    -not [bool]$sharedLocalMemory.rtl_component_implemented -or
+    -not [bool]$sharedLocalMemory.rtl_testbench_implemented -or
+    -not [bool]$sharedLocalMemory.local_reference_tests_passed -or
+    -not [bool]$sharedLocalMemory.local_rtl_simulation_passed -or
+    [int]$sharedLocalMemory.wave_size -ne 32 -or
+    [int]$sharedLocalMemory.default_bank_count -ne 32 -or
+    [bool]$sharedLocalMemory.bank_count_frozen -or
+    [int]$sharedLocalMemory.per_bank_max_lane_services_per_cycle -ne 1 -or
+    -not [bool]$sharedLocalMemory.whole_request_prevalidated_before_side_effect -or
+    -not [bool]$sharedLocalMemory.region_scrubbed_before_activation -or
+    -not [bool]$sharedLocalMemory.response_stable_under_backpressure -or
+    -not [bool]$sharedLocalMemory.cancelled_service_drains_before_release) {
+    Add-Finding "design/cgx1_architecture.json: shared/local-memory reference contract or local proof status is incomplete"
+}
+if ([bool]$sharedLocalMemory.rtl_integrated_with_workgroup_frontend -or
+    [bool]$sharedLocalMemory.vector_isa_memory_issue_integrated -or
+    [bool]$sharedLocalMemory.memory_wait_scheduler_integrated -or
+    [bool]$sharedLocalMemory.global_memory_integrated -or
+    [bool]$sharedLocalMemory.subword_accesses_implemented -or
+    [bool]$sharedLocalMemory.atomics_implemented -or
+    [bool]$sharedLocalMemory.memory_ordering_scopes_implemented -or
+    [bool]$sharedLocalMemory.simulation_exercised -or
+    [bool]$sharedLocalMemory.timing_closure_validated -or
+    [bool]$sharedLocalMemory.area_validated -or
+    [bool]$sharedLocalMemory.power_validated) {
+    Add-Finding "design/cgx1_architecture.json: shared/local memory must not claim scheduler/LSU integration, exact hosted simulation, or physical implementation"
+}
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot "source\rtl\cgx1_cu_shared_local_memory.sv") -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $repoRoot "source\rtl\tests\cgx1_cu_shared_local_memory_tb.sv") -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $repoRoot "source\memory\shared_local_memory.hpp") -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $repoRoot "source\memory\shared_local_memory_tests.cpp") -PathType Leaf)) {
+    Add-Finding "shared/local-memory reference, RTL, or executable test source is missing"
+}
+
 if ($findings.Count -gt 0) {
     Write-Host "Design consistency check failed:"
     $findings | Sort-Object -Unique | ForEach-Object { Write-Host "  $_" }

@@ -463,4 +463,12 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_execution_frontend_tb -o build/r
 echo "==> Run authoritative pooled workgroup execution frontend RTL"
 timeout 30s vvp build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp
 
+echo "==> Compile CU shared/local memory RTL"
+iverilog -g2012 -Wall -s cgx1_cu_shared_local_memory_tb \
+    -o build/rtl/cgx1_cu_shared_local_memory_tb.vvp \
+    source/rtl/cgx1_cu_shared_local_memory.sv \
+    source/rtl/tests/cgx1_cu_shared_local_memory_tb.sv
+echo "==> Run CU shared/local memory RTL"
+timeout 30s vvp build/rtl/cgx1_cu_shared_local_memory_tb.vvp
+
 echo "[pass] CGX 1 RTL validation completed."

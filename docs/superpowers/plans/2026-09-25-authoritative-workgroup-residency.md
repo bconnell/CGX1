@@ -1,7 +1,5 @@
 # Authoritative Workgroup Residency Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
-
 **Goal:** Make the existing pooled VGPR allocator the single physical allocation authority for complete workgroups, and keep those reservations coherent with issue, barriers, quiescence, retirement, fault, kill, reset, and reuse.
 
 **Architecture:** Refactor the C++ workgroup reference to compose `ResidentWaveVgprPool` and `PooledVgprStorage`; derive row allocation and slot availability from those objects. In RTL, the workgroup controller will reserve each wave through the allocator already inside `cgx1_compute_int8_vector_execution_frontend`, wait for allocator sanitization, activate the complete set, then commit the group to barrier state. A failed later reservation rolls back every earlier reserved wave before returning failure. The barrier block will own only group membership and barrier generations; both matrix and vector request masks will derive eligibility from committed live waves and barrier waits. Terminal waves stop issuing immediately, leave the barrier participant set, and retain allocator ownership until the real matrix/vector path is quiescent and release is accepted.
@@ -12,7 +10,7 @@
 
 ## Global Constraints
 
-- Work only in the existing local checkout of the `bconnell/CGX1` repository on `codex/cgx1-completeness`.
+- Work only in the existing local checkout of the `bconnell/CGX1` repository on its active development branch.
 - The pooled resident-wave VGPR allocator is the only authority for VGPR rows and allocation state.
 - Admission is transactional: either every required wave allocation becomes active before group commit, or every partial reservation is released before failure is reported.
 - The workgroup is not scheduler-visible before commit; barrier arrivals use its admitted, surviving wave set.

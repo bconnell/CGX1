@@ -241,6 +241,32 @@ try {
     if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "authoritative workgroup frontend integration or evidence boundary is inconsistent") {
         throw "Workgroup allocator-composition negative control did not report the expected invariant."
     }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.shared_local_memory_reference.rtl_integrated_with_workgroup_frontend = $true
+    $architecture | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted unintegrated shared/local memory as scheduler-integrated." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "must not claim scheduler/LSU integration") {
+        throw "Shared/local-memory integration negative control did not report the expected invariant."
+    }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.shared_local_memory_reference.simulation_exercised = $true
+    $architecture | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted unverified exact-revision shared-memory simulation evidence." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "must not claim scheduler/LSU integration, exact hosted simulation") {
+        throw "Shared/local-memory evidence negative control did not report the expected invariant."
+    }
     Write-Host "[pass] Design consistency negative controls were rejected."
 }
 finally {

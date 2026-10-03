@@ -32,7 +32,7 @@ This slice does not assign a new base-ISA memory encoding. The ISA document defi
 3. [x] Add the global ready/valid request/response interface, reset epoch and tags, and reject unmatched/stale responses.
 4. [x] Integrate LSU writeback with the pooled VGPR ordinary-write port and LSU state with issue, dependency scoring, barriers, faults, abort, and quiescent release.
 5. [x] Add integrated workgroup-frontend tests for region reuse, same-wave ordering, sibling progress, barriers, kill/abort, faults, and memory-gated release.
-6. [x] Run focused LSU and workgroup tests, full `scripts/validate_rtl.sh`, all CTest targets, Windows repository hygiene/consistency/link checks, and negative controls. The Windows wrapper stopped at its unavailable `cmake.exe`; WSL CMake/CTest passed. Push and exact-revision hosted CI remain the checkpoint step.
+6. [x] Run focused LSU and workgroup tests, full `scripts/validate_rtl.sh`, all CTest targets, Windows repository hygiene/consistency/link checks, and negative controls. The Windows wrapper stopped at its unavailable local `cmake.exe`; WSL CMake/CTest passed. Commit and exact-revision hosted RTL/Windows CI both passed.
 7. [x] Keep the fixed P1/P2 tile mapping versus power-policy mismatch recorded; defer RTL power-manager work until this LSU slice is integrated and validated.
 
 ## Local evidence
@@ -41,7 +41,7 @@ This slice does not assign a new base-ISA memory encoding. The ISA document defi
 - Full `scripts/validate_rtl.sh` passed, including the LSU and shared/local-memory benches.
 - WSL CMake build completed and CTest passed all 23 targets.
 - The Windows validation wrapper passed hygiene, repository integrity, design consistency, negative-control, and Markdown-link checks; it could not configure CMake because `cmake.exe` is not on Windows PATH.
-- Exact-revision hosted CI has not yet been run for the checkpoint commit.
+- Commit `2de4a188e9d925d4fd74b45308d6b719c2980c79` passed [RTL CI run 37142609707](https://github.com/bconnell/CGX1/actions/runs/37142609707) and [Windows CI run 37142609735](https://github.com/bconnell/CGX1/actions/runs/37142609735).
 
 ## Evidence boundary
 

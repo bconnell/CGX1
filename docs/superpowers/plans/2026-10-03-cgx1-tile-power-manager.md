@@ -67,5 +67,5 @@ Expected: exact commit has green local checks and hosted RTL/Windows workflows; 
 - [x] Task 2: the top-level P-state, per-tile eligibility, and emergency-isolation regression passes.
 - [x] Task 3: the design-consistency negative control detects a forbidden fixed P1/P2 mapping.
 - [x] Task 4 local gates: `bash scripts/validate_rtl.sh` passed under Icarus 12.0 in Ubuntu WSL; CTest passed 23/23 with the power-policy runtime assertions explicitly active in Release; Windows design consistency, Markdown links, repository integrity, public hygiene, and `git diff --check` passed.
-- [ ] Publish the implementation checkpoint and record exact-revision hosted RTL and Windows CI run IDs.
-- [ ] Complete the final whole-delta review and close any actionable findings.
+- [x] Publish implementation commit `68cb2c3bb1c68df8c662a82959f1db8119deb8d0`; RTL CI run `37145496015` and Windows CI run `37145498188` passed on that exact commit.
+- [x] Complete the final whole-delta review. It found the C++ emergency reference omitted pending dock requests; the reference, Release-active regression assertions, and policy documentation now match the existing top-level safety behavior, and the power-policy CTest plus all 23 CTest targets pass.

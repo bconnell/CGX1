@@ -1471,8 +1471,8 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
             $fatal(1, "raw-class acceptance/release leaked workgroup resources");
 
-        // Control class opcode 0 is the provisional fetched-wave termination
-        // instruction and must retire through the existing control/barrier path.
+        // Control class opcode 1 provisionally branches from PC+4 by a signed
+        // byte displacement before opcode 0 terminates through normal release.
         instruction_fetch_enable = 1'b1;
         instruction_memory_request_ready = 1'b1;
         dispatch_start_pc = 57'h8000;
@@ -1496,6 +1496,36 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         instruction_memory_response_epoch = fetch_epoch0;
         instruction_memory_response_transaction_tag = fetch_tag0;
         instruction_memory_response_pc = fetch_pc0;
+        instruction_memory_response_word = 32'h3100_0008;
+        instruction_memory_response_fault_code = 0;
+        instruction_memory_response_valid = 1'b1; #1;
+        if (!instruction_memory_response_ready)
+            $fatal(1, "matching provisional branch response was backpressured");
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_response_valid = 1'b0;
+        if (instruction_fetch_unhandled_valid[0])
+            $fatal(1, "provisional branch instruction escaped to the external raw handler");
+        @(posedge clk); #1;
+        if (control_pc_flat[0+:VA_WIDTH] != 57'h800c)
+            $fatal(1, "provisional branch did not select PC+4+8");
+        timeout = 0;
+        while (!instruction_memory_request_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "provisional branch did not fetch its target PC");
+        end
+        if (instruction_memory_request_workgroup_id != 8'd80
+            || instruction_memory_request_pc != 57'h800c)
+            $fatal(1, "provisional branch did not preserve the target request identity");
+        fetch_tag0 = instruction_memory_request_transaction_tag;
+        fetch_epoch0 = instruction_memory_request_epoch;
+        fetch_pc0 = instruction_memory_request_pc;
+        @(posedge clk); #1;
+        @(negedge clk);
+        instruction_memory_response_workgroup_id = 8'd80;
+        instruction_memory_response_wave_slot = 0;
+        instruction_memory_response_epoch = fetch_epoch0;
+        instruction_memory_response_transaction_tag = fetch_tag0;
+        instruction_memory_response_pc = fetch_pc0;
         instruction_memory_response_word = 32'h3000_0000;
         instruction_memory_response_fault_code = 0;
         instruction_memory_response_valid = 1'b1; #1;
@@ -1508,13 +1538,54 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         timeout = 0;
         while (workgroup_active_mask != '0) begin
             @(posedge clk); #1; timeout = timeout + 1;
-            if (timeout > 100) $fatal(1, "provisional termination did not retire its workgroup");
+            if (timeout > 100) $fatal(1, "branch-then-termination did not retire its workgroup");
         end
         if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
-            $fatal(1, "provisional termination leaked workgroup resources");
+            $fatal(1, "branch-then-termination leaked workgroup resources");
+
+        // An out-of-range branch target must become the existing invalid-PC
+        // wave fault and retire through ordinary workgroup resource release.
+        dispatch_start_pc = 57'h0;
+        dispatch_with_resource_demand(8'd81, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        timeout = 0;
+        while (!instruction_memory_request_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "invalid-branch wave did not issue an instruction request");
+        end
+        if (instruction_memory_request_workgroup_id != 8'd81
+            || instruction_memory_request_wave_slot != 0
+            || instruction_memory_request_pc != 57'h0)
+            $fatal(1, "invalid-branch fetch request identity was incorrect");
+        fetch_tag0 = instruction_memory_request_transaction_tag;
+        fetch_epoch0 = instruction_memory_request_epoch;
+        fetch_pc0 = instruction_memory_request_pc;
+        @(posedge clk); #1;
+        @(negedge clk);
+        instruction_memory_response_workgroup_id = 8'd81;
+        instruction_memory_response_wave_slot = 0;
+        instruction_memory_response_epoch = fetch_epoch0;
+        instruction_memory_response_transaction_tag = fetch_tag0;
+        instruction_memory_response_pc = fetch_pc0;
+        instruction_memory_response_word = 32'h31ff_fff8;
+        instruction_memory_response_fault_code = 0;
+        instruction_memory_response_valid = 1'b1; #1;
+        if (!instruction_memory_response_ready)
+            $fatal(1, "matching out-of-range branch response was backpressured");
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_response_valid = 1'b0;
+        @(posedge clk); #1;
+        if (instruction_fetch_unhandled_valid[0])
+            $fatal(1, "out-of-range branch escaped to the external raw handler");
+        timeout = 0;
+        while (workgroup_active_mask != '0) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "invalid branch did not retire its workgroup");
+        end
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "invalid branch fault leaked workgroup resources");
         instruction_fetch_enable = 1'b0;
 
-        $display("[pass] authoritative residency, LSU and instruction fetch waits, decoded control flow and termination, stale response drain, fault/kill lifecycle, and region reuse passed.");
+        $display("[pass] authoritative residency, LSU and instruction fetch waits, fetched branch/termination/fault, stale response drain, fault/kill lifecycle, and region reuse passed.");
         $finish;
     end
 endmodule

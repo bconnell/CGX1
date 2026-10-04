@@ -27,10 +27,10 @@ struct ControlStreamStepResult
     control::ControlResult control{};
 };
 
-// Execute the first provisional fetched Control-class instruction. Opcode 0
-// terminates the currently active lanes through the shared control reference;
-// its three base operand fields are ignored in this provisional encoding.
-// This bounded reference does not model RTL fetch timing.
+// Execute provisional fetched Control-class instructions: opcode 0 terminates
+// the active lanes, while opcode 1 branches all active lanes by a signed
+// 24-bit byte displacement from the next instruction. This bounded reference
+// does not model RTL fetch timing.
 [[nodiscard]] inline ControlStreamStepResult StepControlInstructionStream(
     std::span<const std::uint32_t> words,
     std::uint64_t image_base,
@@ -54,15 +54,41 @@ struct ControlStreamStepResult
     const BaseInstruction instruction = DecodeBase(words[static_cast<std::size_t>(word_index)]);
     if (instruction.instructionClass != InstructionClass::Control)
         return {ControlStreamStepStatus::NotControlInstruction, {}};
-    if (instruction.opcode != 0U)
+    if (instruction.opcode > 1U)
         return {ControlStreamStepStatus::UnsupportedOpcode, {}};
     if (wave.terminated || wave.faulted || wave.activeMask == 0U)
         return {ControlStreamStepStatus::WaveNotRunnable, {}};
 
-    const control::ControlResult result = control::ApplyControlEvent(
-        wave,
-        control::ControlEvent{.kind = control::ControlEventKind::Terminate},
-        limits);
+    control::ControlEvent event{};
+    if (instruction.opcode == 0U)
+    {
+        event.kind = control::ControlEventKind::Terminate;
+    }
+    else
+    {
+        const std::uint32_t displacement_bits
+            = (static_cast<std::uint32_t>(instruction.destination) << 16U)
+            | (static_cast<std::uint32_t>(instruction.source0) << 8U)
+            | static_cast<std::uint32_t>(instruction.source1);
+        std::int64_t displacement = static_cast<std::int64_t>(displacement_bits);
+        if ((displacement_bits & 0x00800000U) != 0U)
+            displacement -= 0x01000000LL;
+
+        const std::int64_t next_pc = static_cast<std::int64_t>(wave.pc) + instruction_bytes;
+        const std::int64_t target = next_pc + displacement;
+        const std::uint64_t target_pc = (target < 0)
+            ? address_limit
+            : static_cast<std::uint64_t>(target);
+        event.kind = control::ControlEventKind::Branch;
+        event.targetPc = target_pc;
+        // This encoding is unconditional, so these branch-event fields are
+        // unused by the transition. Keep them valid even at the final PC.
+        event.fallthroughPc = target_pc;
+        event.joinPc = target_pc;
+        event.takenMask = wave.activeMask;
+    }
+
+    const control::ControlResult result = control::ApplyControlEvent(wave, event, limits);
     if (!result.accepted)
         return {ControlStreamStepStatus::WaveNotRunnable, result};
     if (result.fault != control::ControlFault::None)

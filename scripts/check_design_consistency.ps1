@@ -894,21 +894,24 @@ Require-Literal "source/rtl/cgx1_vector_instruction_word_decoder.sv" "unhandled_
 Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" ".unhandled_instruction_source1_flat(instruction_fetch_unhandled_source1_flat)"
 Require-Literal "source/rtl/tests/cgx1_vector_instruction_word_decoder_tb.sv" "unhandled_instruction_source0_flat[(2*8)+:8] !== 8'h7"
 Require-Literal "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv" "instruction_fetch_unhandled_destination_flat[0+:8] !== 8'h96"
-Require-Literal "source/rtl/cgx1_provisional_control_termination.sv" "localparam logic [3:0] CONTROL_CLASS = 4'h3;"
-Require-Literal "source/rtl/cgx1_provisional_control_termination.sv" "localparam logic [3:0] TERMINATE_OPCODE = 4'h0;"
-Require-Literal "source/rtl/cgx1_provisional_control_termination.sv" "round_robin_slot_q <= terminate_event_wave_slot + 1'b1;"
-Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" ".terminate_event_valid(provisional_control_termination_valid)"
-Require-Literal "source/rtl/tests/cgx1_provisional_control_termination_tb.sv" "reset did not restore the first termination arbitration slot"
-Require-Literal "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv" "provisional termination leaked workgroup resources"
+Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "localparam logic [3:0] CONTROL_CLASS = 4'h3;"
+Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "localparam logic [3:0] TERMINATE_OPCODE = 4'h0;"
+Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "localparam logic [3:0] BRANCH_OPCODE = 4'h1;"
+Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "round_robin_slot_q <= control_instruction_event_wave_slot + 1'b1;"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" ".control_instruction_event_valid(provisional_control_instruction_valid)"
+Require-Literal "source/rtl/tests/cgx1_provisional_control_instruction_dispatch_tb.sv" "round-robin arbitration did not advance to the signed backward branch"
+Require-Literal "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv" "provisional branch did not select PC+4+8"
+Require-Literal "source/isa/cgx1_control_stream.hpp" "event.kind = control::ControlEventKind::Branch;"
+Require-Literal "source/isa/tests.cpp" "provisional signed backward branch did not use the PC+4-relative byte offset"
 Require-Literal "source/isa/cgx1_control_stream.hpp" "ControlEventKind::Terminate"
 Require-Literal "source/isa/tests.cpp" "control termination did not resume surviving divergent lanes"
 $rtlValidationScript = [IO.File]::ReadAllText((Join-Path $repoRoot "scripts\validate_rtl.sh"))
 $frontendCompileCount = [regex]::Matches($rtlValidationScript,
     [regex]::Escape("source/rtl/cgx1_compute_workgroup_execution_frontend.sv")).Count
-$terminationCompileCount = [regex]::Matches($rtlValidationScript,
-    [regex]::Escape("source/rtl/cgx1_provisional_control_termination.sv")).Count
-if ($terminationCompileCount -lt $frontendCompileCount) {
-    Add-Finding "scripts/validate_rtl.sh: provisional termination RTL is missing from a workgroup frontend compile set"
+$controlDispatcherCompileCount = [regex]::Matches($rtlValidationScript,
+    [regex]::Escape("source/rtl/cgx1_provisional_control_instruction_dispatch.sv")).Count
+if ($controlDispatcherCompileCount -lt $frontendCompileCount) {
+    Add-Finding "scripts/validate_rtl.sh: provisional control dispatcher RTL is missing from a workgroup frontend compile set"
 }
 $workgroupBoundary = $architecture.execution_model.workgroup_residency_barrier_rtl
 if (-not [bool]$workgroupBoundary.reference_model_implemented -or

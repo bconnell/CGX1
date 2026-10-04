@@ -62,15 +62,16 @@ The 4-bit opcode is a major opcode within its class. Class value 15 is reserved 
 | Conversion | Pack, unpack and numeric format conversion |
 | System | Queue, fault, debug, timing and privileged operations |
 
-Unsupported or reserved opcode combinations must raise an illegal-instruction fault; they must not execute as an undocumented alias. The current fetched-word boundary has class-specific behavior only for the provisional termination encoding below; other unimplemented words remain on the external handler boundary.
+Unsupported or reserved opcode combinations must raise an illegal-instruction fault; they must not execute as an undocumented alias. The current fetched-word boundary has class-specific behavior only for the provisional Control encodings below; other unimplemented words remain on the external handler boundary.
 
-### Provisional fetched Control termination
+### Provisional fetched Control operations
 
 | Class | Opcode | Operation | Operand fields |
 |---:|---:|---|---|
 | `0x3` Control | `0x0` | `TERMINATE` the currently active lanes through the existing wave control-flow transition | Destination, source 0, and source 1 are ignored |
+| `0x3` Control | `0x1` | Unconditional branch of the currently active lanes to `instruction PC + 4 + sign_extend(destination:source0:source1)` | The three 8-bit fields form a signed 24-bit byte displacement |
 
-This mapping is provisional and is not a frozen ISA assignment. Terminated lanes leave the live mask; deferred lanes from divergence may resume through the existing reconvergence state. When no live lanes remain, the wave follows the normal terminal, barrier-membership, and quiescent resource-release lifecycle. [`cgx1_control_stream.hpp`](../source/isa/cgx1_control_stream.hpp) provides a bounded software reference, and the optional fetched-word RTL path sends this encoding directly to the existing control-flow event interface. Other Control opcodes and all other non-vector classes remain external-handler work.
+These mappings are provisional and are not frozen ISA assignments. Branch targets use byte offsets from the next instruction, must be four-byte aligned, and must remain within the 57-bit GPU virtual-address range; invalid targets fault through the existing control-flow path. The branch takes all currently active lanes and creates no new divergence frame. Terminated lanes leave the live mask; deferred lanes from divergence may resume through the existing reconvergence state. When no live lanes remain, the wave follows the normal terminal, barrier-membership, and quiescent resource-release lifecycle. [`cgx1_control_stream.hpp`](../source/isa/cgx1_control_stream.hpp) provides a bounded software reference, and the optional fetched-word RTL path sends both encodings directly to the existing control-flow event interface. Other Control opcodes and all other non-vector classes remain external-handler work.
 
 ### Current provisional INT32 vector subset
 
@@ -95,7 +96,7 @@ The current LSU implementation begins at an already-decoded wave request boundar
 
 Branches may change the active-lane mask. The post-decode control-flow boundary maintains a 57-bit PC and live/active lane masks for each resident wave, supports explicit branch joins, call/return and structured-loop state, and advances the PC only when the decoded operation is accepted. The executable contract and current reference/RTL evidence are documented in [Decoded Control Flow](CONTROL_FLOW.md).
 
-The provisional termination encoding above is the only fetched Control opcode currently assigned. Branch, call/return, loop, mask, and predicate instruction encodings remain open. When the optional fetch path is enabled, external handlers must provide the event fields, explicit join PC, and sequential-PC metadata consumed by this boundary for those operations. Divergent paths execute under masks; software must use compiler/runtime-defined reconvergence points.
+The provisional termination and unconditional-branch encodings above are the only fetched Control opcodes currently assigned. Conditional branch, call/return, loop, mask, and predicate instruction encodings remain open. When the optional fetch path is enabled, external handlers must provide the event fields, explicit join PC, and sequential-PC metadata consumed by this boundary for those operations. Divergent paths execute under masks; software must use compiler/runtime-defined reconvergence points.
 
 Software must not assume inactive lanes make forward progress. Synchronization that requires all lanes must use subgroup or workgroup primitives rather than relying on branch timing.
 

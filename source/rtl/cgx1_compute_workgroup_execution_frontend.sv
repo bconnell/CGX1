@@ -300,13 +300,22 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] fetched_vector_sequential_pc_flat;
     logic [RESIDENT_WAVE_SLOTS-1:0] fetch_fault_candidate_valid;
     logic [WAVE_SLOT_WIDTH-1:0] fetch_fault_candidate_slot;
-    logic provisional_control_termination_valid;
-    logic [WAVE_SLOT_WIDTH-1:0] provisional_control_termination_slot;
-    logic provisional_control_termination_accepted;
+    logic provisional_control_instruction_valid;
+    logic [WAVE_SLOT_WIDTH-1:0] provisional_control_instruction_slot;
+    logic [2:0] provisional_control_instruction_kind;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] provisional_control_instruction_target_pc;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] provisional_control_instruction_fallthrough_pc;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] provisional_control_instruction_join_pc;
+    logic [31:0] provisional_control_instruction_taken_mask;
+    logic provisional_control_instruction_accepted;
     logic control_flow_event_valid;
     logic [WAVE_SLOT_WIDTH-1:0] control_flow_event_wave_slot;
     logic [2:0] control_flow_event_kind;
     logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_sequential_pc;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_target_pc;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_fallthrough_pc;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_join_pc;
+    logic [31:0] control_flow_event_taken_mask;
     logic control_flow_event_ready;
     logic control_flow_event_accepted;
     logic fetch_fault_to_barrier;
@@ -730,32 +739,50 @@ module cgx1_compute_workgroup_execution_frontend #(
         end
     endgenerate
 
-    cgx1_provisional_control_termination #(
+    cgx1_provisional_control_instruction_dispatch #(
         .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),
-        .WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH)
-    ) provisional_control_termination (
+        .WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH),
+        .VIRTUAL_ADDRESS_WIDTH(VIRTUAL_ADDRESS_WIDTH)
+    ) provisional_control_instruction_dispatch (
         .clk(clk), .reset_n(reset_n),
         .external_control_event_valid(control_event_valid),
         .decoded_unhandled_valid(instruction_fetch_decoded_unhandled_valid),
         .decoded_class_flat(instruction_fetch_unhandled_class_flat),
         .decoded_opcode_flat(instruction_fetch_unhandled_opcode_flat),
+        .decoded_word_flat(instruction_fetch_unhandled_word_flat),
+        .decoded_pc_flat(instruction_fetch_unhandled_pc_flat),
+        .active_lane_mask_flat(control_active_lane_mask_flat),
         .handler_ready(instruction_fetch_unhandled_ready),
         .control_flow_event_ready(control_flow_event_ready),
         .control_flow_event_accepted(control_flow_event_accepted),
         .handler_valid(instruction_fetch_unhandled_valid),
         .decoder_ready(instruction_fetch_decoded_unhandled_ready),
-        .terminate_event_valid(provisional_control_termination_valid),
-        .terminate_event_wave_slot(provisional_control_termination_slot),
-        .terminate_event_accepted(provisional_control_termination_accepted)
+        .control_instruction_event_valid(provisional_control_instruction_valid),
+        .control_instruction_event_wave_slot(provisional_control_instruction_slot),
+        .control_instruction_event_kind(provisional_control_instruction_kind),
+        .control_instruction_event_target_pc(provisional_control_instruction_target_pc),
+        .control_instruction_event_fallthrough_pc(provisional_control_instruction_fallthrough_pc),
+        .control_instruction_event_join_pc(provisional_control_instruction_join_pc),
+        .control_instruction_event_taken_mask(provisional_control_instruction_taken_mask),
+        .control_instruction_event_accepted(provisional_control_instruction_accepted)
     );
 
     always_comb begin : control_flow_event_selection
-        control_flow_event_valid = control_event_valid || provisional_control_termination_valid;
+        control_flow_event_valid = control_event_valid || provisional_control_instruction_valid;
         control_flow_event_wave_slot = control_event_valid
-            ? control_event_wave_slot : provisional_control_termination_slot;
-        control_flow_event_kind = control_event_valid ? control_event_kind : 3'd7;
+            ? control_event_wave_slot : provisional_control_instruction_slot;
+        control_flow_event_kind = control_event_valid
+            ? control_event_kind : provisional_control_instruction_kind;
         control_flow_event_sequential_pc = control_event_valid
             ? control_event_sequential_pc : '0;
+        control_flow_event_target_pc = control_event_valid
+            ? control_event_target_pc : provisional_control_instruction_target_pc;
+        control_flow_event_fallthrough_pc = control_event_valid
+            ? control_event_fallthrough_pc : provisional_control_instruction_fallthrough_pc;
+        control_flow_event_join_pc = control_event_valid
+            ? control_event_join_pc : provisional_control_instruction_join_pc;
+        control_flow_event_taken_mask = control_event_valid
+            ? control_event_taken_mask : provisional_control_instruction_taken_mask;
         control_event_ready = control_event_valid && control_flow_event_ready;
         control_event_accepted = control_event_valid && control_flow_event_accepted;
     end
@@ -1079,14 +1106,14 @@ module cgx1_compute_workgroup_execution_frontend #(
         .control_event_wave_slot(control_flow_event_wave_slot),
         .control_event_kind(control_flow_event_kind),
         .control_event_sequential_pc(control_flow_event_sequential_pc),
-        .control_event_target_pc(control_event_target_pc),
-        .control_event_fallthrough_pc(control_event_fallthrough_pc),
-        .control_event_join_pc(control_event_join_pc),
+        .control_event_target_pc(control_flow_event_target_pc),
+        .control_event_fallthrough_pc(control_flow_event_fallthrough_pc),
+        .control_event_join_pc(control_flow_event_join_pc),
         .control_event_return_pc(control_event_return_pc),
         .control_event_loop_test_pc(control_event_loop_test_pc),
         .control_event_loop_body_pc(control_event_loop_body_pc),
         .control_event_loop_exit_pc(control_event_loop_exit_pc),
-        .control_event_taken_mask(control_event_taken_mask),
+        .control_event_taken_mask(control_flow_event_taken_mask),
         .control_event_continue_mask(control_event_continue_mask),
         .control_event_ready(control_flow_event_ready),
         .control_event_accepted(control_flow_event_accepted),

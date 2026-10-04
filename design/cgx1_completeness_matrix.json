@@ -34,15 +34,15 @@
   },
   "local_working_tree_candidate": {
     "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
-    "source_fingerprint_sha256": "35557abd9e769aab4370644c07dc0c93523e6848076f834ee7bd10a7032aad02",
+    "source_fingerprint_sha256": "3eaa25716644c6828e439dcb29119726c35d11f7824d4aa96f17a4bb7e8e72b4",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
-    "local_build": "cmake --build build -j2 passed under Ubuntu WSL after the provisional vector/control stream references; all 26 CTest targets passed",
-    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL, including dependent vector-stream execution and Control termination of active divergent lanes, deferred-lane resumption, unsupported-opcode nonmutation, and fetch-fault nonmutation",
-    "local_rtl": "Under Ubuntu WSL with Icarus Verilog 12.0, bash -n scripts/validate_rtl.sh and the full bash scripts/validate_rtl.sh gate passed. The standalone termination RTL check covers raw-handler pass-through, external-event priority, backpressure, round-robin progress, and reset; the integrated frontend consumes fetched Control class 0x3/opcode 0x0 only on accepted control flow and retires the workgroup through normal resource release. CMake build and CTest (26/26) also passed under WSL.",
+    "local_build": "cmake --build build -j2 passed under Ubuntu WSL after adding the provisional fetched Control branch reference; all 26 CTest targets passed",
+    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL, including Control termination of active divergent lanes and deferred-lane resumption plus forward/backward branch offsets, final-PC boundary arithmetic, misaligned/out-of-range target faults, unsupported-opcode nonmutation, and fetch-fault nonmutation",
+    "local_rtl": "Under Ubuntu WSL with Icarus Verilog 12.0, bash -n scripts/validate_rtl.sh and the full bash scripts/validate_rtl.sh gate passed. The standalone fetched-Control dispatcher check covers signed forward/backward targets, final-PC arithmetic, accepted-event-only consumption, raw-handler pass-through, external-event priority, round-robin progress, and reset; the integrated frontend branches to the fetched target, faults an out-of-range target through normal wave/workgroup retirement, and releases resources after termination. CMake build and CTest (26/26) also passed under WSL.",
     "windows_validation": "The Windows wrapper passed public-repository hygiene and its negative controls, repository integrity and its negative control, design consistency and its negative controls, and local Markdown links. It stopped at C/C++ configure because cmake.exe is not available from Windows PATH; WSL CMake build/CTest (26/26) and the full RTL gate passed. Native Windows CMake build/CTest were not run.",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "provisional_control_branch_instruction",
+  "next_dependency_candidate": "provisional_control_call_return_instructions",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -147,7 +147,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Post-decode control supports a 57-bit aligned per-wave PC, live/active lane masks, branch joins, calls/returns with active-frame depth protection, structured loops with call-depth unwind, lane termination, and bounded-stack faults. The executable ISA stream reference and optional workgroup fetch path now implement provisional Control class 0x3/opcode 0x0 active-lane termination, defer word consumption until control-flow acceptance, resume divergent survivors, and use normal barrier/resource retirement for terminal waves. Other Control opcode formats, extension lengths, compiler lowering, complete per-wave instruction issue, runtime dispatch, and physical evidence remain open."
+      "limits": "Post-decode control supports a 57-bit aligned per-wave PC, live/active lane masks, branch joins, calls/returns with active-frame depth protection, structured loops with call-depth unwind, lane termination, and bounded-stack faults. The executable ISA stream reference and optional workgroup fetch path implement provisional Control class 0x3/opcode 0x0 active-lane termination and opcode 0x1 unconditional branch with a signed 24-bit byte displacement from PC+4. Branches target all active lanes; misaligned or out-of-range targets use the existing invalid-PC fault path. Fetched words remain buffered until event acceptance, and terminal waves use normal barrier/resource retirement. Other Control opcode formats, extension lengths, compiler lowering, complete per-wave instruction issue, runtime dispatch, and physical evidence remain open."
     },
     {
       "id": "vector_instruction_semantics",
@@ -231,7 +231,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "The optional compute workgroup frontend fetches through an abstract single-request ready/valid boundary, permits one operation per resident wave with concurrent multi-wave waits, matches full workgroup/wave/epoch/tag/PC response identity, retains fetched words through acceptance, integrates provisional vector decode and Control class 0x3/opcode 0x0 termination with control-flow-owned 57-bit PCs, exposes generic base fields and identity for other external handlers, advances accepted raw-class words using external sequential-PC metadata, drains stale responses after kill/abort, reports fetch faults through wave termination, and blocks release until quiescent. Fetch is disabled by default. Other class-specific decode/semantics, extension words, execute translation, instruction cache/physical memory, top-level GPU integration, hosted CI for this candidate, synthesis, timing, area, power, and silicon remain unverified."
+      "limits": "The optional compute workgroup frontend fetches through an abstract single-request ready/valid boundary, permits one operation per resident wave with concurrent multi-wave waits, matches full workgroup/wave/epoch/tag/PC response identity, retains fetched words through accepted events, integrates provisional vector decode and Control class 0x3/opcodes 0x0 termination and 0x1 unconditional branch with control-flow-owned 57-bit PCs, exposes generic base fields and identity for other external handlers, advances accepted raw-class words using external sequential-PC metadata, drains stale responses after kill/abort, reports fetch faults through wave termination, and blocks release until quiescent. Fetch is disabled by default. Other class-specific decode/semantics, extension words, execute translation, instruction cache/physical memory, top-level GPU integration, hosted CI for this candidate, synthesis, timing, area, power, and silicon remain unverified."
     },
     {
       "id": "complete_cu_scheduler_dispatch",

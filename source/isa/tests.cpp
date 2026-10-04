@@ -347,7 +347,7 @@ void TestControlStreamTerminationAndUnsupportedInputs()
     const std::array<std::uint32_t, 3U> words{
         EncodeBase(BaseInstruction{InstructionClass::Control, 0U, 0x96U, 0x78U, 0x54U}),
         EncodeBase(BaseInstruction{InstructionClass::Control, 0U, 0U, 0U, 0U}),
-        EncodeBase(BaseInstruction{InstructionClass::Control, 1U, 0U, 0U, 0U})
+        EncodeBase(BaseInstruction{InstructionClass::Control, 2U, 0U, 0U, 0U})
     };
 
     auto wave = InitializeWaveControl(image_base, 0x0fU);
@@ -399,6 +399,57 @@ void TestControlStreamTerminationAndUnsupportedInputs()
     Require(step.status == ControlStreamStepStatus::FetchFault
             && fault_wave.pc == fault_before.pc && fault_wave.liveMask == fault_before.liveMask,
         "control stream fetch fault changed wave state");
+}
+
+void TestControlStreamProvisionalBranch()
+{
+    using namespace cgx1::isa;
+    using cgx1::control::ControlFault;
+    using cgx1::control::InitializeWaveControl;
+
+    constexpr std::uint64_t image_base = 0x6000U;
+    const std::array<std::uint32_t, 4U> words{
+        EncodeBase(BaseInstruction{InstructionClass::Control, 1U, 0U, 0U, 8U}),
+        EncodeBase(BaseInstruction{InstructionClass::Vector, 0U, 0U, 0U, 0U}),
+        EncodeBase(BaseInstruction{InstructionClass::Control, 1U, 0U, 0U, 3U}),
+        EncodeBase(BaseInstruction{InstructionClass::Control, 1U, 0xffU, 0xffU, 0xf8U})
+    };
+
+    auto wave = InitializeWaveControl(image_base, 0x0fU);
+    auto step = StepControlInstructionStream(words, image_base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed && step.control.accepted
+            && wave.pc == image_base + 12U && wave.liveMask == 0x0fU
+            && wave.activeMask == 0x0fU && wave.controlStack.empty(),
+        "provisional forward branch did not take every active lane to PC+4+8");
+
+    step = StepControlInstructionStream(words, image_base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed && step.control.accepted
+            && wave.pc == image_base + 8U && wave.liveMask == 0x0fU,
+        "provisional signed backward branch did not use the PC+4-relative byte offset");
+
+    step = StepControlInstructionStream(words, image_base, wave);
+    Require(step.status == ControlStreamStepStatus::ControlFault
+            && step.control.fault == ControlFault::InvalidPc && wave.faulted,
+        "misaligned provisional branch target did not fault through control flow");
+
+    constexpr std::uint64_t limit = cgx1::control::kGpuVirtualAddressLimit;
+    const std::array<std::uint32_t, 1U> back_from_limit{
+        EncodeBase(BaseInstruction{InstructionClass::Control, 1U, 0xffU, 0xffU, 0xfcU})
+    };
+    auto boundary_wave = InitializeWaveControl(limit - 4U, 1U);
+    step = StepControlInstructionStream(back_from_limit, limit - 4U, boundary_wave);
+    Require(step.status == ControlStreamStepStatus::Executed
+            && boundary_wave.pc == limit - 4U && !boundary_wave.faulted,
+        "negative branch from the final aligned PC incorrectly faulted on its unused fallthrough");
+
+    const std::array<std::uint32_t, 1U> underflow{
+        EncodeBase(BaseInstruction{InstructionClass::Control, 1U, 0xffU, 0xffU, 0xf8U})
+    };
+    auto underflow_wave = InitializeWaveControl(0U, 1U);
+    step = StepControlInstructionStream(underflow, 0U, underflow_wave);
+    Require(step.status == ControlStreamStepStatus::ControlFault
+            && step.control.fault == ControlFault::InvalidPc && underflow_wave.faulted,
+        "out-of-range provisional branch target did not follow the invalid-PC fault path");
 }
 
 } // namespace
@@ -481,7 +532,8 @@ int main()
     TestVectorStreamFinalWordAnd57BitBoundary();
     TestUnsupportedVectorInstructionsDoNotMutateState();
     TestControlStreamTerminationAndUnsupportedInputs();
+    TestControlStreamProvisionalBranch();
 
-    std::cout << "CGX 1 ISA base encoding, provisional INT32 vector semantics, and Control termination checks passed.\n";
+    std::cout << "CGX 1 ISA base encoding, provisional INT32 vector semantics, and fetched Control checks passed.\n";
     return 0;
 }

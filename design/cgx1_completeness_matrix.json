@@ -33,8 +33,8 @@
     "local_cpp_command": "ctest --test-dir build --output-on-failure"
   },
   "local_working_tree_candidate": {
-    "base_commit": "3ed83bf0d628801a8fc1bb39c60f3b86ce6d257a",
-    "source_fingerprint_sha256": "ccf61fa18693f132ecd98d19c8ba0f0c194d2bffa9d3850e98f1f323c4fa1e70",
+    "base_commit": "dcbc8f82cdb6f1454b057955a4425b68465721d0",
+    "source_fingerprint_sha256": "c519f7e5800d4758963c79460bb496dd93a0755d2daf7f13251580ecd9a873d3",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
     "local_build": "cmake --build build -j2 under Ubuntu WSL: passed",
     "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 26/26 passed, including fragmented reserved flags, queue-incarnation correlation, literal packet bytes, duplicate same-context tokens, and terminal admission rejection",

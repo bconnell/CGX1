@@ -51,6 +51,9 @@ module cgx1_compute_workgroup_execution_frontend #(
     input logic [WORKGROUP_ID_WIDTH-1:0] workgroup_abort_id,
     output logic workgroup_abort_ready,
     output logic workgroup_abort_accepted,
+    output logic workgroup_retire_valid,
+    input logic workgroup_retire_ready,
+    output logic [WORKGROUP_ID_WIDTH-1:0] workgroup_retire_id,
 
     input logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] decoded_sequential_pc_flat,
     input logic control_event_valid,
@@ -263,6 +266,10 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic release_valid, release_ready, release_accepted;
     logic [WAVE_SLOT_WIDTH-1:0] release_wave_slot;
     logic release_quiescent;
+    logic workgroup_retire_valid_q;
+    logic [WORKGROUP_ID_WIDTH-1:0] workgroup_retire_id_q;
+    logic workgroup_retire_capture;
+    logic [WORKGROUP_ID_WIDTH-1:0] workgroup_retire_capture_id;
     logic allocator_release_valid;
     logic shared_memory_allocation_valid, shared_memory_allocation_ready;
     logic shared_memory_allocation_result_valid, shared_memory_allocation_accepted;
@@ -478,7 +485,9 @@ module cgx1_compute_workgroup_execution_frontend #(
             || (txn_state_q == ST_WAIT_SANITIZE) || (txn_state_q == ST_ACTIVATE)
             || (txn_state_q == ST_COMMIT) || (txn_state_q == ST_ALLOCATE_SHARED)) begin
             for (integer scan_slot = RESIDENT_WAVE_SLOTS-1; scan_slot >= 0; scan_slot = scan_slot - 1) begin
-                if (barrier_release_pending_mask[scan_slot] && !(busy_bitmap[scan_slot]))
+                if (barrier_release_pending_mask[scan_slot] && !(busy_bitmap[scan_slot])
+                    && !(barrier_final_wave_release_mask[scan_slot]
+                        && workgroup_retire_valid_q && !workgroup_retire_ready))
                     release_candidate = scan_slot;
             end
             if (release_candidate >= 0) begin
@@ -500,7 +509,30 @@ module cgx1_compute_workgroup_execution_frontend #(
         txn_slot = reserve_wave_slot;
     end
 
-    assign dispatch_ready = (txn_state_q == ST_IDLE);
+    assign workgroup_retire_valid = workgroup_retire_valid_q;
+    assign workgroup_retire_id = workgroup_retire_id_q;
+    assign workgroup_retire_capture = release_accepted
+        && selected_release_is_final_wave && (txn_state_q != ST_ROLLBACK);
+    assign workgroup_retire_capture_id = barrier_slot_workgroup_id_flat[
+        (release_wave_slot*WORKGROUP_ID_WIDTH) +: WORKGROUP_ID_WIDTH];
+
+    always_ff @(posedge clk or negedge reset_n) begin : workgroup_retirement_event
+        if (!reset_n) begin
+            workgroup_retire_valid_q <= 1'b0;
+            workgroup_retire_id_q <= '0;
+        end else begin
+            if (workgroup_retire_valid_q && workgroup_retire_ready)
+                workgroup_retire_valid_q <= 1'b0;
+            if (workgroup_retire_capture) begin
+                workgroup_retire_valid_q <= 1'b1;
+                workgroup_retire_id_q <= workgroup_retire_capture_id;
+            end
+        end
+    end
+
+    assign dispatch_ready = (txn_state_q == ST_IDLE)
+        && !(workgroup_retire_valid_q && !workgroup_retire_ready
+            && (dispatch_workgroup_id == workgroup_retire_id_q));
     assign query_workgroup_id = dispatch_workgroup_id;
     assign busy_bitmap = matrix_busy_raw | vector_execution_busy_bitmap_raw | lsu_busy_mask;
     assign matrix_execution_busy_bitmap = matrix_busy_raw;

@@ -69,7 +69,7 @@ module cgx1_compute_workgroup_command_runtime_tb;
     logic [WG_WIDTH-1:0] completion_workgroup_id;
     logic [63:0] completion_submission_id, completion_packet_byte_position;
     logic [63:0] completion_queue_incarnation_id;
-    logic [1:0] completion_status;
+    logic [2:0] completion_status;
     logic [4:0] completion_failure;
     logic [2:0] pending_count;
 
@@ -128,7 +128,10 @@ module cgx1_compute_workgroup_command_runtime_tb;
         .AGING_INTERVAL_CYCLES(2)
     ) dispatcher (
         .clk(clk), .reset_n(reset_n), .tile_eligible(tile_eligible),
-        .faulted_queue_mask(parser_faulted_mask),
+        // Parser framing faults block parser ingress; they do not cancel work
+        // already accepted by this independent downstream scheduler.
+        .faulted_queue_mask(64'b0),
+        .cancelled_queue_mask(64'b0), .lifecycle_ready(1'b1),
         .submit_valid(parser_submit_valid), .submit_ready(parser_submit_ready),
         .submit_queue_context_id(parser_submit_queue_context_id),
         .submit_process_id(parser_submit_process_id),

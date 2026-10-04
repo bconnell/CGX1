@@ -38,7 +38,21 @@ module cgx1_compute_workgroup_command_queue_frontend #(
     output logic ingress_recovery_ready,
     input logic [5:0] ingress_recovery_context_id,
 
+    input logic queue_reset_valid,
+    output logic queue_reset_ready,
+    input logic [5:0] queue_reset_context_id,
+    output logic [63:0] queue_reset_pending_mask,
+    input logic [63:0] queue_lifecycle_drained_mask,
+    output logic queue_reset_complete_valid,
+    input logic queue_reset_complete_ready,
+    output logic [5:0] queue_reset_complete_context_id,
+    output logic [63:0] queue_reset_complete_incarnation_id,
+    output logic [63:0] queue_reset_discard_start_position,
+    output logic [63:0] queue_reset_discard_end_position,
+
     output logic [63:0] registered_context_mask,
+    // Parser framing faults are ingress-local; downstream scheduler fault or
+    // cancellation inputs are separate lifecycle authorities.
     output logic [63:0] faulted_context_mask,
     output logic [(QUEUE_CONTEXT_COUNT*RING_COUNT_WIDTH)-1:0] unread_bytes_flat,
     output logic [(QUEUE_CONTEXT_COUNT*64)-1:0] producer_position_flat,
@@ -98,6 +112,11 @@ module cgx1_compute_workgroup_command_queue_frontend #(
     logic [RING_COUNT_WIDTH-1:0] ring_unread_count_q [0:QUEUE_CONTEXT_COUNT-1];
     logic [63:0] producer_position_q [0:QUEUE_CONTEXT_COUNT-1];
     logic [63:0] consumer_position_q [0:QUEUE_CONTEXT_COUNT-1];
+    logic [QUEUE_CONTEXT_COUNT-1:0] reset_pending_q;
+    logic [QUEUE_CONTEXT_COUNT-1:0] reset_cleanup_done_q;
+    logic [63:0] reset_incarnation_id_q [0:QUEUE_CONTEXT_COUNT-1];
+    logic [63:0] reset_discard_start_q [0:QUEUE_CONTEXT_COUNT-1];
+    logic [63:0] reset_discard_end_q [0:QUEUE_CONTEXT_COUNT-1];
 
     logic [63:0] next_incarnation_id_q;
     logic incarnation_ids_exhausted_q;
@@ -106,12 +125,22 @@ module cgx1_compute_workgroup_command_queue_frontend #(
     logic [1:0] register_result_status_q;
     logic [63:0] register_result_incarnation_id_q;
 
+    logic reset_completion_valid_q;
+    logic [5:0] reset_completion_context_id_q;
+    logic [63:0] reset_completion_incarnation_id_q;
+    logic [63:0] reset_completion_discard_start_q;
+    logic [63:0] reset_completion_discard_end_q;
+
     logic [1:0] feeder_state_q;
     logic [5:0] feeder_context_id_q;
     logic [31:0] feeder_packet_bytes_q;
     logic [31:0] feeder_byte_index_q;
     logic [5:0] round_robin_cursor_q;
     logic parser_recovery_valid;
+    logic [5:0] parser_recovery_context_id;
+    logic external_recovery_fire;
+    logic reset_cleanup_valid;
+    logic [5:0] reset_cleanup_context_id;
 
     logic parser_command_valid;
     logic parser_command_ready;
@@ -139,6 +168,10 @@ module cgx1_compute_workgroup_command_queue_frontend #(
     integer current_ring_index;
     integer selected_consume_bytes;
     integer parser_ring_index;
+    integer reset_cleanup_scan;
+    integer reset_completion_scan;
+    integer reset_cleanup_candidate;
+    integer reset_completion_candidate;
 
     function automatic integer RingIndexAfter(
         input integer index_value,
@@ -178,11 +211,65 @@ module cgx1_compute_workgroup_command_queue_frontend #(
     assign queue_register_result_context_id = register_result_context_id_q;
     assign queue_register_result_status = register_result_status_q;
     assign queue_register_result_incarnation_id = register_result_incarnation_id_q;
+    assign queue_reset_complete_valid = reset_completion_valid_q;
+    assign queue_reset_complete_context_id = reset_completion_context_id_q;
+    assign queue_reset_complete_incarnation_id = reset_completion_incarnation_id_q;
+    assign queue_reset_discard_start_position = reset_completion_discard_start_q;
+    assign queue_reset_discard_end_position = reset_completion_discard_end_q;
 
     assign queue_register_ready = reset_n
-        && (!register_result_valid_q || queue_register_result_ready);
+        && (!register_result_valid_q || queue_register_result_ready)
+        && !(queue_register_valid
+            && queue_register_context_id < QUEUE_CONTEXT_COUNT
+            && reset_pending_q[queue_register_context_id]);
 
-    assign parser_recovery_valid = ingress_recovery_valid && ingress_recovery_ready;
+    assign queue_reset_ready = reset_n
+        && (queue_reset_context_id < QUEUE_CONTEXT_COUNT)
+        && registered_q[queue_reset_context_id]
+        && !reset_pending_q[queue_reset_context_id]
+        && !(register_result_valid_q
+            && register_result_context_id_q == queue_reset_context_id)
+        && !reset_completion_valid_q;
+
+    assign external_recovery_fire = ingress_recovery_valid && ingress_recovery_ready;
+    assign parser_recovery_valid = external_recovery_fire || reset_cleanup_valid;
+    assign parser_recovery_context_id = external_recovery_fire
+        ? ingress_recovery_context_id : reset_cleanup_context_id;
+
+    always_comb begin : choose_reset_cleanup
+        reset_cleanup_candidate = -1;
+        reset_cleanup_context_id = '0;
+        for (reset_cleanup_scan = 0; reset_cleanup_scan < QUEUE_CONTEXT_COUNT;
+             reset_cleanup_scan = reset_cleanup_scan + 1) begin
+            if (reset_cleanup_candidate < 0 && reset_n && !external_recovery_fire
+                && reset_pending_q[reset_cleanup_scan] && !reset_cleanup_done_q[reset_cleanup_scan]
+                && (feeder_state_q == FEED_IDLE || feeder_context_id_q != reset_cleanup_scan)
+                && !(submit_valid && submit_queue_context_id == reset_cleanup_scan)
+                && !(parser_completion_valid
+                    && parser_completion_queue_context_id == reset_cleanup_scan)) begin
+                reset_cleanup_candidate = reset_cleanup_scan;
+                reset_cleanup_context_id = reset_cleanup_scan[5:0];
+            end
+        end
+        reset_cleanup_valid = (reset_cleanup_candidate >= 0);
+    end
+
+    always_comb begin : choose_reset_completion
+        reset_completion_candidate = -1;
+        if (!reset_completion_valid_q) begin
+            for (reset_completion_scan = 0; reset_completion_scan < QUEUE_CONTEXT_COUNT;
+                 reset_completion_scan = reset_completion_scan + 1) begin
+                if (reset_completion_candidate < 0 && reset_n
+                    && reset_pending_q[reset_completion_scan] && reset_cleanup_done_q[reset_completion_scan]
+                    && queue_lifecycle_drained_mask[reset_completion_scan]
+                    && (feeder_state_q == FEED_IDLE || feeder_context_id_q != reset_completion_scan)
+                    && !(submit_valid && submit_queue_context_id == reset_completion_scan)
+                    && !(parser_completion_valid
+                        && parser_completion_queue_context_id == reset_completion_scan))
+                    reset_completion_candidate = reset_completion_scan;
+            end
+        end
+    end
 
     assign parser_command_valid = (feeder_state_q == FEED_PACKET)
         && (feeder_byte_index_q < feeder_packet_bytes_q)
@@ -208,6 +295,8 @@ module cgx1_compute_workgroup_command_queue_frontend #(
             scan_context = (round_robin_cursor_q + scan_offset) % 64;
             if (!selected_packet_valid && scan_context < QUEUE_CONTEXT_COUNT
                 && registered_q[scan_context]
+                && !reset_pending_q[scan_context]
+                && !(queue_reset_valid && queue_reset_context_id == scan_context)
                 && !faulted_context_mask[scan_context]
                 && ring_unread_count_q[scan_context] >= PACKET_HEADER_BYTES) begin
                 packet_magic_candidate = RingWordAt(scan_context, 0);
@@ -232,6 +321,9 @@ module cgx1_compute_workgroup_command_queue_frontend #(
         ingress_recovery_ready = 1'b0;
         if (reset_n && ingress_recovery_context_id < QUEUE_CONTEXT_COUNT
             && registered_q[ingress_recovery_context_id]
+            && !reset_pending_q[ingress_recovery_context_id]
+            && !(queue_reset_valid
+                && queue_reset_context_id == ingress_recovery_context_id)
             && !((feeder_state_q != FEED_IDLE)
                 && feeder_context_id_q == ingress_recovery_context_id)
             && !(submit_valid
@@ -246,6 +338,8 @@ module cgx1_compute_workgroup_command_queue_frontend #(
         ingress_byte_ready = 1'b0;
         if (reset_n && ingress_byte_context_id < QUEUE_CONTEXT_COUNT
             && registered_q[ingress_byte_context_id]
+            && !reset_pending_q[ingress_byte_context_id]
+            && !(queue_reset_valid && queue_reset_context_id == ingress_byte_context_id)
             && !faulted_context_mask[ingress_byte_context_id]
             && ring_unread_count_q[ingress_byte_context_id] < RING_BYTES_PER_CONTEXT
             && producer_position_q[ingress_byte_context_id] != 64'hffffffffffffffff
@@ -266,12 +360,14 @@ module cgx1_compute_workgroup_command_queue_frontend #(
 
     always_comb begin : flattened_state
         registered_context_mask = '0;
+        queue_reset_pending_mask = '0;
         unread_bytes_flat = '0;
         producer_position_flat = '0;
         consumer_position_flat = '0;
         for (comb_context = 0; comb_context < QUEUE_CONTEXT_COUNT;
              comb_context = comb_context + 1) begin
             registered_context_mask[comb_context] = registered_q[comb_context];
+            queue_reset_pending_mask[comb_context] = reset_pending_q[comb_context];
             unread_bytes_flat[comb_context*RING_COUNT_WIDTH +: RING_COUNT_WIDTH]
                 = ring_unread_count_q[comb_context];
             producer_position_flat[comb_context*64 +: 64]
@@ -298,7 +394,7 @@ module cgx1_compute_workgroup_command_queue_frontend #(
         .command_queue_incarnation_id(parser_command_incarnation_id),
         .command_packet_byte_position(parser_command_packet_position),
         .parser_recovery_valid(parser_recovery_valid),
-        .parser_recovery_context_id(ingress_recovery_context_id),
+        .parser_recovery_context_id(parser_recovery_context_id),
         .submit_valid(submit_valid), .submit_ready(submit_ready),
         .submit_queue_context_id(submit_queue_context_id),
         .submit_process_id(submit_process_id),
@@ -332,12 +428,19 @@ module cgx1_compute_workgroup_command_queue_frontend #(
     always_ff @(posedge clk or negedge reset_n) begin : queue_ring_state
         if (!reset_n) begin
             registered_q <= '0;
+            reset_pending_q <= '0;
+            reset_cleanup_done_q <= '0;
             next_incarnation_id_q <= 64'd1;
             incarnation_ids_exhausted_q <= 1'b0;
             register_result_valid_q <= 1'b0;
             register_result_context_id_q <= '0;
             register_result_status_q <= '0;
             register_result_incarnation_id_q <= '0;
+            reset_completion_valid_q <= 1'b0;
+            reset_completion_context_id_q <= '0;
+            reset_completion_incarnation_id_q <= '0;
+            reset_completion_discard_start_q <= '0;
+            reset_completion_discard_end_q <= '0;
             feeder_state_q <= FEED_IDLE;
             feeder_context_id_q <= '0;
             feeder_packet_bytes_q <= '0;
@@ -354,10 +457,36 @@ module cgx1_compute_workgroup_command_queue_frontend #(
                 ring_unread_count_q[seq_queue] <= '0;
                 producer_position_q[seq_queue] <= '0;
                 consumer_position_q[seq_queue] <= '0;
+                reset_incarnation_id_q[seq_queue] <= '0;
+                reset_discard_start_q[seq_queue] <= '0;
+                reset_discard_end_q[seq_queue] <= '0;
             end
         end else begin
             if (register_result_valid_q && queue_register_result_ready)
                 register_result_valid_q <= 1'b0;
+
+            if (queue_reset_complete_valid && queue_reset_complete_ready) begin
+                reset_completion_valid_q <= 1'b0;
+                registered_q[reset_completion_context_id_q] <= 1'b0;
+                reset_pending_q[reset_completion_context_id_q] <= 1'b0;
+                reset_cleanup_done_q[reset_completion_context_id_q] <= 1'b0;
+            end else if (reset_completion_candidate >= 0) begin
+                reset_completion_valid_q <= 1'b1;
+                reset_completion_context_id_q <= reset_completion_candidate[5:0];
+                reset_completion_incarnation_id_q
+                    <= reset_incarnation_id_q[reset_completion_candidate];
+                reset_completion_discard_start_q
+                    <= reset_discard_start_q[reset_completion_candidate];
+                reset_completion_discard_end_q
+                    <= reset_discard_end_q[reset_completion_candidate];
+            end
+
+            if (queue_reset_valid && queue_reset_ready) begin
+                reset_pending_q[queue_reset_context_id] <= 1'b1;
+                reset_cleanup_done_q[queue_reset_context_id] <= 1'b0;
+                reset_incarnation_id_q[queue_reset_context_id]
+                    <= incarnation_id_q[queue_reset_context_id];
+            end
 
             if (queue_register_valid && queue_register_ready) begin
                 register_result_valid_q <= 1'b1;
@@ -390,12 +519,23 @@ module cgx1_compute_workgroup_command_queue_frontend #(
                 end
             end
 
-            if (ingress_recovery_valid && ingress_recovery_ready) begin
+            if (external_recovery_fire) begin
                 ring_read_index_q[ingress_recovery_context_id]
                     <= ring_write_index_q[ingress_recovery_context_id];
                 ring_unread_count_q[ingress_recovery_context_id] <= '0;
                 consumer_position_q[ingress_recovery_context_id]
                     <= producer_position_q[ingress_recovery_context_id];
+            end else if (reset_cleanup_valid) begin
+                ring_read_index_q[reset_cleanup_context_id]
+                    <= ring_write_index_q[reset_cleanup_context_id];
+                ring_unread_count_q[reset_cleanup_context_id] <= '0;
+                consumer_position_q[reset_cleanup_context_id]
+                    <= producer_position_q[reset_cleanup_context_id];
+                reset_cleanup_done_q[reset_cleanup_context_id] <= 1'b1;
+                reset_discard_start_q[reset_cleanup_context_id]
+                    <= consumer_position_q[reset_cleanup_context_id];
+                reset_discard_end_q[reset_cleanup_context_id]
+                    <= producer_position_q[reset_cleanup_context_id];
             end else begin
                 for (seq_queue = 0; seq_queue < QUEUE_CONTEXT_COUNT;
                      seq_queue = seq_queue + 1) begin

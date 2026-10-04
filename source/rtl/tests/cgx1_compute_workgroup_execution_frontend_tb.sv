@@ -57,6 +57,9 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic workgroup_abort_valid;
     logic [7:0] workgroup_abort_id;
     logic workgroup_abort_ready, workgroup_abort_accepted;
+    logic workgroup_retire_valid;
+    logic workgroup_retire_ready = 1'b1;
+    logic [7:0] workgroup_retire_id;
     logic restore_valid;
     logic [SLOT_WIDTH-1:0] restore_wave_slot;
     logic [7:0] restore_register;
@@ -787,7 +790,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         if (allocation_active_bitmap != 4'b0001 || shared_local_bytes_used != 64
             || workgroup_active_mask == '0)
             $fatal(1, "shared region retired before final pooled VGPR release was accepted");
-        @(negedge clk); restore_valid = 1'b0;
+        @(negedge clk); restore_valid = 1'b0; workgroup_retire_ready = 1'b0;
         timeout = 0;
         while (release_pending_wave_mask != '0 && timeout < 100) begin
             @(posedge clk); #1; timeout = timeout + 1;
@@ -795,6 +798,20 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         if (timeout >= 100 || allocation_active_bitmap != '0
             || shared_local_bytes_used != 0 || workgroup_active_mask != '0)
             $fatal(1, "release-backpressure recovery did not retire the whole workgroup");
+        if (!workgroup_retire_valid || workgroup_retire_id !== 8'd58)
+            $fatal(1, "final resource release did not report the retired workgroup");
+        repeat (2) begin
+            @(posedge clk); #1;
+            if (!workgroup_retire_valid || workgroup_retire_id !== 8'd58)
+                $fatal(1, "workgroup retirement event was not held under backpressure");
+        end
+        @(negedge clk); dispatch_workgroup_id = 8'd58; #1;
+        if (dispatch_ready)
+            $fatal(1, "workgroup ID was reused while its retirement event was unconsumed");
+        workgroup_retire_ready = 1'b1;
+        @(posedge clk); #1;
+        if (workgroup_retire_valid)
+            $fatal(1, "accepted retirement event remained asserted");
 
         // Local LSU requests use the admitted workgroup region, retain their
         // captured payload, block only their owner, and coexist with barriers.

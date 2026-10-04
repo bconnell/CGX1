@@ -12,6 +12,8 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
 
     logic tile_eligible = 1;
     logic [63:0] faulted_queue_mask = 0;
+    logic [63:0] cancelled_queue_mask = 0;
+    logic lifecycle_ready = 1;
     logic submit_valid = 0, submit_ready;
     logic [5:0] submit_queue_context_id = 0;
     logic [63:0] submit_process_id = 0, submit_address_space_id = 0;
@@ -46,7 +48,7 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
     logic [5:0] completion_queue_context_id;
     logic [63:0] completion_process_id, completion_address_space_id;
     logic [WG_WIDTH-1:0] completion_workgroup_id;
-    logic [1:0] completion_status;
+    logic [2:0] completion_status;
     logic [4:0] completion_failure;
     logic [63:0] submit_submission_id = 0;
     logic [63:0] submit_packet_byte_position = 0;
@@ -164,7 +166,7 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
                 if (completion_valid) $fatal(1, "retryable failure emitted a terminal completion");
             end else begin
                 if (!completion_valid
-                    || completion_status !== expected_completion_status[1:0]
+                    || completion_status !== expected_completion_status[2:0]
                     || completion_failure !== expected_completion_failure)
                     $fatal(1, "completion mismatch: valid=%0b status=%0d failure=%0d",
                         completion_valid, completion_status, completion_failure);
@@ -293,6 +295,48 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
         for (step = 0; step < 8 && pending_count != 0; step = step + 1)
             service_next_success();
         if (pending_count != 0) $fatal(1, "fairness test left queued requests undrained");
+
+        // Lifecycle-table pressure stops parser consumption before it can
+        // create scheduler-owned work that has no retirement tracker.
+        @(negedge clk); lifecycle_ready = 1'b0;
+        submit_queue_context_id = 12;
+        submit_workgroup_id = 92;
+        submit_valid = 1'b1; #1;
+        if (submit_ready || pending_count != 0)
+            $fatal(1, "scheduler accepted a command without lifecycle capacity");
+        @(negedge clk); submit_valid = 1'b0; lifecycle_ready = 1'b1;
+
+        // Reset cancellation drains a pending descriptor without tile service
+        // and preserves the distinct admission-result status under backpressure.
+        tile_eligible = 0; dispatch_ready = 0; completion_ready = 0;
+        enqueue(11, 3, 91, 0, 64'h10b, 64'h20b);
+        cancelled_queue_mask[11] = 1'b1;
+        for (step = 0; step < 20 && !completion_valid; step = step + 1) begin
+            @(posedge clk); #1;
+        end
+        if (!completion_valid || completion_status !== 3'd4
+            || completion_queue_context_id !== 6'd11
+            || completion_workgroup_id !== 8'd91
+            || completion_submission_id !== (64'h1000000000000000 | 64'd91)
+            || completion_packet_byte_position !== (64'h2000000000000000 | (64'd91 << 8))
+            || completion_failure !== '0 || pending_count != 0 || dispatch_valid)
+            $fatal(1, "pending reset cancellation mismatch: valid=%b status=%0d context=%0d workgroup=%0d token=%h position=%h failure=%0d pending=%0d dispatch=%b selected=%b faulted=%b cancelled=%b graphics=%b inflight=%b attempt=%b tile=%b dispatch_ready=%b completion_ready=%b",
+                completion_valid, completion_status, completion_queue_context_id,
+                completion_workgroup_id, completion_submission_id,
+                completion_packet_byte_position, completion_failure, pending_count,
+                dispatch_valid, dut.selected_valid, dut.selected_faulted,
+                dut.selected_cancelled, dut.selected_graphics, dut.inflight_q,
+                dut.selected_attempt, tile_eligible, dispatch_ready, completion_ready);
+        repeat (2) begin
+            @(posedge clk); #1;
+            if (!completion_valid || completion_status !== 3'd4
+                || completion_workgroup_id !== 8'd91)
+                $fatal(1, "cancelled admission result changed under backpressure");
+        end
+        @(negedge clk); completion_ready = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk); completion_ready = 1'b0;
+        cancelled_queue_mask[11] = 1'b0; tile_eligible = 1'b1; dispatch_ready = 1'b1;
 
         // Reset invalidates both queued state and an old frontend response.
         dispatch_ready = 0;

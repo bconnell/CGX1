@@ -22,6 +22,8 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
     input logic reset_n,
     input logic tile_eligible,
     input logic [63:0] faulted_queue_mask,
+    input logic [63:0] cancelled_queue_mask,
+    input logic lifecycle_ready,
 
     input logic submit_valid,
     output logic submit_ready,
@@ -72,8 +74,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
     output logic [63:0] completion_submission_id,
     output logic [63:0] completion_packet_byte_position,
     output logic [63:0] completion_queue_incarnation_id,
-    // 0 admitted, 1 terminal admission failure, 2 queue faulted, 3 graphics on compute CU.
-    output logic [1:0] completion_status,
+    // 0 admitted, 1 terminal admission failure, 2 queue faulted,
+    // 3 graphics on compute CU, 4 cancelled before admission.
+    output logic [2:0] completion_status,
     output logic [4:0] completion_failure,
     output logic [PENDING_COUNT_WIDTH-1:0] pending_count
 );
@@ -137,6 +140,7 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
     logic signed [63:0] selected_next_credit;
     logic [63:0] selected_total_weight;
     logic selected_faulted;
+    logic selected_cancelled;
     logic selected_graphics;
     logic selected_context_has_other;
     logic inflight_context_has_other;
@@ -185,6 +189,7 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
         selected_next_credit = '0;
         selected_total_weight = '0;
         selected_faulted = 1'b0;
+        selected_cancelled = 1'b0;
         selected_graphics = 1'b0;
         selected_context_has_other = 1'b0;
         inflight_context_has_other = 1'b0;
@@ -241,6 +246,7 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                         selected_weight = comb_weight[7:0];
                         selected_next_credit = candidate_credit;
                         selected_faulted = faulted_queue_mask[entry_queue_context_id[comb_i]];
+                        selected_cancelled = cancelled_queue_mask[entry_queue_context_id[comb_i]];
                         selected_graphics = entry_graphics[comb_i];
                         best_credit = candidate_credit;
                         comb_best_distance = comb_distance;
@@ -260,14 +266,16 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
             end
         end
 
-        submit_ready = reset_n && free_slot_found;
+        submit_ready = reset_n && free_slot_found && lifecycle_ready;
         pending_count = pending_count_integer[PENDING_COUNT_WIDTH-1:0];
-        selected_attempt = selected_valid && tile_eligible && !inflight_q
+        selected_attempt = selected_valid && !inflight_q
             && (!completion_valid || completion_ready)
-            && (selected_faulted || selected_graphics || dispatch_ready);
+            && (selected_faulted || selected_cancelled || selected_graphics
+                || (tile_eligible && dispatch_ready));
         // The real frontend consumes a dispatch only while ready; retain the
         // queue head until its later admission result resolves.
-        dispatch_valid = selected_attempt && !selected_faulted && !selected_graphics;
+        dispatch_valid = selected_attempt && !selected_faulted
+            && !selected_cancelled && !selected_graphics;
         dispatch_queue_context_id = selected_context;
         dispatch_process_id = '0;
         dispatch_address_space_id = '0;
@@ -393,7 +401,7 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                     - $signed(selected_total_weight);
                 round_robin_cursor_q <= selected_context + 1'b1;
 
-                if (selected_faulted || selected_graphics) begin
+                if (selected_faulted || selected_cancelled || selected_graphics) begin
                     entry_valid[selected_entry] <= 1'b0;
                     context_wait_cycles[selected_context] <= '0;
                     completion_valid <= 1'b1;
@@ -404,7 +412,12 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                     completion_submission_id <= entry_submission_id[selected_entry];
                     completion_packet_byte_position <= entry_packet_byte_position[selected_entry];
                     completion_queue_incarnation_id <= entry_queue_incarnation_id[selected_entry];
-                    completion_status <= selected_faulted ? 2'd2 : 2'd3;
+                    if (selected_faulted)
+                        completion_status <= 3'd2;
+                    else if (selected_graphics)
+                        completion_status <= 3'd3;
+                    else
+                        completion_status <= 3'd4;
                     completion_failure <= '0;
                     if (!selected_context_has_other)
                         context_credit[selected_context] <= '0;
@@ -434,7 +447,7 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                     completion_submission_id <= inflight_submission_id_q;
                     completion_packet_byte_position <= inflight_packet_byte_position_q;
                     completion_queue_incarnation_id <= inflight_queue_incarnation_id_q;
-                    completion_status <= dispatch_accepted ? 2'd0 : 2'd1;
+                    completion_status <= dispatch_accepted ? 3'd0 : 3'd1;
                     completion_failure <= dispatch_accepted ? '0 : dispatch_failure;
                     if (!inflight_context_has_other)
                         context_credit[inflight_context_q] <= '0;

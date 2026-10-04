@@ -30,6 +30,14 @@ module cgx1_compute_workgroup_command_queue_frontend_tb;
     logic [7:0] byte_data = 0;
     logic ingress_recovery_valid = 0, ingress_recovery_ready;
     logic [5:0] ingress_recovery_context_id = 0;
+    logic queue_reset_valid = 0, queue_reset_ready;
+    logic [5:0] queue_reset_context_id = 0;
+    logic [63:0] queue_reset_pending_mask;
+    logic [63:0] queue_lifecycle_drained_mask = '1;
+    logic queue_reset_complete_valid, queue_reset_complete_ready = 0;
+    logic [5:0] queue_reset_complete_context_id;
+    logic [63:0] queue_reset_complete_incarnation_id;
+    logic [63:0] queue_reset_discard_start_position, queue_reset_discard_end_position;
     logic [63:0] registered_context_mask, faulted_context_mask;
     logic [QUEUES*COUNT_WIDTH-1:0] unread_bytes_flat;
     logic [QUEUES*64-1:0] producer_position_flat, consumer_position_flat;
@@ -81,7 +89,7 @@ module cgx1_compute_workgroup_command_queue_frontend_tb;
     logic [WG_WIDTH-1:0] completion_workgroup_id;
     logic [63:0] completion_submission_id, completion_packet_byte_position;
     logic [63:0] completion_queue_incarnation_id;
-    logic [1:0] completion_status;
+    logic [2:0] completion_status;
     logic [4:0] completion_failure;
     logic [2:0] pending_count;
     integer invariant_queue;
@@ -129,6 +137,16 @@ module cgx1_compute_workgroup_command_queue_frontend_tb;
         .ingress_recovery_valid(ingress_recovery_valid),
         .ingress_recovery_ready(ingress_recovery_ready),
         .ingress_recovery_context_id(ingress_recovery_context_id),
+        .queue_reset_valid(queue_reset_valid), .queue_reset_ready(queue_reset_ready),
+        .queue_reset_context_id(queue_reset_context_id),
+        .queue_reset_pending_mask(queue_reset_pending_mask),
+        .queue_lifecycle_drained_mask(queue_lifecycle_drained_mask),
+        .queue_reset_complete_valid(queue_reset_complete_valid),
+        .queue_reset_complete_ready(queue_reset_complete_ready),
+        .queue_reset_complete_context_id(queue_reset_complete_context_id),
+        .queue_reset_complete_incarnation_id(queue_reset_complete_incarnation_id),
+        .queue_reset_discard_start_position(queue_reset_discard_start_position),
+        .queue_reset_discard_end_position(queue_reset_discard_end_position),
         .registered_context_mask(registered_context_mask),
         .faulted_context_mask(faulted_context_mask),
         .unread_bytes_flat(unread_bytes_flat),
@@ -171,7 +189,9 @@ module cgx1_compute_workgroup_command_queue_frontend_tb;
         .AGING_INTERVAL_CYCLES(2)
     ) dispatcher (
         .clk(clk), .reset_n(reset_n), .tile_eligible(tile_eligible),
-        .faulted_queue_mask(faulted_context_mask),
+        // Keep parser-local framing faults separate from downstream CUDS faults.
+        .faulted_queue_mask(64'b0),
+        .cancelled_queue_mask(queue_reset_pending_mask), .lifecycle_ready(1'b1),
         .submit_valid(submit_valid), .submit_ready(submit_ready),
         .submit_queue_context_id(submit_queue_context_id),
         .submit_process_id(submit_process_id),
@@ -672,6 +692,63 @@ module cgx1_compute_workgroup_command_queue_frontend_tb;
             || producer_position_flat[1*64 +: 64] != 324
             || consumer_position_flat[1*64 +: 64] != 324)
             $fatal(1, "randomized ring wrap positions did not remain monotonic and paired");
+
+        // Reset discards only unread bytes, remains pending until lifecycle
+        // drain, then unregisters the old incarnation after its result is consumed.
+        register_queue(3, 64'h103, 64'h203, 1, 4);
+        build_packet(64'h700, packet3, byte_count);
+        write_fragment(3, packet3, 0, 8);
+        if (unread_bytes_flat[3*COUNT_WIDTH +: COUNT_WIDTH] != 8
+            || consumer_position_flat[3*64 +: 64] != 0)
+            $fatal(1, "queue reset fixture did not retain unread ring bytes");
+        @(negedge clk);
+        queue_lifecycle_drained_mask[3] = 1'b0;
+        queue_reset_context_id = 3;
+        queue_reset_valid = 1'b1; #1;
+        if (!queue_reset_ready)
+            $fatal(1, "registered queue context did not accept reset");
+        @(posedge clk); #1;
+        @(negedge clk); queue_reset_valid = 1'b0;
+        if (!queue_reset_pending_mask[3])
+            $fatal(1, "queue reset did not publish its cancellation mask");
+        byte_valid = 1'b1; byte_context_id = 3; byte_data = 8'hff; #1;
+        if (byte_ready)
+            $fatal(1, "queue reset context accepted new ingress bytes");
+        @(negedge clk); byte_valid = 1'b0;
+        repeat (3) begin
+            @(posedge clk); #1;
+            if (queue_reset_complete_valid || !queue_reset_pending_mask[3])
+                $fatal(1, "queue reset completed before lifecycle drain");
+        end
+        @(negedge clk); queue_lifecycle_drained_mask[3] = 1'b1;
+        guard = 0;
+        while (!queue_reset_complete_valid && guard < 100) begin
+            @(posedge clk); #1; guard = guard + 1;
+        end
+        if (!queue_reset_complete_valid
+            || queue_reset_complete_context_id !== 6'd3
+            || queue_reset_complete_incarnation_id !== 64'd4
+            || queue_reset_discard_start_position !== 64'd0
+            || queue_reset_discard_end_position !== 64'd8
+            || registered_context_mask[3] !== 1'b1
+            || unread_bytes_flat[3*COUNT_WIDTH +: COUNT_WIDTH] != 0
+            || consumer_position_flat[3*64 +: 64] != 8)
+            $fatal(1, "queue reset did not report and commit the exact discarded range");
+        repeat (2) begin
+            @(posedge clk); #1;
+            if (!queue_reset_complete_valid
+                || queue_reset_complete_incarnation_id !== 64'd4
+                || queue_reset_discard_start_position !== 64'd0
+                || queue_reset_discard_end_position !== 64'd8
+                || registered_context_mask[3] !== 1'b1)
+                $fatal(1, "queue reset response or registration changed under backpressure");
+        end
+        @(negedge clk); queue_reset_complete_ready = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk); queue_reset_complete_ready = 1'b0;
+        if (registered_context_mask[3] || queue_reset_pending_mask[3])
+            $fatal(1, "queue reset did not unregister after response acknowledgement");
+        register_queue(3, 64'h103, 64'h203, 1, 5);
 
         @(negedge clk); reset_n = 0; #1;
         if (registered_context_mask != 0 || faulted_context_mask != 0

@@ -47,7 +47,7 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
     logic [5:0] completion_queue_context_id;
     logic [63:0] completion_process_id, completion_address_space_id;
     logic [WG_WIDTH-1:0] completion_workgroup_id;
-    logic [1:0] completion_status;
+    logic [2:0] completion_status;
     logic [4:0] completion_failure;
     logic [63:0] dispatch_submission_id, dispatch_packet_byte_position;
     logic [63:0] dispatch_queue_incarnation_id;
@@ -62,6 +62,9 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
     logic [1:0] workgroup_active_mask;
     logic [WAVE_WIDTH-1:0] resident_wave_count;
     logic [31:0] shared_local_bytes_used;
+    logic workgroup_retire_valid;
+    logic workgroup_retire_ready = 1'b0;
+    logic [WG_WIDTH-1:0] workgroup_retire_id;
 
     cgx1_compute_workgroup_dispatch_scheduler #(
         .RESIDENT_WAVE_SLOTS(SLOTS),
@@ -72,6 +75,7 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
     ) scheduler (
         .clk(clk), .reset_n(reset_n), .tile_eligible(tile_eligible),
         .faulted_queue_mask(faulted_queue_mask),
+        .cancelled_queue_mask(64'b0), .lifecycle_ready(1'b1),
         .submit_valid(submit_valid), .submit_ready(submit_ready),
         .submit_queue_context_id(submit_queue_context_id),
         .submit_process_id(submit_process_id),
@@ -138,6 +142,9 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
         .terminate_wave_ready(terminate_wave_ready),
         .terminate_wave_accepted(terminate_wave_accepted),
         .workgroup_abort_valid(1'b0), .workgroup_abort_id('0),
+        .workgroup_retire_valid(workgroup_retire_valid),
+        .workgroup_retire_ready(workgroup_retire_ready),
+        .workgroup_retire_id(workgroup_retire_id),
         .decoded_sequential_pc_flat('0), .control_event_valid(1'b0),
         .control_event_wave_slot('0), .control_event_kind('0),
         .control_event_sequential_pc('0), .control_event_target_pc('0),
@@ -253,11 +260,22 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
         @(posedge clk); #1;
         @(negedge clk); terminate_wave_valid = 0;
         step = 0;
-        while (shared_local_bytes_used != 0 && step < 40) begin
+        while ((shared_local_bytes_used != 0 || !workgroup_retire_valid) && step < 40) begin
             @(posedge clk); #1; step = step + 1;
         end
-        if (shared_local_bytes_used != 0)
-            $fatal(1, "quiescent release did not free the shared-local region");
+        if (shared_local_bytes_used != 0 || !workgroup_retire_valid
+            || workgroup_retire_id !== 8'd1 || allocation_active_bitmap != '0)
+            $fatal(1, "quiescent release did not free resources and report workgroup retirement");
+
+        repeat (2) begin
+            @(posedge clk); #1;
+            if (!workgroup_retire_valid || workgroup_retire_id !== 8'd1)
+                $fatal(1, "integrated retirement event was not stable under backpressure");
+        end
+        @(negedge clk); workgroup_retire_ready = 1'b1;
+        @(posedge clk); #1;
+        if (workgroup_retire_valid)
+            $fatal(1, "integrated retirement event remained valid after acknowledgement");
 
         wait_completion(8'd2, 2'd0, 5'd0);
         if (resident_wave_count != 2 || shared_local_bytes_used != 128

@@ -33,16 +33,16 @@
     "local_cpp_command": "ctest --test-dir build --output-on-failure"
   },
   "local_working_tree_candidate": {
-    "base_commit": "2fc1721f24d826a0d7f8f68f8df8690d610e14e3",
-    "source_fingerprint_sha256": "91b3b5b9b497601a1f1486032db850b19e47d13260d5263af13fea47d5e3b4ee",
+    "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
+    "source_fingerprint_sha256": "45ba66d2253132d605424c21fd49537d7adaa5f101f6c4bed1542f281c6c78c1",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
-    "local_build": "cmake --build build -j2 under Ubuntu WSL: passed on the current local candidate",
-    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: all 26 targets passed on the current local candidate; C++ source was unchanged by this RTL queue-ring slice",
-    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including the new bounded ring/parser/CUDS integration bench for duplicate registration, unregistered ingress rejection, incomplete-context progress, physical wrap, round-robin ready-context service, parser and CUDS backpressure, ingress-only recovery, seeded randomized gaps, occupancy/position invariants, and reset with queued state; existing 57-bit/48-bit parser, CUDS, full-width resources, authoritative workgroup/LSU, and cgx1_top tile eligibility benches also passed",
-    "windows_validation": "scripts/validate_windows.ps1 passed hygiene, integrity, design consistency, all negative controls, and Markdown links, then stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
+    "local_build": "cmake --build build -j2 passed under Ubuntu WSL on this candidate",
+    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL",
+    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including command lifecycle unit and queue/parser/CUDS/lifecycle/real-frontend integration benches",
+    "windows_validation": "scripts/validate_windows.ps1 passed hygiene, integrity, design consistency, all negative controls, and Markdown links; stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "rtl_command_queue_lifecycle_completion",
+  "next_dependency_candidate": "dedicated_power_management_follow_up",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -84,7 +84,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A CU-local decoded workgroup dispatcher and C++ command-queue reference now feed the authoritative frontend; RTL/global queue processing, public ABI freeze, and runtime toolchain integration remain open."
+      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A CU-local decoded dispatcher and bounded command lifecycle now connect provisional ring/parser ingress to the authoritative frontend through quiescent retirement in local RTL simulation. Global queue arbitration, public ABI, graphics/runtime toolchain integration, and GPU integration remain open."
     },
     {
       "id": "shared_local_lsu_memory_waits",
@@ -105,7 +105,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Decoded per-wave requests, local-region access, global ready/valid boundary, writeback, faults, cancellation, barriers, quiescent release, and CU-local workgroup dispatch are integrated. A bounded C++ command-queue reference feeds the dispatcher; RTL/global queue processing, ISA memory decode, multi-CU placement, caches, MMU, fabric, and physical memory remain open."
+      "limits": "Decoded per-wave requests, local-region access, a global ready/valid boundary, writeback, faults, cancellation, barriers, and memory-quiescent release are integrated. The command lifecycle integration bench holds cancellation completion and resource release until a delayed global response drains. The queue path is locally integrated through one CU frontend but is not wired to cgx1_top; ISA memory decode, global queues, caches, MMU, fabric, and physical memory remain open."
     },
     {
       "id": "tile_power_eligibility",
@@ -126,7 +126,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "cgx1_tile_power_manager drives cgx1_top.tile_enable from board-state caps, actual per-tile operating state, and readiness inputs; cgx1_top_tb covers arbitrary eligible subsets and emergency masking. The previously reported hardwired P1/P2 count mismatch is not present in current RTL. Connecting the eligibility producer through global placement into per-CU dispatch, tile-state sequencing, and physical isolation or gating remain open."
+      "limits": "Current source contains cgx1_tile_power_manager wired to cgx1_top.tile_enable, and cgx1_top_tb covers arbitrary eligible subsets and emergency masking. Current project direction retains the reported P1/P2 mapping concern for a dedicated power-management follow-up; reconcile the complete documented policy and current RTL before declaring that concern closed. Global placement into per-CU dispatch, tile-state sequencing, and physical isolation or gating remain open."
     },
     {
       "id": "control_flow_divergence",
@@ -242,7 +242,7 @@
         "rtl": "validated",
         "rtl_simulation": "validated",
         "subsystem_integration": "validated",
-        "cu_integration": "partial",
+        "cu_integration": "validated",
         "gpu_integration": "not_started",
         "software_toolchain_integration": "partial",
         "synthesis": "not_started",
@@ -252,7 +252,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet, feeds the existing CU dispatch scheduler, and reports completion after admission or quiescent retirement. RTL now locally integrates parameterized per-context rings, round-robin complete-frame feeding, the existing parser, and one CU dispatcher, preserving packet identity through CU admission; this integration is not wired into cgx1_top. Ingress recovery drops unread bytes and clears parser fault state but does not cancel complete parser-output or dispatcher-owned descriptors. RTL queue unregister/reuse, full reset/cancellation across lifecycle owners, global queue arbitration, and retirement-based command completion remain open. Parser errors remain separate from final workgroup completion. The packet format is not a frozen public ABI. Graphics packets, compiler lowering, kernel/object loading, grid/argument ABI, host runtime APIs, multi-CU placement, SRAM implementation, and all physical evidence remain open."
+      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet and reports terminal admission or quiescent completion. RTL locally composes parameterized per-context rings, parser, CU dispatcher, bounded lifecycle ownership, final workgroup-retirement event, reset/cancellation, drain, unregister, and incarnation-safe reuse through the real CU workgroup frontend. The one-CU simulation covers delayed global-memory response before resource retirement and whole-device reset with owned state; the command path is not wired into cgx1_top. Global queue arbitration, frozen ABI, graphics/runtime/compiler integration, multi-CU placement, SRAM implementation, and physical evidence remain open."
     },
     {
       "id": "physical_implementation",

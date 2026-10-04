@@ -483,6 +483,62 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_command_queue_frontend_tb \
 echo "==> Run RTL command queue-ring frontend integration"
 timeout 60s vvp build/rtl/cgx1_compute_workgroup_command_queue_frontend_tb.vvp
 
+echo "==> Compile bounded RTL command lifecycle manager"
+iverilog -g2012 -Wall -s cgx1_compute_workgroup_command_lifecycle_tb \
+    -o build/rtl/cgx1_compute_workgroup_command_lifecycle_tb.vvp \
+    source/rtl/cgx1_compute_workgroup_command_lifecycle.sv \
+    source/rtl/tests/cgx1_compute_workgroup_command_lifecycle_tb.sv
+echo "==> Run bounded RTL command lifecycle manager"
+timeout 30s vvp build/rtl/cgx1_compute_workgroup_command_lifecycle_tb.vvp
+
+echo "==> Compile RTL queue-to-retirement command lifecycle integration"
+iverilog -g2012 -Wall -s cgx1_compute_workgroup_command_lifecycle_integration_tb \
+    -o build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp \
+    source/rtl/cgx1_workgroup_residency_barrier.sv \
+    source/rtl/cgx1_matrix_pipeline_control.sv \
+    source/rtl/cgx1_matrix_operand_staging.sv \
+    source/rtl/cgx1_matrix_int8_execution.sv \
+    source/rtl/cgx1_matrix_result_staging.sv \
+    source/rtl/cgx1_matrix_int8_path.sv \
+    source/rtl/cgx1_matrix_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_scoreboard.sv \
+    source/rtl/cgx1_matrix_resident_wave_arbiter.sv \
+    source/rtl/cgx1_matrix_int8_resident_engine.sv \
+    source/rtl/cgx1_pooled_vgpr_mapper.sv \
+    source/rtl/cgx1_pooled_vgpr_restore_mapper.sv \
+    source/rtl/cgx1_matrix_vgpr_allocation_guard.sv \
+    source/rtl/cgx1_matrix_vgpr_preflight.sv \
+    source/rtl/cgx1_matrix_request_preflight_array.sv \
+    source/rtl/cgx1_resident_wave_vgpr_allocator.sv \
+    source/rtl/cgx1_pooled_vgpr_storage.sv \
+    source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv \
+    source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv \
+    source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv \
+    source/rtl/cgx1_pooled_vgpr_release_guard.sv \
+    source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv \
+    source/rtl/cgx1_vector_int32_alu.sv \
+    source/rtl/cgx1_vector_int32_pipeline.sv \
+    source/rtl/cgx1_vector_resident_wave_scheduler.sv \
+    source/rtl/cgx1_resident_vector_execution_frontend.sv \
+    source/rtl/cgx1_matrix_vector_hazard_guard.sv \
+    source/rtl/cgx1_matrix_vector_hazard_array.sv \
+    source/rtl/cgx1_vector_matrix_dependency_ready_array.sv \
+    source/rtl/cgx1_resident_vector_dependency_scheduler.sv \
+    source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv \
+    source/rtl/cgx1_compute_mixed_service_policy.sv \
+    source/rtl/cgx1_compute_int8_vector_execution_frontend.sv \
+    source/rtl/cgx1_cu_shared_local_memory.sv \
+    source/rtl/cgx1_compute_workgroup_lsu.sv \
+    source/rtl/cgx1_wave_control_flow.sv \
+    source/rtl/cgx1_compute_workgroup_execution_frontend.sv \
+    source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv \
+    source/rtl/cgx1_compute_workgroup_command_packet_parser.sv \
+    source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv \
+    source/rtl/cgx1_compute_workgroup_command_lifecycle.sv \
+    source/rtl/tests/cgx1_compute_workgroup_command_lifecycle_integration_tb.sv
+echo "==> Run RTL queue-to-retirement command lifecycle integration"
+timeout 60s vvp build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp
+
 echo "==> Compile CU dispatch scheduler with authoritative workgroup frontend"
 iverilog -g2012 -Wall -s cgx1_compute_workgroup_dispatch_integration_tb \
     -o build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp \

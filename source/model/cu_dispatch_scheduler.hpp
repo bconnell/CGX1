@@ -167,6 +167,40 @@ public:
         return true;
     }
 
+    [[nodiscard]] std::vector<CancelledDispatchWorkgroup> CancelQueueContext(
+        std::uint8_t contextId)
+    {
+        const auto found = queues_.find(contextId);
+        if (found == queues_.end())
+            return {};
+
+        auto& queue = found->second;
+        std::vector<CancelledDispatchWorkgroup> cancelled;
+        cancelled.reserve(queue.pending.size());
+        while (!queue.pending.empty())
+        {
+            const auto workgroupId = queue.pending.front().id;
+            cancelled.push_back({contextId, workgroupId, false});
+            pendingWorkgroupIds_.erase(workgroupId);
+            queue.pending.pop_front();
+        }
+        queue.waitingCycles = 0U;
+        queue.currentCredit = 0;
+
+        for (const auto& [workgroupId, ownerContextId] : activeQueueByWorkgroup_)
+        {
+            if (ownerContextId == contextId && workgroups_.KillWorkgroup(workgroupId))
+                cancelled.push_back({contextId, workgroupId, true});
+        }
+        std::sort(cancelled.begin(), cancelled.end(),
+            [](const auto& left, const auto& right)
+            {
+                return std::tie(left.wasResident, left.workgroupId)
+                    < std::tie(right.wasResident, right.workgroupId);
+            });
+        return cancelled;
+    }
+
     [[nodiscard]] EnqueueWorkgroupStatus EnqueueWorkgroup(
         std::uint8_t contextId,
         const WorkgroupDemand& demand)
@@ -356,6 +390,26 @@ public:
     {
         const auto found = queues_.find(contextId);
         return found == queues_.end() ? nullptr : &found->second.context;
+    }
+
+    [[nodiscard]] std::optional<std::uint8_t> QueueContextForWorkgroup(
+        std::uint64_t workgroupId) const
+    {
+        const auto active = activeQueueByWorkgroup_.find(workgroupId);
+        if (active != activeQueueByWorkgroup_.end())
+            return active->second;
+        for (const auto& [contextId, queue] : queues_)
+        {
+            if (std::any_of(queue.pending.begin(), queue.pending.end(),
+                    [workgroupId](const WorkgroupDemand& demand)
+                    {
+                        return demand.id == workgroupId;
+                    }))
+            {
+                return contextId;
+            }
+        }
+        return std::nullopt;
     }
 
     [[nodiscard]] ComputeUnitWorkgroupScheduler& Workgroups() noexcept

@@ -33,16 +33,16 @@
     "local_cpp_command": "ctest --test-dir build --output-on-failure"
   },
   "local_working_tree_candidate": {
-    "base_commit": "054c1e93bd88983e09026254c81d7dba280d6b12",
-    "source_fingerprint_sha256": "9eb65f8afd1c766c41236fa2a01f7aa2cce8fdcf68db255a70233e697605f9c6",
+    "base_commit": "3ed83bf0d628801a8fc1bb39c60f3b86ce6d257a",
+    "source_fingerprint_sha256": "8ed1424d860ad4f78dd5af6d7e32882e5f05e0d44712b21dc25866a84e006263",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
     "local_build": "cmake --build build -j2 under Ubuntu WSL: passed",
-    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 25/25 passed",
-    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including standalone dispatch, scheduler/frontend integration, workgroup LSU, and complete workgroup frontend testbenches",
+    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 26/26 passed",
+    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including standalone dispatch, scheduler/frontend integration, workgroup LSU, complete workgroup frontend, and cgx1_top power-eligibility tests",
     "windows_validation": "scripts/validate_windows.ps1 passed hygiene, integrity, design consistency, all negative controls, and Markdown links, then stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "command_queue_runtime_toolchain",
+  "next_dependency_candidate": "rtl_command_queue_runtime",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -84,7 +84,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A CU-local decoded workgroup dispatcher now feeds the authoritative frontend; global queue management and runtime dispatch remain open."
+      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A CU-local decoded workgroup dispatcher and C++ command-queue reference now feed the authoritative frontend; RTL/global queue processing, public ABI freeze, and runtime toolchain integration remain open."
     },
     {
       "id": "shared_local_lsu_memory_waits",
@@ -105,7 +105,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Decoded per-wave requests, local-region access, global ready/valid boundary, writeback, faults, cancellation, barriers, quiescent release, and CU-local workgroup dispatch are integrated. ISA memory decode, global queue management, multi-CU placement, caches, MMU, fabric, and physical memory remain open."
+      "limits": "Decoded per-wave requests, local-region access, global ready/valid boundary, writeback, faults, cancellation, barriers, quiescent release, and CU-local workgroup dispatch are integrated. A bounded C++ command-queue reference feeds the dispatcher; RTL/global queue processing, ISA memory decode, multi-CU placement, caches, MMU, fabric, and physical memory remain open."
     },
     {
       "id": "tile_power_eligibility",
@@ -168,7 +168,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "One CU has an executable and RTL decoded-compute workgroup dispatcher with bounded per-context FIFO storage, weighted priority service with aging, tile-eligibility and queue-fault gating, retryable versus terminal admission results, and integration with the authoritative workgroup frontend. The dispatcher arbitrates workgroups; it does not own per-wave instruction issue or queue-context allocation. The I/O-die global queue manager, command-packet ABI, graphics dispatch, multi-CU/tile placement, compiler/runtime submission and completion, calibrated performance, synthesis, and physical evidence remain open."
+      "limits": "One CU has an executable and RTL decoded-compute workgroup dispatcher with bounded per-context FIFO storage, weighted priority service with aging, tile-eligibility and queue-fault gating, retryable versus terminal admission results, and integration with the authoritative workgroup frontend. The dispatcher arbitrates workgroups; it does not own per-wave instruction issue or queue-context allocation. A bounded C++ command-packet reference now feeds it. RTL packet processing, the I/O-die global queue manager, public ABI freeze, graphics dispatch, multi-CU/tile placement, compiler/runtime submission and completion, calibrated performance, synthesis, and physical evidence remain open."
     },
     {
       "id": "cache_global_memory_virtual_memory",
@@ -237,12 +237,12 @@
       "id": "command_queue_runtime_toolchain",
       "evidence": {
         "contract": "partial",
-        "reference_model": "partial",
-        "executable_tests": "partial",
+        "reference_model": "validated",
+        "executable_tests": "validated",
         "rtl": "not_started",
         "rtl_simulation": "not_started",
-        "subsystem_integration": "not_started",
-        "cu_integration": "not_started",
+        "subsystem_integration": "validated",
+        "cu_integration": "partial",
         "gpu_integration": "not_started",
         "software_toolchain_integration": "partial",
         "synthesis": "not_started",
@@ -252,7 +252,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "A base ISA encoder/decoder and queue architecture exist, but the command-packet ABI, command processor, compiler, loader, and runtime submission path are open."
+      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet, feeds the existing CU dispatch scheduler, and reports completion after admission or quiescent retirement. The packet format is not a frozen public ABI. RTL packet parsing, global queue management, graphics packets, compiler lowering, kernel/object loading, grid/argument ABI, host runtime APIs, multi-CU placement, and all physical evidence remain open."
     },
     {
       "id": "physical_implementation",

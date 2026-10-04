@@ -34,15 +34,15 @@
   },
   "local_working_tree_candidate": {
     "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
-    "source_fingerprint_sha256": "45ba66d2253132d605424c21fd49537d7adaa5f101f6c4bed1542f281c6c78c1",
+    "source_fingerprint_sha256": "3d7a850e22edb6eae41acd20e317ac657b4703055fc2df070c48061ff8edb1bf",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
-    "local_build": "cmake --build build -j2 passed under Ubuntu WSL on this candidate",
-    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL",
-    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including command lifecycle unit and queue/parser/CUDS/lifecycle/real-frontend integration benches",
-    "windows_validation": "scripts/validate_windows.ps1 passed hygiene, integrity, design consistency, all negative controls, and Markdown links; stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
+    "local_build": "The full build passed on the underlying 52231ff code candidate before documentation-only reconciliation; the current cgx1_power_management_tests target rebuilt successfully under Ubuntu WSL",
+    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL after documentation reconciliation; the focused cgx1_power_management_checks target also passed 1/1",
+    "local_rtl": "The current-candidate cgx1_top_tb power integration bench passed under Icarus Verilog 12.0. A fresh full scripts/validate_rtl.sh run then remained compiling cgx1_resident_wave_vgpr_file_tb for about 3 minutes and was stopped; the post-reconciliation full RTL gate is incomplete.",
+    "windows_validation": "Current-candidate design consistency, repository integrity, public repository hygiene, Markdown link, and git diff checks passed; the full Windows wrapper was not rerun",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "dedicated_power_management_follow_up",
+  "next_dependency_candidate": "minimal_vector_instruction_stream",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -126,7 +126,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Current source contains cgx1_tile_power_manager wired to cgx1_top.tile_enable, and cgx1_top_tb covers arbitrary eligible subsets and emergency masking. Current project direction retains the reported P1/P2 mapping concern for a dedicated power-management follow-up; reconcile the complete documented policy and current RTL before declaring that concern closed. Global placement into per-CU dispatch, tile-state sequencing, and physical isolation or gating remain open."
+      "limits": "The P1/P2 fixed-count concern is resolved at the RTL eligibility-authority boundary: cgx1_tile_power_manager is wired to cgx1_top.tile_enable, derives its cap from the stricter active/requested board state and per-tile operating/readiness status, and cgx1_top_tb validates arbitrary eligible subsets plus emergency masking/isolation requests. Global scheduling consumption of the mask, tile-state sequencing, orderly drain, physical isolation or gating, hysteresis timing, calibrated budgets, and physical power evidence remain open."
     },
     {
       "id": "control_flow_divergence",

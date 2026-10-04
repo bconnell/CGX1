@@ -473,6 +473,16 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_command_runtime_tb \
 echo "==> Run command packet parser and CU dispatcher integration RTL"
 timeout 45s vvp build/rtl/cgx1_compute_workgroup_command_runtime_tb.vvp
 
+echo "==> Compile RTL command queue-ring frontend integration"
+iverilog -g2012 -Wall -s cgx1_compute_workgroup_command_queue_frontend_tb \
+    -o build/rtl/cgx1_compute_workgroup_command_queue_frontend_tb.vvp \
+    source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv \
+    source/rtl/cgx1_compute_workgroup_command_packet_parser.sv \
+    source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv \
+    source/rtl/tests/cgx1_compute_workgroup_command_queue_frontend_tb.sv
+echo "==> Run RTL command queue-ring frontend integration"
+timeout 60s vvp build/rtl/cgx1_compute_workgroup_command_queue_frontend_tb.vvp
+
 echo "==> Compile CU dispatch scheduler with authoritative workgroup frontend"
 iverilog -g2012 -Wall -s cgx1_compute_workgroup_dispatch_integration_tb \
     -o build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp \

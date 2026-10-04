@@ -33,16 +33,16 @@
     "local_cpp_command": "ctest --test-dir build --output-on-failure"
   },
   "local_working_tree_candidate": {
-    "base_commit": "1978d247a4ba95a2e00fe2b5c744e1b10709a43f",
-    "source_fingerprint_sha256": "76fd474d7bdee99c900087cc58d5178c0d7859fb41124f60454f4aef1f086ea2",
+    "base_commit": "2fc1721f24d826a0d7f8f68f8df8690d610e14e3",
+    "source_fingerprint_sha256": "91b3b5b9b497601a1f1486032db850b19e47d13260d5263af13fea47d5e3b4ee",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
     "local_build": "cmake --build build -j2 under Ubuntu WSL: passed on the current local candidate",
-    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 26/26 passed on the current local candidate, including bounded command-queue framing, queue-incarnation correlation, cancellation/drain behavior, and deterministic scheduling/reuse",
-    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including parser benches at 57-bit and 48-bit PC widths, parser-local recovery preserving a scheduler-owned descriptor, parser-to-CU-dispatch correlation, full-width resource propagation, authoritative workgroup frontend, LSU, and cgx1_top power-eligibility tests",
+    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: all 26 targets passed on the current local candidate; C++ source was unchanged by this RTL queue-ring slice",
+    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including the new bounded ring/parser/CUDS integration bench for duplicate registration, unregistered ingress rejection, incomplete-context progress, physical wrap, round-robin ready-context service, parser and CUDS backpressure, ingress-only recovery, seeded randomized gaps, occupancy/position invariants, and reset with queued state; existing 57-bit/48-bit parser, CUDS, full-width resources, authoritative workgroup/LSU, and cgx1_top tile eligibility benches also passed",
     "windows_validation": "scripts/validate_windows.ps1 passed hygiene, integrity, design consistency, all negative controls, and Markdown links, then stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "rtl_command_queue_runtime",
+  "next_dependency_candidate": "rtl_command_queue_lifecycle_completion",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -252,7 +252,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet, feeds the existing CU dispatch scheduler, and reports completion after admission or quiescent retirement. RTL adds a bounded ready/valid parser feeding the existing one-CU dispatcher and preserves packet identity through the CU admission result; parser recovery clears only parser fault/partial-packet state and does not cancel complete parser-output or dispatcher-owned descriptors. Full RTL queue reset/cancellation is not implemented. Parser errors remain separate from final workgroup completion. The packet format is not a frozen public ABI. Hardware per-context rings, global queue management, retirement-based RTL command completion, graphics packets, compiler lowering, kernel/object loading, grid/argument ABI, host runtime APIs, multi-CU placement, and all physical evidence remain open."
+      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet, feeds the existing CU dispatch scheduler, and reports completion after admission or quiescent retirement. RTL now locally integrates parameterized per-context rings, round-robin complete-frame feeding, the existing parser, and one CU dispatcher, preserving packet identity through CU admission; this integration is not wired into cgx1_top. Ingress recovery drops unread bytes and clears parser fault state but does not cancel complete parser-output or dispatcher-owned descriptors. RTL queue unregister/reuse, full reset/cancellation across lifecycle owners, global queue arbitration, and retirement-based command completion remain open. Parser errors remain separate from final workgroup completion. The packet format is not a frozen public ABI. Graphics packets, compiler lowering, kernel/object loading, grid/argument ABI, host runtime APIs, multi-CU placement, SRAM implementation, and all physical evidence remain open."
     },
     {
       "id": "physical_implementation",

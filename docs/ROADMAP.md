@@ -21,7 +21,7 @@
 - virtual-memory/page-fault architecture;
 - queue scheduling, preemption and reset containment model;
 - authoritative complete-workgroup residency reference and RTL frontend composed with the actual pooled VGPR allocator, mixed matrix/vector execution, barrier generations, and quiescent retirement;
-- CU-local decoded compute workgroup dispatch reference and RTL queue, integrated with the authoritative residency frontend, plus a bounded C++ command-queue reference; RTL packet processing, global queue management, a frozen command ABI, graphics dispatch, and multi-CU placement remain open;
+- CU-local decoded compute workgroup dispatch reference and RTL queue, integrated with the authoritative residency frontend, plus a bounded C++ command-queue reference and local RTL integration of parameterized per-context rings, packet parsing, and one CU dispatcher; global queue arbitration, unregister/cancellation and retirement-based completion, a frozen command ABI, graphics dispatch, and multi-CU placement remain open;
 - shared/local-memory reference and RTL integrated with workgroup-owned regions, a decoded per-wave LSU, memory-wait issue gating, tagged global ready/valid responses, load writeback, fault/cancel handling, and quiescent release; base-ISA memory decode and a physical global-memory backend remain open;
 - per-tile DVFS, clock/power-gating architecture and executable policy model, plus an RTL eligibility/emergency-isolation authority; tile-state sequencing and physical actuation remain open;
 - validation and repository integrity checks.

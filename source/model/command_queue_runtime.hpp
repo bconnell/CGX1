@@ -172,7 +172,6 @@ inline bool IsValidDescriptor(const WorkgroupDispatchDescriptor& descriptor)
 
     const std::uint32_t packetBytes = command_packet_detail::Read32(bytes, 8U);
     if (command_packet_detail::Read32(bytes, 0U) != kCommandPacketMagic
-        || bytes[7U] != 0U
         || packetBytes < kCommandPacketHeaderBytes
         || packetBytes > maximumPacketBytes
         || (packetBytes & 0x3U) != 0U)
@@ -181,6 +180,14 @@ inline bool IsValidDescriptor(const WorkgroupDispatchDescriptor& descriptor)
     }
     if (bytes.size() < packetBytes)
         return {PacketDecodeStatus::Incomplete, packetBytes, std::nullopt, std::nullopt};
+    if (bytes[7U] != 0U)
+    {
+        const auto submissionId = packetBytes >= 20U
+            ? std::optional<std::uint64_t>(command_packet_detail::Read64(bytes, 12U))
+            : std::nullopt;
+        return {PacketDecodeStatus::MalformedPayload, packetBytes,
+            submissionId, std::nullopt};
+    }
 
     const auto opcode = command_packet_detail::Read16(bytes, 4U);
     if (opcode != kWorkgroupDispatchPacketOpcode
@@ -296,6 +303,7 @@ struct CommandCompletion
     std::uint64_t packetBytePosition = 0U;
     std::uint64_t internalWorkgroupId = 0U;
     AdmissionFailure admissionFailure = AdmissionFailure::None;
+    std::uint64_t queueIncarnationId = 0U;
 };
 
 struct DispatchedWorkgroup
@@ -305,6 +313,7 @@ struct DispatchedWorkgroup
     std::uint64_t processId = 0U;
     std::uint64_t addressSpaceId = 0U;
     WorkgroupDispatchDescriptor descriptor;
+    std::uint64_t queueIncarnationId = 0U;
 };
 
 struct CommandDispatchCycle
@@ -321,6 +330,7 @@ struct CommandQueueSnapshot
     std::uint32_t readPhysicalIndex = 0U;
     std::uint64_t producerBytePosition = 0U;
     std::uint64_t consumerBytePosition = 0U;
+    std::uint64_t queueIncarnationId = 0U;
 };
 
 struct QueueResetResult
@@ -363,15 +373,22 @@ public:
 
         if (context.contextId >= kHardwareQueueContextCount)
             return dispatcher_.RegisterQueueContext(context);
+        if (!nextQueueIncarnationId_)
+            return QueueRegistrationStatus::IncarnationExhausted;
 
+        const auto queueIncarnationId = *nextQueueIncarnationId_;
         const auto [queue, inserted] = queues_.try_emplace(
-            context.contextId, policy_.ringBytesPerContext);
+            context.contextId, policy_.ringBytesPerContext, queueIncarnationId);
         if (!inserted)
             return QueueRegistrationStatus::DuplicateContextId;
 
         const auto registration = dispatcher_.RegisterQueueContext(context);
         if (registration != QueueRegistrationStatus::Registered)
             queues_.erase(queue);
+        else if (queueIncarnationId == std::numeric_limits<std::uint64_t>::max())
+            nextQueueIncarnationId_.reset();
+        else
+            nextQueueIncarnationId_ = queueIncarnationId + 1U;
         return registration;
     }
 
@@ -485,7 +502,7 @@ public:
                 (void)dispatcher_.SetQueueFaulted(contextId, true);
                 readyCompletions_.push_back({CommandCompletionStatus::QueueFaulted,
                     contextId, std::nullopt, packetBytePosition, 0U,
-                    AdmissionFailure::None});
+                    AdmissionFailure::None, queue->second.queueIncarnationId});
                 AdvanceQueueCursor(contextId);
                 return {CommandProcessStatus::QueueFaulted,
                     contextId, packetBytePosition, decoded.packetBytes};
@@ -512,7 +529,7 @@ public:
                     : CommandCompletionStatus::MalformedPacket;
                 readyCompletions_.push_back({completionStatus, contextId,
                     decoded.submissionId, packetBytePosition, 0U,
-                    AdmissionFailure::None});
+                    AdmissionFailure::None, queue->second.queueIncarnationId});
                 AdvanceQueueCursor(contextId);
                 return {decoded.status == PacketDecodeStatus::Unsupported
                         ? CommandProcessStatus::RejectedUnsupported
@@ -539,7 +556,7 @@ public:
                 (void)dispatcher_.SetQueueFaulted(contextId, true);
                 readyCompletions_.push_back({CommandCompletionStatus::QueueFaulted,
                     contextId, decoded.submissionId, packetBytePosition, 0U,
-                    AdmissionFailure::None});
+                    AdmissionFailure::None, queue->second.queueIncarnationId});
                 AdvanceQueueCursor(contextId);
                 return {CommandProcessStatus::InternalIdExhausted,
                     contextId, packetBytePosition, decoded.packetBytes,
@@ -558,7 +575,8 @@ public:
                 const auto [tracked, inserted] = tracked_.try_emplace(
                     *candidateId,
                     TrackedWorkgroup{contextId, packetBytePosition,
-                        *decoded.workgroup, false, false});
+                        queue->second.queueIncarnationId, *decoded.workgroup,
+                        false, false});
                 if (!inserted)
                 {
                     candidateId = NextInternalId(*candidateId);
@@ -605,7 +623,7 @@ public:
                     (void)dispatcher_.SetQueueFaulted(contextId, true);
                     readyCompletions_.push_back({CommandCompletionStatus::QueueFaulted,
                         contextId, decoded.submissionId, packetBytePosition, 0U,
-                        AdmissionFailure::None});
+                        AdmissionFailure::None, queue->second.queueIncarnationId});
                     AdvanceQueueCursor(contextId);
                     return {CommandProcessStatus::InternalIdExhausted,
                         contextId, packetBytePosition, decoded.packetBytes,
@@ -641,7 +659,8 @@ public:
             tracked->second.resident = true;
             result.admitted = DispatchedWorkgroup{id,
                 tracked->second.queueContextId, context->processId,
-                context->addressSpaceId, tracked->second.descriptor};
+                context->addressSpaceId, tracked->second.descriptor,
+                tracked->second.queueIncarnationId};
             return result;
         }
 
@@ -655,7 +674,7 @@ public:
                 tracked->second.queueContextId,
                 tracked->second.descriptor.submissionId,
                 tracked->second.packetBytePosition, id,
-                result.dispatch.failure});
+                result.dispatch.failure, tracked->second.queueIncarnationId});
             tracked_.erase(tracked);
         }
         return result;
@@ -677,7 +696,7 @@ public:
                 tracked->second.descriptor.submissionId,
                 tracked->second.packetBytePosition,
                 workgroup.workgroupId,
-                AdmissionFailure::None});
+                AdmissionFailure::None, tracked->second.queueIncarnationId});
             tracked_.erase(tracked);
         }
 
@@ -718,6 +737,7 @@ public:
             CommandCompletion completion{
                 CommandCompletionStatus::Cancelled, contextId, std::nullopt,
                 0U, workgroup.workgroupId, AdmissionFailure::None};
+            completion.queueIncarnationId = queue->second.queueIncarnationId;
             if (tracked != tracked_.end())
             {
                 completion.submissionId = tracked->second.descriptor.submissionId;
@@ -741,7 +761,8 @@ public:
             return std::nullopt;
         return CommandQueueSnapshot{contextId, context->faulted,
             queue->second.ring.UnreadBytes(), queue->second.ring.ReadPhysicalIndex(),
-            queue->second.ring.ProducerPosition(), queue->second.ring.ConsumerPosition()};
+            queue->second.ring.ProducerPosition(), queue->second.ring.ConsumerPosition(),
+            queue->second.queueIncarnationId};
     }
 
     [[nodiscard]] std::uint64_t PendingByteCountTotal() const noexcept
@@ -875,17 +896,19 @@ private:
 
     struct QueueState
     {
-        explicit QueueState(std::uint32_t capacity)
-            : ring(capacity)
+        explicit QueueState(std::uint32_t capacity, std::uint64_t queueIncarnation)
+            : ring(capacity), queueIncarnationId(queueIncarnation)
         {
         }
         ByteRing ring;
+        std::uint64_t queueIncarnationId;
     };
 
     struct TrackedWorkgroup
     {
         std::uint8_t queueContextId;
         std::uint64_t packetBytePosition;
+        std::uint64_t queueIncarnationId;
         WorkgroupDispatchDescriptor descriptor;
         bool resident;
         bool cancellationRequested;
@@ -935,6 +958,7 @@ private:
     std::map<std::uint64_t, TrackedWorkgroup> tracked_;
     std::deque<CommandCompletion> readyCompletions_;
     std::uint8_t nextQueueCursor_ = 0U;
+    std::optional<std::uint64_t> nextQueueIncarnationId_ = 1U;
     std::optional<std::uint64_t> nextInternalWorkgroupId_ = 0x8000000000000000ULL;
 };
 

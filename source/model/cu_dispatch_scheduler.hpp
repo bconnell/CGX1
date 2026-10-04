@@ -58,7 +58,8 @@ enum class QueueRegistrationStatus : std::uint8_t
     DuplicateContextId,
     ContextCapacityReached,
     UnknownContext,
-    ContextBusy
+    ContextBusy,
+    IncarnationExhausted
 };
 
 enum class EnqueueWorkgroupStatus : std::uint8_t

@@ -34,10 +34,10 @@
   },
   "local_working_tree_candidate": {
     "base_commit": "3ed83bf0d628801a8fc1bb39c60f3b86ce6d257a",
-    "source_fingerprint_sha256": "8ed1424d860ad4f78dd5af6d7e32882e5f05e0d44712b21dc25866a84e006263",
+    "source_fingerprint_sha256": "ccf61fa18693f132ecd98d19c8ba0f0c194d2bffa9d3850e98f1f323c4fa1e70",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
     "local_build": "cmake --build build -j2 under Ubuntu WSL: passed",
-    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 26/26 passed",
+    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 26/26 passed, including fragmented reserved flags, queue-incarnation correlation, literal packet bytes, duplicate same-context tokens, and terminal admission rejection",
     "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including standalone dispatch, scheduler/frontend integration, workgroup LSU, complete workgroup frontend, and cgx1_top power-eligibility tests",
     "windows_validation": "scripts/validate_windows.ps1 passed hygiene, integrity, design consistency, all negative controls, and Markdown links, then stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
     "hosted_ci": "not run for this local candidate"

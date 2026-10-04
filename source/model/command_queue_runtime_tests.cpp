@@ -90,6 +90,18 @@ const CommandCompletion* FindCompletion(
 
 int TestPacketCodecAndValidation()
 {
+    const auto golden = EncodeWorkgroupDispatchPacket(Descriptor(0x0807060504030201ULL));
+    const std::array<std::uint8_t, 52U> expected{
+        0x43U, 0x47U, 0x58U, 0x31U, 0x01U, 0x00U, 0x01U, 0x00U,
+        0x34U, 0x00U, 0x00U, 0x00U,
+        0x01U, 0x02U, 0x03U, 0x04U, 0x05U, 0x06U, 0x07U, 0x08U,
+        0x00U, 0x10U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
+        0x01U, 0x00U, 0x01U, 0x00U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
+        0x00U, 0x00U, 0x00U, 0x00U,
+        0xffU, 0xffU, 0xffU, 0xffU, 0x10U, 0x00U, 0x00U, 0x00U};
+    CHECK(std::equal(golden.begin(), golden.end(), expected.begin(), expected.end()));
+
     auto descriptor = Descriptor(0x123456789abcdef0ULL, 0x123456789abcu, 3U, 256U);
     descriptor.sharedLocalBytes = 513U;
     descriptor.otherWorkgroupStateUnits = 7U;
@@ -144,6 +156,86 @@ int TestPacketCodecAndValidation()
     try { (void)EncodeWorkgroupDispatchPacket(tooManyWaves); }
     catch (const std::invalid_argument&) { rejected = true; }
     CHECK(rejected);
+    return 0;
+}
+
+int TestReservedFlagsConsumeCompleteFramedPacket()
+{
+    ComputeUnitDispatchScheduler scheduler(Limits(), DispatchConfig());
+    CommandQueueRuntime runtime(scheduler, ProcessorConfig());
+    CHECK(runtime.RegisterQueueContext(Context(1U)) == QueueRegistrationStatus::Registered);
+    auto packet = EncodeWorkgroupDispatchPacket(Descriptor(13U));
+    packet[7U] = 1U;
+    const auto following = EncodeWorkgroupDispatchPacket(Descriptor(14U));
+    CHECK(runtime.SubmitBytes(1U, std::span<const std::uint8_t>(packet.data(), 13U))
+        == SubmitCommandStatus::Accepted);
+    CHECK(runtime.ProcessOneCommand().status == CommandProcessStatus::Incomplete);
+    CHECK(!runtime.InspectQueue(1U)->faulted);
+    CHECK(runtime.InspectQueue(1U)->consumerBytePosition == 0U);
+
+    CHECK(runtime.SubmitBytes(1U,
+        std::span<const std::uint8_t>(packet.data() + 13U, packet.size() - 13U))
+        == SubmitCommandStatus::Accepted);
+    CHECK(runtime.SubmitBytes(1U, following) == SubmitCommandStatus::Accepted);
+    const auto rejected = runtime.ProcessOneCommand();
+    CHECK(rejected.status == CommandProcessStatus::RejectedMalformed);
+    CHECK(rejected.packetBytePosition == 0U);
+    CHECK(runtime.InspectQueue(1U)->unreadBytes == following.size());
+    CHECK(runtime.InspectQueue(1U)->consumerBytePosition == packet.size());
+    CHECK(!runtime.InspectQueue(1U)->faulted);
+    CHECK(runtime.ProcessOneCommand().status == CommandProcessStatus::Enqueued);
+    const auto completions = runtime.CollectCompletions();
+    CHECK(completions.size() == 1U);
+    CHECK(completions[0].submissionId == 13U);
+    CHECK(completions[0].status == CommandCompletionStatus::MalformedPacket);
+    const auto dispatch = runtime.ScheduleOneCycle(true);
+    CHECK(dispatch.dispatch.status == DispatchCycleStatus::Admitted);
+    CHECK(dispatch.admitted->descriptor.submissionId == 14U);
+    CHECK(CompleteLaunch(scheduler, *dispatch.admitted) == 0);
+    CHECK(FindCompletion(runtime.CollectCompletions(), 1U, 14U) != nullptr);
+    CHECK(runtime.CheckInvariants());
+    return 0;
+}
+
+int TestDuplicateSubmissionTokensSameContext()
+{
+    ComputeUnitDispatchScheduler scheduler(Limits(2U), DispatchConfig());
+    CommandQueueRuntime runtime(scheduler, ProcessorConfig());
+    CHECK(runtime.RegisterQueueContext(Context(1U)) == QueueRegistrationStatus::Registered);
+    const auto firstPacket = EncodeWorkgroupDispatchPacket(Descriptor(77U, 0x1000U));
+    const auto secondPacket = EncodeWorkgroupDispatchPacket(Descriptor(77U, 0x2000U));
+    const auto incarnationId = runtime.InspectQueue(1U)->queueIncarnationId;
+    CHECK(runtime.SubmitBytes(1U, firstPacket) == SubmitCommandStatus::Accepted);
+    CHECK(runtime.SubmitBytes(1U, secondPacket) == SubmitCommandStatus::Accepted);
+    const auto first = runtime.ProcessOneCommand();
+    const auto second = runtime.ProcessOneCommand();
+    CHECK(first.status == CommandProcessStatus::Enqueued);
+    CHECK(second.status == CommandProcessStatus::Enqueued);
+    CHECK(first.packetBytePosition == 0U);
+    CHECK(second.packetBytePosition == firstPacket.size());
+
+    auto dispatch = runtime.ScheduleOneCycle(true);
+    CHECK(dispatch.dispatch.status == DispatchCycleStatus::Admitted);
+    CHECK(dispatch.admitted->descriptor.entryPc == 0x1000U);
+    CHECK(dispatch.admitted->queueIncarnationId == incarnationId);
+    CHECK(CompleteLaunch(scheduler, *dispatch.admitted) == 0);
+    auto completions = runtime.CollectCompletions();
+    CHECK(completions.size() == 1U);
+    CHECK(completions[0].submissionId == 77U);
+    CHECK(completions[0].packetBytePosition == first.packetBytePosition);
+    CHECK(completions[0].queueIncarnationId == incarnationId);
+
+    dispatch = runtime.ScheduleOneCycle(true);
+    CHECK(dispatch.dispatch.status == DispatchCycleStatus::Admitted);
+    CHECK(dispatch.admitted->descriptor.entryPc == 0x2000U);
+    CHECK(dispatch.admitted->queueIncarnationId == incarnationId);
+    CHECK(CompleteLaunch(scheduler, *dispatch.admitted) == 0);
+    completions = runtime.CollectCompletions();
+    CHECK(completions.size() == 1U);
+    CHECK(completions[0].submissionId == 77U);
+    CHECK(completions[0].packetBytePosition == second.packetBytePosition);
+    CHECK(completions[0].queueIncarnationId == incarnationId);
+    CHECK(runtime.CheckInvariants());
     return 0;
 }
 
@@ -214,9 +306,27 @@ int TestQueueUnregisterWaitsForCompletionIdentity()
 
     const auto rejected = runtime.CollectCompletions();
     CHECK(FindCompletion(rejected, 4U, 41U) != nullptr);
+    CHECK(rejected.size() == 1U);
     CHECK(runtime.UnregisterQueueContext(4U) == QueueRegistrationStatus::Unregistered);
 
     const auto replacementContext = Context(4U, 0x333U, 0x444U);
+    CHECK(runtime.RegisterQueueContext(replacementContext)
+        == QueueRegistrationStatus::Registered);
+    CHECK(runtime.InspectQueue(4U)->queueIncarnationId
+        != rejected[0].queueIncarnationId);
+    CHECK(runtime.SubmitBytes(4U, malformed) == SubmitCommandStatus::Accepted);
+    const auto malformedAgain = runtime.ProcessOneCommand();
+    CHECK(malformedAgain.status == CommandProcessStatus::RejectedMalformed);
+    const auto rejectedAgain = runtime.CollectCompletions();
+    CHECK(rejectedAgain.size() == 1U);
+    CHECK(rejectedAgain[0].queueContextId == rejected[0].queueContextId);
+    CHECK(rejectedAgain[0].submissionId == rejected[0].submissionId);
+    CHECK(rejectedAgain[0].packetBytePosition == rejected[0].packetBytePosition);
+    CHECK(rejectedAgain[0].internalWorkgroupId == rejected[0].internalWorkgroupId);
+    CHECK(rejectedAgain[0].status == rejected[0].status);
+    CHECK(rejectedAgain[0].queueIncarnationId != rejected[0].queueIncarnationId);
+    CHECK(runtime.UnregisterQueueContext(4U) == QueueRegistrationStatus::Unregistered);
+
     CHECK(runtime.RegisterQueueContext(replacementContext)
         == QueueRegistrationStatus::Registered);
     const auto packet = EncodeWorkgroupDispatchPacket(Descriptor(41U));
@@ -229,6 +339,30 @@ int TestQueueUnregisterWaitsForCompletionIdentity()
     CHECK(CompleteLaunch(scheduler, *dispatch.admitted) == 0);
     CHECK(FindCompletion(runtime.CollectCompletions(), 4U, 41U) != nullptr);
     CHECK(runtime.CheckInvariants());
+    return 0;
+}
+
+int TestTerminalResourceAdmissionRejection()
+{
+    ComputeUnitDispatchScheduler scheduler(Limits(8U), DispatchConfig());
+    CommandQueueRuntime runtime(scheduler, ProcessorConfig());
+    CHECK(runtime.RegisterQueueContext(Context(5U)) == QueueRegistrationStatus::Registered);
+    const auto impossible = EncodeWorkgroupDispatchPacket(Descriptor(88U, 0x1000U, 9U));
+    CHECK(runtime.SubmitBytes(5U, impossible) == SubmitCommandStatus::Accepted);
+    CHECK(runtime.ProcessOneCommand().status == CommandProcessStatus::Enqueued);
+    CHECK(runtime.TrackedWorkgroupCount() == 1U);
+    const auto rejected = runtime.ScheduleOneCycle(true);
+    CHECK(rejected.dispatch.status == DispatchCycleStatus::Rejected);
+    CHECK(rejected.dispatch.failure == AdmissionFailure::WorkgroupExceedsResidentWaveCapacity);
+    CHECK(!rejected.admitted.has_value());
+    CHECK(runtime.TrackedWorkgroupCount() == 0U);
+    const auto completions = runtime.CollectCompletions();
+    CHECK(completions.size() == 1U);
+    CHECK(completions[0].status == CommandCompletionStatus::AdmissionRejected);
+    CHECK(completions[0].submissionId == 88U);
+    CHECK(completions[0].admissionFailure
+        == AdmissionFailure::WorkgroupExceedsResidentWaveCapacity);
+    CHECK(runtime.CheckInvariants() && scheduler.CheckInvariants());
     return 0;
 }
 
@@ -561,10 +695,13 @@ int TestRandomizedQueueDispatchAndReuse()
 int main()
 {
     if (TestPacketCodecAndValidation() != 0
+        || TestReservedFlagsConsumeCompleteFramedPacket() != 0
+        || TestDuplicateSubmissionTokensSameContext() != 0
         || TestBoundedRingBackpressureAndPhysicalWrap() != 0
         || TestUnsupportedMalformedAndQueueFaultRecovery() != 0
         || TestQueueUnregisterWaitsForCompletionIdentity() != 0
         || TestContextIdentityAndCompletionCorrelation() != 0
+        || TestTerminalResourceAdmissionRejection() != 0
         || TestDispatcherBackpressureAndResourceRetry() != 0
         || TestCompletionTrackingCapacityBackpressure() != 0
         || TestQueueScopedResetAndQuiescentCancellation() != 0

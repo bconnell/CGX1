@@ -34,15 +34,15 @@
   },
   "local_working_tree_candidate": {
     "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
-    "source_fingerprint_sha256": "1f0297743efe8e23f57c92655b7272668fd59ec8ea2addf3c7e2b582b71da993",
+    "source_fingerprint_sha256": "56de8d8cc5f59dc0369233a4d8aa68ac2f3160f83fb905cc12f596c86b50994a",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
     "local_build": "cmake --build build -j2 passed under Ubuntu WSL after adding the provisional vector semantics and bounded PC-stepped stream references; the focused ISA red/green build also passed",
     "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL, including dependent vector-stream execution, fetch faults, invalid image bases, unsupported classes, illegal opcodes, and the 57-bit final-word boundary",
-    "local_rtl": "Under Ubuntu WSL with Icarus Verilog 12.0, bash -n scripts/validate_rtl.sh and the full bash scripts/validate_rtl.sh gate passed, including the focused identity-safe instruction-fetch bench and integrated compute-workgroup frontend fetch/decode/PC/lifecycle regression.",
+    "local_rtl": "Under Ubuntu WSL with Icarus Verilog 12.0, cmake --build build -j2, CTest (26/26), bash -n scripts/validate_rtl.sh, and the full bash scripts/validate_rtl.sh gate passed, including generic non-vector base-field extraction and the integrated compute-workgroup frontend fetch/decode/PC/lifecycle regression.",
     "windows_validation": "The Windows wrapper passed public-repository hygiene and its negative controls, repository integrity and its negative control, design consistency and its negative controls, and local Markdown links. It stopped at C/C++ configure because cmake.exe is not available from Windows PATH; WSL CMake build/CTest and the RTL gate passed. Native Windows CMake build/CTest were not run.",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "nonvector_instruction_decode_and_handler_acceptance",
+  "next_dependency_candidate": "provisional_control_termination_instruction",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -210,7 +210,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "The combinational per-wave decoder maps raw 32-bit Vector-class base words to the existing request fields and passes non-vector classes through as raw words. Its RTL bench integrates with resident vector scheduling and INT32 execution; the optional fetch unit now supplies captured words through the authoritative workgroup frontend PC and retains identity through response, kill/fault, and quiescent release. Non-vector execution, extension words, frozen opcode assignments, top-level GPU instruction stream, and physical evidence remain open."
+      "limits": "The combinational per-wave decoder maps raw 32-bit Vector-class base words to the existing request fields and exposes generic class/opcode/destination/source fields plus the original word for non-vector handlers. Its RTL bench integrates with resident vector scheduling and INT32 execution; the optional fetch unit supplies captured words through the authoritative workgroup frontend PC and retains identity through response, kill/fault, and quiescent release. Class-specific non-vector execution, extension words, frozen opcode assignments, top-level GPU instruction stream, and physical evidence remain open."
     },
     {
       "id": "instruction_fetch_cu_pc_integration",
@@ -231,7 +231,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "The optional compute workgroup frontend fetches through an abstract single-request ready/valid boundary, permits one operation per resident wave with concurrent multi-wave waits, matches full workgroup/wave/epoch/tag/PC response identity, retains fetched words through acceptance, integrates the current provisional vector decoder with control-flow-owned 57-bit PCs, advances accepted raw-class words using external sequential-PC metadata, drains stale responses after kill/abort, reports fetch faults through wave termination, and blocks release until quiescent. Fetch is disabled by default. Other-class decode/semantics, extension words, execute translation, instruction cache/physical memory, top-level GPU integration, hosted CI for this candidate, synthesis, timing, area, power, and silicon remain unverified."
+      "limits": "The optional compute workgroup frontend fetches through an abstract single-request ready/valid boundary, permits one operation per resident wave with concurrent multi-wave waits, matches full workgroup/wave/epoch/tag/PC response identity, retains fetched words through acceptance, integrates the current provisional vector decoder with control-flow-owned 57-bit PCs, exposes generic base fields and identity for non-vector handlers, advances accepted raw-class words using external sequential-PC metadata, drains stale responses after kill/abort, reports fetch faults through wave termination, and blocks release until quiescent. Fetch is disabled by default. Class-specific other-class decode/semantics, extension words, execute translation, instruction cache/physical memory, top-level GPU integration, hosted CI for this candidate, synthesis, timing, area, power, and silicon remain unverified."
     },
     {
       "id": "complete_cu_scheduler_dispatch",

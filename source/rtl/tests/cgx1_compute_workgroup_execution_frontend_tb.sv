@@ -134,6 +134,10 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [SLOTS-1:0] instruction_fetch_unhandled_ready = '0;
     logic [(SLOTS*4)-1:0] instruction_fetch_unhandled_class_flat;
     logic [(SLOTS*32)-1:0] instruction_fetch_unhandled_word_flat;
+    logic [(SLOTS*4)-1:0] instruction_fetch_unhandled_opcode_flat;
+    logic [(SLOTS*8)-1:0] instruction_fetch_unhandled_destination_flat;
+    logic [(SLOTS*8)-1:0] instruction_fetch_unhandled_source0_flat;
+    logic [(SLOTS*8)-1:0] instruction_fetch_unhandled_source1_flat;
     logic [(SLOTS*8)-1:0] instruction_fetch_unhandled_workgroup_id_flat;
     logic [(SLOTS*VA_WIDTH)-1:0] instruction_fetch_unhandled_pc_flat;
     logic [(SLOTS*32)-1:0] instruction_fetch_unhandled_epoch_flat;
@@ -1399,7 +1403,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         instruction_memory_response_epoch = fetch_epoch0;
         instruction_memory_response_transaction_tag = fetch_tag0;
         instruction_memory_response_pc = fetch_pc0;
-        instruction_memory_response_word = 32'h2000_0000;
+        instruction_memory_response_word = 32'h2A96_7854;
         instruction_memory_response_fault_code = 0;
         instruction_memory_response_valid = 1'b1; #1;
         if (!instruction_memory_response_ready)
@@ -1408,7 +1412,11 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         @(negedge clk); instruction_memory_response_valid = 1'b0;
         if (!instruction_fetch_unhandled_valid[0]
             || instruction_fetch_unhandled_class_flat[0+:4] != 4'h2
-            || instruction_fetch_unhandled_word_flat[0+:32] != 32'h2000_0000
+            || instruction_fetch_unhandled_word_flat[0+:32] != 32'h2A96_7854
+            || instruction_fetch_unhandled_opcode_flat[0+:4] !== 4'hA
+            || instruction_fetch_unhandled_destination_flat[0+:8] !== 8'h96
+            || instruction_fetch_unhandled_source0_flat[0+:8] !== 8'h78
+            || instruction_fetch_unhandled_source1_flat[0+:8] !== 8'h54
             || instruction_fetch_unhandled_workgroup_id_flat[0+:8] != 8'd79
             || instruction_fetch_unhandled_pc_flat[0+:VA_WIDTH] != 57'h7000
             || instruction_fetch_unhandled_epoch_flat[0+:32] != fetch_epoch0

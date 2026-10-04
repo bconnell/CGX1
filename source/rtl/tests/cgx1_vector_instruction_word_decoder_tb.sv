@@ -21,6 +21,10 @@ module cgx1_vector_instruction_word_decoder_tb;
     logic [SLOTS-1:0] unhandled_instruction_ready;
     logic [(SLOTS*4)-1:0] unhandled_instruction_class_flat;
     logic [(SLOTS*32)-1:0] unhandled_instruction_word_flat;
+    logic [(SLOTS*4)-1:0] unhandled_instruction_opcode_flat;
+    logic [(SLOTS*8)-1:0] unhandled_instruction_destination_flat;
+    logic [(SLOTS*8)-1:0] unhandled_instruction_source0_flat;
+    logic [(SLOTS*8)-1:0] unhandled_instruction_source1_flat;
 
     logic [SLOTS-1:0] dependency_ready;
     logic selected_valid;
@@ -118,7 +122,11 @@ module cgx1_vector_instruction_word_decoder_tb;
         .unhandled_instruction_valid(unhandled_instruction_valid),
         .unhandled_instruction_ready(unhandled_instruction_ready),
         .unhandled_instruction_class_flat(unhandled_instruction_class_flat),
-        .unhandled_instruction_word_flat(unhandled_instruction_word_flat)
+        .unhandled_instruction_word_flat(unhandled_instruction_word_flat),
+        .unhandled_instruction_opcode_flat(unhandled_instruction_opcode_flat),
+        .unhandled_instruction_destination_flat(unhandled_instruction_destination_flat),
+        .unhandled_instruction_source0_flat(unhandled_instruction_source0_flat),
+        .unhandled_instruction_source1_flat(unhandled_instruction_source1_flat)
     );
 
     cgx1_resident_vector_execution_frontend #(
@@ -267,8 +275,12 @@ module cgx1_vector_instruction_word_decoder_tb;
         if (vector_request_valid != '0 || unhandled_instruction_valid != 4'b0100
             || unhandled_instruction_class_flat[(2*4)+:4] != 4'h2
             || unhandled_instruction_word_flat[(2*32)+:32] != instruction_word_flat[(2*32)+:32]
+            || unhandled_instruction_opcode_flat[(2*4)+:4] !== 4'h0
+            || unhandled_instruction_destination_flat[(2*8)+:8] !== 8'h9
+            || unhandled_instruction_source0_flat[(2*8)+:8] !== 8'h7
+            || unhandled_instruction_source1_flat[(2*8)+:8] !== 8'h6
             || instruction_ready[2])
-            $fatal(1, "non-vector word was decoded as vector or ignored handler backpressure");
+            $fatal(1, "non-vector base fields were not decoded or handler backpressure was ignored");
         @(negedge clk);
         unhandled_instruction_ready[2] = 1'b1;
         #1;

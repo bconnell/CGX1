@@ -94,6 +94,10 @@ module cgx1_compute_workgroup_execution_frontend #(
     input logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_unhandled_ready,
     output logic [(RESIDENT_WAVE_SLOTS*4)-1:0] instruction_fetch_unhandled_class_flat,
     output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] instruction_fetch_unhandled_word_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*4)-1:0] instruction_fetch_unhandled_opcode_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*8)-1:0] instruction_fetch_unhandled_destination_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*8)-1:0] instruction_fetch_unhandled_source0_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*8)-1:0] instruction_fetch_unhandled_source1_flat,
     output logic [(RESIDENT_WAVE_SLOTS*WORKGROUP_ID_WIDTH)-1:0] instruction_fetch_unhandled_workgroup_id_flat,
     output logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] instruction_fetch_unhandled_pc_flat,
     output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] instruction_fetch_unhandled_epoch_flat,
@@ -659,7 +663,11 @@ module cgx1_compute_workgroup_execution_frontend #(
                 .unhandled_instruction_valid(instruction_fetch_unhandled_valid),
                 .unhandled_instruction_ready(instruction_fetch_unhandled_ready),
                 .unhandled_instruction_class_flat(instruction_fetch_unhandled_class_flat),
-                .unhandled_instruction_word_flat(instruction_fetch_unhandled_word_flat)
+                .unhandled_instruction_word_flat(instruction_fetch_unhandled_word_flat),
+                .unhandled_instruction_opcode_flat(instruction_fetch_unhandled_opcode_flat),
+                .unhandled_instruction_destination_flat(instruction_fetch_unhandled_destination_flat),
+                .unhandled_instruction_source0_flat(instruction_fetch_unhandled_source0_flat),
+                .unhandled_instruction_source1_flat(instruction_fetch_unhandled_source1_flat)
             );
 
             assign instruction_fetch_unhandled_workgroup_id_flat
@@ -694,6 +702,10 @@ module cgx1_compute_workgroup_execution_frontend #(
             assign instruction_fetch_unhandled_valid = '0;
             assign instruction_fetch_unhandled_class_flat = '0;
             assign instruction_fetch_unhandled_word_flat = '0;
+            assign instruction_fetch_unhandled_opcode_flat = '0;
+            assign instruction_fetch_unhandled_destination_flat = '0;
+            assign instruction_fetch_unhandled_source0_flat = '0;
+            assign instruction_fetch_unhandled_source1_flat = '0;
             assign instruction_fetch_unhandled_workgroup_id_flat = '0;
             assign instruction_fetch_unhandled_pc_flat = '0;
             assign instruction_fetch_unhandled_epoch_flat = '0;

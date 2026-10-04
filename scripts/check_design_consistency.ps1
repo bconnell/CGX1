@@ -889,6 +889,11 @@ Require-Literal "source/rtl/cgx1_instruction_fetch_unit.sv" "module cgx1_instruc
 Require-Literal "source/rtl/cgx1_instruction_fetch_unit.sv" "&& (pc_q[slot] == response_pc)"
 Require-Literal "source/rtl/tests/cgx1_instruction_fetch_unit_tb.sv" "module cgx1_instruction_fetch_unit_tb"
 Require-Literal "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv" "fetched vector word did not complete pooled-VGPR writeback"
+Require-Literal "source/rtl/cgx1_vector_instruction_word_decoder.sv" "unhandled_instruction_opcode_flat[(decode_slot*4)+:4]"
+Require-Literal "source/rtl/cgx1_vector_instruction_word_decoder.sv" "unhandled_instruction_destination_flat[(decode_slot*8)+:8]"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" ".unhandled_instruction_source1_flat(instruction_fetch_unhandled_source1_flat)"
+Require-Literal "source/rtl/tests/cgx1_vector_instruction_word_decoder_tb.sv" "unhandled_instruction_source0_flat[(2*8)+:8] !== 8'h7"
+Require-Literal "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv" "instruction_fetch_unhandled_destination_flat[0+:8] !== 8'h96"
 $workgroupBoundary = $architecture.execution_model.workgroup_residency_barrier_rtl
 if (-not [bool]$workgroupBoundary.reference_model_implemented -or
     -not [bool]$workgroupBoundary.rtl_implemented -or

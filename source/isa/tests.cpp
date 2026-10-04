@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Brandon Connell
 #include "cgx1_isa.hpp"
 #include "cgx1_vector_semantics.hpp"
+#include "cgx1_vector_stream.hpp"
 
 #include <array>
 #include <cassert>
@@ -177,6 +178,138 @@ void TestVectorAdditionAndSubtractionWrapAt32Bits()
     Require(registers[3][0] == 0xffffffffU, "vector subtraction did not wrap at 32 bits");
 }
 
+void TestVectorStreamExecutesDependentInstructionsAndAdvancesPC()
+{
+    using namespace cgx1::isa;
+
+    constexpr std::uint64_t image_base = 0x1000U;
+    std::array<std::uint32_t, 2U> words{
+        EncodeBase(BaseInstruction{InstructionClass::Vector, 0U, 3U, 1U, 2U}),
+        EncodeBase(BaseInstruction{InstructionClass::Vector, 5U, 4U, 3U, 2U})
+    };
+    VectorRegisterFile registers{};
+    registers[1].fill(2U);
+    registers[2].fill(3U);
+    std::uint64_t pc = image_base;
+
+    Require(StepVectorInstructionStream(words, image_base, pc, registers, 0xffffffffU)
+            == VectorStreamStepStatus::Executed,
+        "first vector stream instruction did not execute");
+    Require(pc == image_base + 4U && registers[3][0] == 5U,
+        "first vector stream instruction did not update destination and PC");
+    Require(StepVectorInstructionStream(words, image_base, pc, registers, 0xffffffffU)
+            == VectorStreamStepStatus::Executed,
+        "dependent vector stream instruction did not execute");
+    Require(pc == image_base + 8U && registers[4][0] == 40U,
+        "dependent instruction did not observe prior writeback or advance PC");
+}
+
+void TestVectorStreamFetchFaultLeavesStateUnchanged()
+{
+    using namespace cgx1::isa;
+
+    constexpr std::uint64_t image_base = 0x2000U;
+    const std::array<std::uint32_t, 1U> words{
+        EncodeBase(BaseInstruction{InstructionClass::Vector, 0U, 3U, 1U, 2U})
+    };
+    VectorRegisterFile registers{};
+    registers[1].fill(9U);
+    registers[2].fill(7U);
+    const auto before = registers;
+
+    for (const std::uint64_t invalid_pc : {
+             image_base + 2U,
+             image_base - 4U,
+             image_base + 4U,
+             (std::uint64_t{1U} << 57U)})
+    {
+        std::uint64_t pc = invalid_pc;
+        Require(StepVectorInstructionStream(words, image_base, pc, registers, 0xffffffffU)
+                == VectorStreamStepStatus::FetchFault,
+            "invalid vector stream PC did not report a fetch fault");
+        Require(pc == invalid_pc && registers == before,
+            "vector fetch fault modified PC or VGPR state");
+    }
+}
+
+void TestVectorStreamInvalidImageBaseLeavesStateUnchanged()
+{
+    using namespace cgx1::isa;
+
+    const std::array<std::uint32_t, 1U> words{
+        EncodeBase(BaseInstruction{InstructionClass::Vector, 0U, 3U, 1U, 2U})
+    };
+    VectorRegisterFile registers{};
+    registers[1].fill(9U);
+    registers[2].fill(7U);
+    const auto before = registers;
+    const std::uint64_t address_limit = std::uint64_t{1U} << 57U;
+
+    for (const std::uint64_t invalid_base : std::array<std::uint64_t, 2U>{2U, address_limit})
+    {
+        std::uint64_t pc = 0U;
+        Require(StepVectorInstructionStream(words, invalid_base, pc, registers, 0xffffffffU)
+                == VectorStreamStepStatus::FetchFault,
+            "invalid vector stream image base did not report a fetch fault");
+        Require(pc == 0U && registers == before,
+            "invalid image base modified PC or VGPR state");
+    }
+}
+
+void TestVectorStreamUnsupportedWordsDoNotAdvancePC()
+{
+    using namespace cgx1::isa;
+
+    constexpr std::uint64_t image_base = 0x3000U;
+    const std::array<std::uint32_t, 2U> words{
+        EncodeBase(BaseInstruction{InstructionClass::Memory, 0U, 4U, 4U, 4U}),
+        EncodeBase(BaseInstruction{InstructionClass::Vector, 8U, 4U, 4U, 4U})
+    };
+    VectorRegisterFile registers{};
+    registers[4].fill(0x12345678U);
+    const auto before = registers;
+
+    std::uint64_t pc = image_base;
+    Require(StepVectorInstructionStream(words, image_base, pc, registers, 0xffffffffU)
+            == VectorStreamStepStatus::NotVectorInstruction,
+        "non-vector instruction was not left for another class handler");
+    Require(pc == image_base && registers == before,
+        "non-vector instruction changed stream or VGPR state");
+
+    pc = image_base + 4U;
+    Require(StepVectorInstructionStream(words, image_base, pc, registers, 0xffffffffU)
+            == VectorStreamStepStatus::IllegalOpcode,
+        "reserved vector opcode did not report an instruction fault");
+    Require(pc == image_base + 4U && registers == before,
+        "illegal vector opcode changed stream or VGPR state");
+}
+
+void TestVectorStreamFinalWordAnd57BitBoundary()
+{
+    using namespace cgx1::isa;
+
+    const std::array<std::uint32_t, 1U> words{
+        EncodeBase(BaseInstruction{InstructionClass::Vector, 0U, 3U, 1U, 2U})
+    };
+    VectorRegisterFile registers{};
+    registers[1].fill(1U);
+    registers[2].fill(2U);
+    const std::uint64_t address_limit = std::uint64_t{1U} << 57U;
+    std::uint64_t pc = address_limit - 4U;
+
+    Require(StepVectorInstructionStream(words, pc, pc, registers, 1U)
+            == VectorStreamStepStatus::Executed,
+        "last aligned 57-bit instruction address did not execute");
+    Require(pc == address_limit && registers[3][0] == 3U,
+        "last instruction did not preserve the next sequential PC");
+    const auto after_final = registers;
+    Require(StepVectorInstructionStream(words, address_limit - 4U, pc, registers, 1U)
+            == VectorStreamStepStatus::FetchFault,
+        "next fetch beyond the 57-bit address space did not fault");
+    Require(pc == address_limit && registers == after_final,
+        "out-of-range next fetch modified state");
+}
+
 void TestUnsupportedVectorInstructionsDoNotMutateState()
 {
     using namespace cgx1::isa;
@@ -274,6 +407,11 @@ int main()
     TestVectorShiftCountsUseFiveBits();
     TestVectorMaskAndAliasing();
     TestVectorAdditionAndSubtractionWrapAt32Bits();
+    TestVectorStreamExecutesDependentInstructionsAndAdvancesPC();
+    TestVectorStreamFetchFaultLeavesStateUnchanged();
+    TestVectorStreamInvalidImageBaseLeavesStateUnchanged();
+    TestVectorStreamUnsupportedWordsDoNotAdvancePC();
+    TestVectorStreamFinalWordAnd57BitBoundary();
     TestUnsupportedVectorInstructionsDoNotMutateState();
 
     std::cout << "CGX 1 ISA base encoding and provisional INT32 vector semantics checks passed.\n";

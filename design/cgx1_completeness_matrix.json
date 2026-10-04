@@ -34,15 +34,15 @@
   },
   "local_working_tree_candidate": {
     "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
-    "source_fingerprint_sha256": "d5fe91ee007c76678e5e0eb64309a27d4a8c19f0f134bc641028fc07d799ec1d",
+    "source_fingerprint_sha256": "50dc2eb1d52589bd17aa58376913a427863c6f53ae67db17f3aadb2f86353d57",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
-    "local_build": "cmake --build build -j2 succeeded under Ubuntu WSL after adding the vector semantics reference and lane-specific tests; documentation-only refinements followed",
-    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL after adding the vector semantics reference and lane-specific tests; the power policy target also passed independently",
+    "local_build": "cmake --build build -j2 passed under Ubuntu WSL after adding the provisional vector semantics and bounded PC-stepped stream references; the focused ISA red/green build also passed",
+    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL, including dependent vector-stream execution, fetch faults, invalid image bases, unsupported classes, illegal opcodes, and the 57-bit final-word boundary",
     "local_rtl": "The cgx1_top_tb power integration bench passed under Icarus Verilog 12.0. A fresh full scripts/validate_rtl.sh run then remained compiling cgx1_resident_wave_vgpr_file_tb for about 3 minutes and was stopped; this vector-reference slice changed no RTL, and the post-reconciliation full RTL gate remains incomplete.",
     "windows_validation": "Current-candidate design consistency, repository integrity, public repository hygiene, Markdown link, and git diff checks passed; the full Windows wrapper was not rerun",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "vector_instruction_fetch_decode_integration",
+  "next_dependency_candidate": "rtl_vector_fetch_decode_integration",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -169,6 +169,27 @@
         "silicon_measurement": "not_started"
       },
       "limits": "The executable reference decodes current 32-bit base words and executes the provisional INT32 vector opcodes 0x0-0x7 with 32-lane masking, wraparound, shift semantics, aliasing, and illegal-op rejection. The existing RTL ALU and vector pipeline simulate this same arithmetic subset, but no instruction fetch, stream decode/issue integration, PC update, compiler lowering, or frozen public opcode assignment is established."
+    },
+    {
+      "id": "vector_instruction_stream_reference",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "not_started",
+        "rtl_simulation": "not_started",
+        "subsystem_integration": "partial",
+        "cu_integration": "not_started",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "A bounded C++ reference fetches one 32-bit base word from an immutable span at a 57-bit aligned PC and delegates only to the provisional vector subset. It advances PC by four only after successful execution and leaves PC/registers unchanged on fetch faults, unsupported classes, or illegal vector opcodes. RTL fetch/decode/issue, other instruction classes, frozen opcode assignments, compiler/runtime integration, and physical evidence remain open."
     },
     {
       "id": "complete_cu_scheduler_dispatch",

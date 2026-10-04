@@ -79,7 +79,7 @@ The current RTL ALU and executable reference use the following internal opcode m
 | `0x6` | logical SHR, with the low five bits of each source1 lane as the shift count |
 | `0x7` | arithmetic SHR, with the low five bits of each source1 lane as the shift count |
 
-These mappings describe the current INT32 implementation subset and are **not frozen ISA assignments**. The executable reference in [`source/isa/cgx1_vector_semantics.hpp`](../source/isa/cgx1_vector_semantics.hpp) covers these operations, active-lane destination updates, and illegal vector opcodes. The full Vector class semantics and instruction-stream fetch/decode remain open.
+These mappings describe the current INT32 implementation subset and are **not frozen ISA assignments**. The executable reference in [`source/isa/cgx1_vector_semantics.hpp`](../source/isa/cgx1_vector_semantics.hpp) covers these operations, active-lane destination updates, and illegal vector opcodes. [`source/isa/cgx1_vector_stream.hpp`](../source/isa/cgx1_vector_stream.hpp) adds a bounded software step over an immutable base-word image: it fetches at the supplied 57-bit aligned PC and advances by four only after a supported vector operation executes. Other instruction classes and illegal vector opcodes leave the PC unchanged. This does not implement RTL fetch/decode or issue integration; full Vector class semantics and the hardware instruction stream remain open.
 
 The current LSU implementation begins at an already-decoded wave request boundary. This document does not yet assign memory opcodes or define address, mask, store-data, and destination operand encodings, so the RTL slice does not establish a base-ISA memory encoding.
 

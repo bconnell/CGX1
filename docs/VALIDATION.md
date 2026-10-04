@@ -46,8 +46,11 @@ The executable ISA test verifies:
 - scalar register bounds;
 - full 8-bit vector register addressing;
 - current provisional INT32 vector ADD/SUB/AND/OR/XOR/SHL/SHR/ASR results, including 32-bit wraparound, shift-count masking, arithmetic sign fill, source/destination aliasing, active-lane preservation, and illegal vector-op rejection.
+- bounded vector-stream stepping over an immutable base-word span, including dependent sequential instructions, PC advancement only on successful execution, unaligned/below-base/out-of-image/out-of-range fetch faults, invalid image bases, unsupported classes, illegal vector opcodes, and the final valid instruction address at the 57-bit boundary.
 
-The vector reference executes decoded 32-bit base words but does not fetch instructions, update the architectural PC, decode other instruction classes, or integrate the word stream with RTL issue. This remains a limited provisional semantics reference, not a shader core or ISA conformance suite.
+The stream reference performs software word selection and advances its supplied PC after successful vector execution. It does not model a hardware fetch interface, decode other instruction classes into execution, integrate with RTL issue, or establish frozen opcode assignments. This remains a limited provisional reference, not a shader core or ISA conformance suite.
+
+On the current local stream-reference candidate, `cmake --build build -j2` passed and CTest passed 26/26 under Ubuntu WSL. A fresh full RTL gate for the later working-tree candidate remains incomplete; the exact status is recorded in the completeness matrix.
 
 ## 4. Matrix numeric reference
 

@@ -13,7 +13,7 @@ The repository distinguishes editable engineering source from derived files.
 | [`mechanical/cgx1_card.stl`](../mechanical/cgx1_card.stl) | Card envelope mesh | Derived from card dimensions |
 | [`mechanical/cgx1_dock.stl`](../mechanical/cgx1_dock.stl) | Dock envelope mesh | Derived from dock dimensions |
 | [`source/model/`](../source/model/) | Analytical calculation source | Executable engineering source |
-| [`source/isa/`](../source/isa/) | Base ISA field encoder/decoder, provisional INT32 vector semantics, and tests | Executable reference for the public base-field contract and the explicitly provisional current vector subset |
+| [`source/isa/`](../source/isa/) | Base ISA field encoder/decoder, provisional INT32 vector semantics, bounded vector-stream step reference, and tests | Executable references for the public base-field contract, provisional vector subset, and software PC-stepped execution from an immutable base-word image; no RTL fetch/decode integration is established |
 | [`source/matrix/`](../source/matrix/) | Matrix numeric, physical architecture, register-interface, banking, staging, scoreboard, INT8 arithmetic, and INT8 path references | Executable references cover functional capture/execute/result/writeback behavior and architectural invariants; they do not establish physical timing, area, power, or measured hardware performance |
 | [`source/power/`](../source/power/) | Tile power-management policy and invariant tests | Executable reference for board budgets, tile states, transitions, and hysteresis |
 | [`source/firmware/`](../source/firmware/) | Power state controller | Executable reference source |

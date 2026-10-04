@@ -34,15 +34,15 @@
   },
   "local_working_tree_candidate": {
     "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
-    "source_fingerprint_sha256": "3d7a850e22edb6eae41acd20e317ac657b4703055fc2df070c48061ff8edb1bf",
+    "source_fingerprint_sha256": "d5fe91ee007c76678e5e0eb64309a27d4a8c19f0f134bc641028fc07d799ec1d",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
-    "local_build": "The full build passed on the underlying 52231ff code candidate before documentation-only reconciliation; the current cgx1_power_management_tests target rebuilt successfully under Ubuntu WSL",
-    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL after documentation reconciliation; the focused cgx1_power_management_checks target also passed 1/1",
-    "local_rtl": "The current-candidate cgx1_top_tb power integration bench passed under Icarus Verilog 12.0. A fresh full scripts/validate_rtl.sh run then remained compiling cgx1_resident_wave_vgpr_file_tb for about 3 minutes and was stopped; the post-reconciliation full RTL gate is incomplete.",
+    "local_build": "cmake --build build -j2 succeeded under Ubuntu WSL after adding the vector semantics reference and lane-specific tests; documentation-only refinements followed",
+    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL after adding the vector semantics reference and lane-specific tests; the power policy target also passed independently",
+    "local_rtl": "The cgx1_top_tb power integration bench passed under Icarus Verilog 12.0. A fresh full scripts/validate_rtl.sh run then remained compiling cgx1_resident_wave_vgpr_file_tb for about 3 minutes and was stopped; this vector-reference slice changed no RTL, and the post-reconciliation full RTL gate remains incomplete.",
     "windows_validation": "Current-candidate design consistency, repository integrity, public repository hygiene, Markdown link, and git diff checks passed; the full Windows wrapper was not rerun",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "minimal_vector_instruction_stream",
+  "next_dependency_candidate": "vector_instruction_fetch_decode_integration",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -148,6 +148,27 @@
         "silicon_measurement": "not_started"
       },
       "limits": "Post-decode control supports a 57-bit aligned per-wave PC, live/active lane masks, branch joins, calls/returns with active-frame depth protection, structured loops with call-depth unwind, lane termination, and bounded-stack faults. The workgroup frontend integrates dispatch initialization, accepted-instruction PC advance, active vector/LSU masks, and barrier reconvergence through the residency authority's committed local-to-slot map. C++ and full local RTL gates passed on the current candidate. Opcode formats, fetch/decode, compiler lowering, full per-wave instruction issue, runtime dispatch, and physical evidence remain open."
+    },
+    {
+      "id": "vector_instruction_semantics",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "implemented",
+        "rtl_simulation": "validated",
+        "subsystem_integration": "partial",
+        "cu_integration": "partial",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "The executable reference decodes current 32-bit base words and executes the provisional INT32 vector opcodes 0x0-0x7 with 32-lane masking, wraparound, shift semantics, aliasing, and illegal-op rejection. The existing RTL ALU and vector pipeline simulate this same arithmetic subset, but no instruction fetch, stream decode/issue integration, PC update, compiler lowering, or frozen public opcode assignment is established."
     },
     {
       "id": "complete_cu_scheduler_dispatch",

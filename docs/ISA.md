@@ -64,6 +64,23 @@ The 4-bit opcode is a major opcode within its class. Class value 15 is reserved 
 
 Unsupported or reserved opcode combinations raise an illegal-instruction fault; they must not execute as an undocumented alias.
 
+### Current provisional INT32 vector subset
+
+The current RTL ALU and executable reference use the following internal opcode mapping for a small 32-bit integer vector subset:
+
+| Opcode | Operation |
+|---:|---|
+| `0x0` | ADD, modulo 2^32 |
+| `0x1` | SUB, modulo 2^32 |
+| `0x2` | AND |
+| `0x3` | OR |
+| `0x4` | XOR |
+| `0x5` | SHL, with the low five bits of each source1 lane as the shift count |
+| `0x6` | logical SHR, with the low five bits of each source1 lane as the shift count |
+| `0x7` | arithmetic SHR, with the low five bits of each source1 lane as the shift count |
+
+These mappings describe the current INT32 implementation subset and are **not frozen ISA assignments**. The executable reference in [`source/isa/cgx1_vector_semantics.hpp`](../source/isa/cgx1_vector_semantics.hpp) covers these operations, active-lane destination updates, and illegal vector opcodes. The full Vector class semantics and instruction-stream fetch/decode remain open.
+
 The current LSU implementation begins at an already-decoded wave request boundary. This document does not yet assign memory opcodes or define address, mask, store-data, and destination operand encodings, so the RTL slice does not establish a base-ISA memory encoding.
 
 ## Divergence and reconvergence

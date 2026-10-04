@@ -44,9 +44,10 @@ The executable ISA test verifies:
 - base 32-bit field encode/decode round trip;
 - instruction-class recognition;
 - scalar register bounds;
-- full 8-bit vector register addressing.
+- full 8-bit vector register addressing;
+- current provisional INT32 vector ADD/SUB/AND/OR/XOR/SHL/SHR/ASR results, including 32-bit wraparound, shift-count masking, arithmetic sign fill, source/destination aliasing, active-lane preservation, and illegal vector-op rejection.
 
-This validates the public field contract only. It is not a shader core or ISA conformance suite.
+The vector reference executes decoded 32-bit base words but does not fetch instructions, update the architectural PC, decode other instruction classes, or integrate the word stream with RTL issue. This remains a limited provisional semantics reference, not a shader core or ISA conformance suite.
 
 ## 4. Matrix numeric reference
 

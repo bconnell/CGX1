@@ -9,7 +9,7 @@ CGX 1 is an engineering architecture and prototype program. No custom CGX 1 ASIC
 | Area | Current state | Evidence in this repository |
 |---|---|---|
 | Architecture | Defined target | [Engineering Specification](ENGINEERING_SPEC.md), [machine readable design file](../design/cgx1_architecture.json), and [subsystem completeness matrix](../design/cgx1_completeness_matrix.json) |
-| ISA/execution model | Defined architecture + executable base encoder/decoder | [ISA](ISA.md) and [source/isa](../source/isa/) |
+| ISA/execution model | Defined base fields + executable encoder/decoder and provisional INT32 vector semantics | [ISA](ISA.md) and [source/isa](../source/isa/); instruction fetch/decode and full ISA semantics remain open |
 | Matrix engine architecture | Defined numeric + physical execution contract with executable numeric, fragment, register-interface schedule, and bank-conflict references | [Matrix Engine Architecture](MATRIX_ENGINE.md) and [source/matrix](../source/matrix/) |
 | Graphics pipeline | Defined architecture target | [Graphics Pipeline](GRAPHICS_PIPELINE.md) |
 | Texture/compression | Defined architecture target | [Texture and Compression](TEXTURE_COMPRESSION.md) |

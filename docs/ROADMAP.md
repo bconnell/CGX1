@@ -13,7 +13,7 @@
 - top-level P0-P4 fallback with per-tile scheduler-eligibility and emergency-isolation RTL;
 - prototype procurement and cost planning;
 - software implementation plan;
-- native wave32 ISA and executable base instruction encoder/decoder;
+- native wave32 ISA, executable base encoder/decoder, and reference semantics for the current provisional INT32 vector subset; instruction fetch/decode, the remaining ISA classes, and compiler/runtime lowering remain open;
 - matrix-engine numeric contract, M16N16 physical tile definitions, wave32 fragment map, base ISA opcodes, pipeline timing target, dense-rate derivation, executable register-interface schedule, and exhaustive modulo-8 bank-conflict reference;
 - multi-tile graphics pipeline and render ownership model;
 - texture block and lossless surface-compression architecture;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
 #include "cgx1_isa.hpp"
+#include "cgx1_control_stream.hpp"
 #include "cgx1_vector_semantics.hpp"
 #include "cgx1_vector_stream.hpp"
 
@@ -334,6 +335,72 @@ void TestUnsupportedVectorInstructionsDoNotMutateState()
     Require(registers == before, "non-vector instruction modified vector state");
 }
 
+void TestControlStreamTerminationAndUnsupportedInputs()
+{
+    using namespace cgx1::isa;
+    using cgx1::control::ApplyControlEvent;
+    using cgx1::control::ControlEvent;
+    using cgx1::control::ControlEventKind;
+    using cgx1::control::InitializeWaveControl;
+
+    constexpr std::uint64_t image_base = 0x4000U;
+    const std::array<std::uint32_t, 3U> words{
+        EncodeBase(BaseInstruction{InstructionClass::Control, 0U, 0x96U, 0x78U, 0x54U}),
+        EncodeBase(BaseInstruction{InstructionClass::Control, 0U, 0U, 0U, 0U}),
+        EncodeBase(BaseInstruction{InstructionClass::Control, 1U, 0U, 0U, 0U})
+    };
+
+    auto wave = InitializeWaveControl(image_base, 0x0fU);
+    const auto branch = ApplyControlEvent(wave, ControlEvent{
+        .kind = ControlEventKind::Branch,
+        .targetPc = image_base,
+        .fallthroughPc = image_base + 4U,
+        .joinPc = image_base + 8U,
+        .takenMask = 0x03U
+    });
+    Require(branch.accepted && !branch.becameTerminal && wave.activeMask == 0x03U,
+        "control termination reference setup did not create an active subset");
+
+    auto step = StepControlInstructionStream(words, image_base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed
+            && step.control.accepted && !step.control.becameTerminal,
+        "provisional control termination did not terminate the active subset");
+    Require(wave.pc == image_base + 4U && wave.liveMask == 0x0cU
+            && wave.activeMask == 0x0cU && wave.controlStack.size() == 1U
+            && wave.controlStack.back().deferredScheduled,
+        "control termination did not resume surviving divergent lanes");
+
+    step = StepControlInstructionStream(words, image_base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed
+            && step.control.accepted && step.control.becameTerminal
+            && wave.terminated && wave.liveMask == 0U,
+        "provisional control termination did not retire the final lanes");
+
+    auto unsupported = InitializeWaveControl(image_base + 8U, 1U);
+    const auto before = unsupported;
+    step = StepControlInstructionStream(words, image_base, unsupported);
+    Require(step.status == ControlStreamStepStatus::UnsupportedOpcode
+            && unsupported.pc == before.pc && unsupported.liveMask == before.liveMask
+            && unsupported.activeMask == before.activeMask && !unsupported.terminated,
+        "unsupported Control opcode changed architectural wave state");
+
+    const std::array<std::uint32_t, 1U> vector_words{
+        EncodeBase(BaseInstruction{InstructionClass::Vector, 0U, 1U, 2U, 3U})
+    };
+    auto vector_wave = InitializeWaveControl(image_base, 1U);
+    step = StepControlInstructionStream(vector_words, image_base, vector_wave);
+    Require(step.status == ControlStreamStepStatus::NotControlInstruction
+            && vector_wave.pc == image_base && vector_wave.liveMask == 1U,
+        "Control stream step consumed a non-Control base word");
+
+    auto fault_wave = InitializeWaveControl(image_base + 12U, 1U);
+    const auto fault_before = fault_wave;
+    step = StepControlInstructionStream(words, image_base, fault_wave);
+    Require(step.status == ControlStreamStepStatus::FetchFault
+            && fault_wave.pc == fault_before.pc && fault_wave.liveMask == fault_before.liveMask,
+        "control stream fetch fault changed wave state");
+}
+
 } // namespace
 
 int main()
@@ -413,7 +480,8 @@ int main()
     TestVectorStreamUnsupportedWordsDoNotAdvancePC();
     TestVectorStreamFinalWordAnd57BitBoundary();
     TestUnsupportedVectorInstructionsDoNotMutateState();
+    TestControlStreamTerminationAndUnsupportedInputs();
 
-    std::cout << "CGX 1 ISA base encoding and provisional INT32 vector semantics checks passed.\n";
+    std::cout << "CGX 1 ISA base encoding, provisional INT32 vector semantics, and Control termination checks passed.\n";
     return 0;
 }

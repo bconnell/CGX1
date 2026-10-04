@@ -13,7 +13,7 @@
 - top-level P0-P4 fallback with per-tile scheduler-eligibility and emergency-isolation RTL;
 - prototype procurement and cost planning;
 - software implementation plan;
-- native wave32 ISA, executable base encoder/decoder, provisional INT32 vector semantics, bounded software vector-stream stepping, and optional RTL instruction-memory request/response integration through the workgroup-owned PC, vector decoder, and resident execution path; class-specific non-vector semantics and compiler/runtime lowering remain open;
+- native wave32 ISA, executable base encoder/decoder, provisional INT32 vector semantics, bounded vector/control software stream references, and optional RTL instruction-memory request/response integration through the workgroup-owned PC, vector decoder, resident execution path, and provisional Control termination; remaining class-specific semantics and compiler/runtime lowering remain open;
 - matrix-engine numeric contract, M16N16 physical tile definitions, wave32 fragment map, base ISA opcodes, pipeline timing target, dense-rate derivation, executable register-interface schedule, and exhaustive modulo-8 bank-conflict reference;
 - multi-tile graphics pipeline and render ownership model;
 - texture block and lossless surface-compression architecture;
@@ -60,7 +60,8 @@
 ## Architecture implementation
 
 - implement the complete ISA semantics and assembler/disassembler;
-- define and validate provisional non-vector control/memory operation contracts, then connect selected fetched-word handlers to control-flow events, LSU issue acceptance, sequential-PC metadata, and existing fault retirement while keeping opcode assignments explicitly provisional;
+- extend provisional fetched Control operations from termination to explicit branch/call/return contracts, then connect selected handlers to control-flow events while keeping opcode assignments explicitly provisional;
+- define provisional memory instruction encodings and connect fetched memory words to LSU issue acceptance, operand capture, sequential-PC metadata, and fault retirement;
 - build an instruction-level emulator and shader execution tests;
 - extend the locally integrated RTL command lifecycle toward global queue arbitration, then freeze the public queue packet ABI after reference-model validation;
 - implement page tables, translation caches and replayable-fault model;

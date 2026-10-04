@@ -289,6 +289,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [(RESIDENT_WAVE_SLOTS*32)-1:0] instruction_fetch_instruction_epoch_flat;
     logic [(RESIDENT_WAVE_SLOTS*64)-1:0] instruction_fetch_instruction_transaction_tag_flat;
     logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_instruction_ready;
+    logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_decoded_unhandled_valid;
+    logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_decoded_unhandled_ready;
     logic [RESIDENT_WAVE_SLOTS-1:0] fetched_vector_request_valid;
     logic [(RESIDENT_WAVE_SLOTS*4)-1:0] fetched_vector_request_opcode_flat;
     logic [(RESIDENT_WAVE_SLOTS*8)-1:0] fetched_vector_request_source0_flat;
@@ -298,6 +300,15 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] fetched_vector_sequential_pc_flat;
     logic [RESIDENT_WAVE_SLOTS-1:0] fetch_fault_candidate_valid;
     logic [WAVE_SLOT_WIDTH-1:0] fetch_fault_candidate_slot;
+    logic provisional_control_termination_valid;
+    logic [WAVE_SLOT_WIDTH-1:0] provisional_control_termination_slot;
+    logic provisional_control_termination_accepted;
+    logic control_flow_event_valid;
+    logic [WAVE_SLOT_WIDTH-1:0] control_flow_event_wave_slot;
+    logic [2:0] control_flow_event_kind;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_sequential_pc;
+    logic control_flow_event_ready;
+    logic control_flow_event_accepted;
     logic fetch_fault_to_barrier;
     logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_fault_ready_to_unit;
     logic [(RESIDENT_WAVE_SLOTS*256)-1:0] memory_destination_pending_mask_flat;
@@ -660,8 +671,8 @@ module cgx1_compute_workgroup_execution_frontend #(
                 .vector_request_destination_flat(fetched_vector_request_destination_flat),
                 .vector_request_lane_mask_flat(fetched_vector_request_lane_mask_flat),
                 .vector_request_accepted(vector_request_accepted),
-                .unhandled_instruction_valid(instruction_fetch_unhandled_valid),
-                .unhandled_instruction_ready(instruction_fetch_unhandled_ready),
+                .unhandled_instruction_valid(instruction_fetch_decoded_unhandled_valid),
+                .unhandled_instruction_ready(instruction_fetch_decoded_unhandled_ready),
                 .unhandled_instruction_class_flat(instruction_fetch_unhandled_class_flat),
                 .unhandled_instruction_word_flat(instruction_fetch_unhandled_word_flat),
                 .unhandled_instruction_opcode_flat(instruction_fetch_unhandled_opcode_flat),
@@ -699,7 +710,7 @@ module cgx1_compute_workgroup_execution_frontend #(
             assign instruction_memory_request_transaction_tag = '0;
             assign instruction_memory_request_pc = '0;
             assign instruction_memory_response_ready = 1'b0;
-            assign instruction_fetch_unhandled_valid = '0;
+            assign instruction_fetch_decoded_unhandled_valid = '0;
             assign instruction_fetch_unhandled_class_flat = '0;
             assign instruction_fetch_unhandled_word_flat = '0;
             assign instruction_fetch_unhandled_opcode_flat = '0;
@@ -718,6 +729,36 @@ module cgx1_compute_workgroup_execution_frontend #(
             assign instruction_fetch_fault_code_flat = '0;
         end
     endgenerate
+
+    cgx1_provisional_control_termination #(
+        .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),
+        .WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH)
+    ) provisional_control_termination (
+        .clk(clk), .reset_n(reset_n),
+        .external_control_event_valid(control_event_valid),
+        .decoded_unhandled_valid(instruction_fetch_decoded_unhandled_valid),
+        .decoded_class_flat(instruction_fetch_unhandled_class_flat),
+        .decoded_opcode_flat(instruction_fetch_unhandled_opcode_flat),
+        .handler_ready(instruction_fetch_unhandled_ready),
+        .control_flow_event_ready(control_flow_event_ready),
+        .control_flow_event_accepted(control_flow_event_accepted),
+        .handler_valid(instruction_fetch_unhandled_valid),
+        .decoder_ready(instruction_fetch_decoded_unhandled_ready),
+        .terminate_event_valid(provisional_control_termination_valid),
+        .terminate_event_wave_slot(provisional_control_termination_slot),
+        .terminate_event_accepted(provisional_control_termination_accepted)
+    );
+
+    always_comb begin : control_flow_event_selection
+        control_flow_event_valid = control_event_valid || provisional_control_termination_valid;
+        control_flow_event_wave_slot = control_event_valid
+            ? control_event_wave_slot : provisional_control_termination_slot;
+        control_flow_event_kind = control_event_valid ? control_event_kind : 3'd7;
+        control_flow_event_sequential_pc = control_event_valid
+            ? control_event_sequential_pc : '0;
+        control_event_ready = control_event_valid && control_flow_event_ready;
+        control_event_accepted = control_event_valid && control_flow_event_accepted;
+    end
 
     always_comb begin : fetched_vector_request_multiplex
         integer slot;
@@ -802,8 +843,9 @@ module cgx1_compute_workgroup_execution_frontend #(
         control_event_slot_mask = '0;
         vector_request_lane_mask_effective = '0;
         memory_issue_lane_mask_effective = '0;
-        if (control_event_valid && ($unsigned(control_event_wave_slot) < RESIDENT_WAVE_SLOTS))
-            control_event_slot_mask[control_event_wave_slot] = 1'b1;
+        if (control_flow_event_valid
+            && ($unsigned(control_flow_event_wave_slot) < RESIDENT_WAVE_SLOTS))
+            control_event_slot_mask[control_flow_event_wave_slot] = 1'b1;
         for (integer lane_slot = 0; lane_slot < RESIDENT_WAVE_SLOTS; lane_slot = lane_slot + 1) begin
             vector_request_lane_mask_effective[(lane_slot*32)+:32]
                 = (fetched_vector_request_valid[lane_slot]
@@ -1033,10 +1075,10 @@ module cgx1_compute_workgroup_execution_frontend #(
         .issue_eligible_mask(control_issue_eligible_mask),
         .advance_valid_mask(control_advance_valid_mask),
         .advance_sequential_pc_flat(control_advance_sequential_pc_flat),
-        .control_event_valid(control_event_valid),
-        .control_event_wave_slot(control_event_wave_slot),
-        .control_event_kind(control_event_kind),
-        .control_event_sequential_pc(control_event_sequential_pc),
+        .control_event_valid(control_flow_event_valid),
+        .control_event_wave_slot(control_flow_event_wave_slot),
+        .control_event_kind(control_flow_event_kind),
+        .control_event_sequential_pc(control_flow_event_sequential_pc),
         .control_event_target_pc(control_event_target_pc),
         .control_event_fallthrough_pc(control_event_fallthrough_pc),
         .control_event_join_pc(control_event_join_pc),
@@ -1046,8 +1088,8 @@ module cgx1_compute_workgroup_execution_frontend #(
         .control_event_loop_exit_pc(control_event_loop_exit_pc),
         .control_event_taken_mask(control_event_taken_mask),
         .control_event_continue_mask(control_event_continue_mask),
-        .control_event_ready(control_event_ready),
-        .control_event_accepted(control_event_accepted),
+        .control_event_ready(control_flow_event_ready),
+        .control_event_accepted(control_flow_event_accepted),
         .current_pc_flat(control_pc_flat),
         .live_lane_mask_flat(control_live_lane_mask_flat),
         .active_lane_mask_flat(control_active_lane_mask_flat),

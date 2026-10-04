@@ -1471,7 +1471,50 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
             $fatal(1, "raw-class acceptance/release leaked workgroup resources");
 
-        $display("[pass] authoritative residency, LSU and instruction fetch waits, decoded control flow, stale response drain, fault/kill lifecycle, and region reuse passed.");
+        // Control class opcode 0 is the provisional fetched-wave termination
+        // instruction and must retire through the existing control/barrier path.
+        instruction_fetch_enable = 1'b1;
+        instruction_memory_request_ready = 1'b1;
+        dispatch_start_pc = 57'h8000;
+        dispatch_with_resource_demand(8'd80, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        timeout = 0;
+        while (!instruction_memory_request_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "provisional termination wave did not issue an instruction request");
+        end
+        if (instruction_memory_request_workgroup_id != 8'd80
+            || instruction_memory_request_wave_slot != 0
+            || instruction_memory_request_pc != 57'h8000)
+            $fatal(1, "provisional termination fetch request identity was incorrect");
+        fetch_tag0 = instruction_memory_request_transaction_tag;
+        fetch_epoch0 = instruction_memory_request_epoch;
+        fetch_pc0 = instruction_memory_request_pc;
+        @(posedge clk); #1;
+        @(negedge clk);
+        instruction_memory_response_workgroup_id = 8'd80;
+        instruction_memory_response_wave_slot = 0;
+        instruction_memory_response_epoch = fetch_epoch0;
+        instruction_memory_response_transaction_tag = fetch_tag0;
+        instruction_memory_response_pc = fetch_pc0;
+        instruction_memory_response_word = 32'h3000_0000;
+        instruction_memory_response_fault_code = 0;
+        instruction_memory_response_valid = 1'b1; #1;
+        if (!instruction_memory_response_ready)
+            $fatal(1, "matching provisional termination response was backpressured");
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_response_valid = 1'b0;
+        if (instruction_fetch_unhandled_valid[0])
+            $fatal(1, "provisional termination instruction escaped to the external raw handler");
+        timeout = 0;
+        while (workgroup_active_mask != '0) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "provisional termination did not retire its workgroup");
+        end
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "provisional termination leaked workgroup resources");
+        instruction_fetch_enable = 1'b0;
+
+        $display("[pass] authoritative residency, LSU and instruction fetch waits, decoded control flow and termination, stale response drain, fault/kill lifecycle, and region reuse passed.");
         $finish;
     end
 endmodule

@@ -34,15 +34,15 @@
   },
   "local_working_tree_candidate": {
     "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
-    "source_fingerprint_sha256": "50dc2eb1d52589bd17aa58376913a427863c6f53ae67db17f3aadb2f86353d57",
+    "source_fingerprint_sha256": "d55e887b57954774225716825bfcabf0fd8b4abaf456d7d2350c244714ff2437",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
     "local_build": "cmake --build build -j2 passed under Ubuntu WSL after adding the provisional vector semantics and bounded PC-stepped stream references; the focused ISA red/green build also passed",
     "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL, including dependent vector-stream execution, fetch faults, invalid image bases, unsupported classes, illegal opcodes, and the 57-bit final-word boundary",
-    "local_rtl": "The cgx1_top_tb power integration bench passed under Icarus Verilog 12.0. A fresh full scripts/validate_rtl.sh run then remained compiling cgx1_resident_wave_vgpr_file_tb for about 3 minutes and was stopped; this vector-reference slice changed no RTL, and the post-reconciliation full RTL gate remains incomplete.",
+    "local_rtl": "The focused cgx1_vector_instruction_word_decoder_tb compiled and passed under Icarus Verilog 12.0, and bash -n scripts/validate_rtl.sh passed. A fresh full bash scripts/validate_rtl.sh run passed the early top-level/matrix benches, then remained compiling the existing cgx1_resident_wave_vgpr_file_tb for about 3 minutes at roughly 96% Icarus CPU and was stopped before reaching the new decoder bench. The full current-candidate RTL gate remains incomplete.",
     "windows_validation": "Current-candidate design consistency, repository integrity, public repository hygiene, Markdown link, and git diff checks passed; the full Windows wrapper was not rerun",
     "hosted_ci": "not run for this local candidate"
   },
-  "next_dependency_candidate": "rtl_vector_fetch_decode_integration",
+  "next_dependency_candidate": "instruction_fetch_request_response_and_cu_pc_integration",
   "subsystems": [
     {
       "id": "pooled_vgpr_matrix_vector_execution",
@@ -190,6 +190,27 @@
         "silicon_measurement": "not_started"
       },
       "limits": "A bounded C++ reference fetches one 32-bit base word from an immutable span at a 57-bit aligned PC and delegates only to the provisional vector subset. It advances PC by four only after successful execution and leaves PC/registers unchanged on fetch faults, unsupported classes, or illegal vector opcodes. RTL fetch/decode/issue, other instruction classes, frozen opcode assignments, compiler/runtime integration, and physical evidence remain open."
+    },
+    {
+      "id": "rtl_vector_instruction_word_decode",
+      "evidence": {
+        "contract": "specified",
+        "reference_model": "validated",
+        "executable_tests": "validated",
+        "rtl": "implemented",
+        "rtl_simulation": "validated",
+        "subsystem_integration": "validated",
+        "cu_integration": "partial",
+        "gpu_integration": "not_started",
+        "software_toolchain_integration": "not_started",
+        "synthesis": "not_started",
+        "timing": "not_started",
+        "area": "not_started",
+        "power": "not_started",
+        "physical_implementation": "not_started",
+        "silicon_measurement": "not_started"
+      },
+      "limits": "The combinational per-wave decoder maps raw 32-bit Vector-class base words to the existing request fields and passes non-vector classes through as raw words. Its RTL bench integrates it with the resident-wave vector scheduler and INT32 vector pipeline and validates backpressure and masked writeback. Instruction-memory transport, request identity/cancellation, PC ownership/advance, extension words, workgroup frontend integration, other-class execution, frozen opcode assignments, and physical evidence remain open."
     },
     {
       "id": "complete_cu_scheduler_dispatch",

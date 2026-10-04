@@ -52,6 +52,8 @@ The stream reference performs software word selection and advances its supplied 
 
 On the current local stream-reference candidate, `cmake --build build -j2` passed and CTest passed 26/26 under Ubuntu WSL. A fresh full RTL gate for the later working-tree candidate remains incomplete; the exact status is recorded in the completeness matrix.
 
+`cgx1_vector_instruction_word_decoder_tb.sv` connects raw per-wave base words through the RTL decoder, resident-wave vector scheduler, and INT32 vector pipeline. It covers two waves issuing under pipeline backpressure, field/lane-mask decode, masked lane-local arithmetic writeback, non-vector raw-word pass-through with independent backpressure, and reserved vector opcode completion. The focused Icarus compile/run passed. The decoder is not connected to an instruction-memory interface or to the workgroup PC authority. A fresh full RTL script was stopped after about three minutes compiling the existing resident-wave VGPR-file bench and did not reach this new test; see the current-candidate record in the completeness matrix.
+
 ## 4. Matrix numeric reference
 
 The executable matrix test verifies:

@@ -13,7 +13,7 @@
 - top-level P0-P4 fallback with per-tile scheduler-eligibility and emergency-isolation RTL;
 - prototype procurement and cost planning;
 - software implementation plan;
-- native wave32 ISA, executable base encoder/decoder, provisional INT32 vector semantics, and bounded software vector-stream stepping; RTL fetch/decode, the remaining ISA classes, and compiler/runtime lowering remain open;
+- native wave32 ISA, executable base encoder/decoder, provisional INT32 vector semantics, bounded software vector-stream stepping, and RTL base-word decode into the existing vector scheduler/pipeline; instruction-memory/PC integration, the remaining ISA classes, and compiler/runtime lowering remain open;
 - matrix-engine numeric contract, M16N16 physical tile definitions, wave32 fragment map, base ISA opcodes, pipeline timing target, dense-rate derivation, executable register-interface schedule, and exhaustive modulo-8 bank-conflict reference;
 - multi-tile graphics pipeline and render ownership model;
 - texture block and lossless surface-compression architecture;
@@ -60,7 +60,7 @@
 ## Architecture implementation
 
 - implement the complete ISA semantics and assembler/disassembler;
-- integrate per-wave RTL instruction fetch/decode with the established control-flow PC, vector issue, and accepted-operation sequencing;
+- integrate instruction-memory request/response and per-wave PC ownership with the existing RTL word decoder, control-flow state, vector issue, and accepted-operation sequencing;
 - build an instruction-level emulator and shader execution tests;
 - extend the locally integrated RTL command lifecycle toward global queue arbitration, then freeze the public queue packet ABI after reference-model validation;
 - implement page tables, translation caches and replayable-fault model;

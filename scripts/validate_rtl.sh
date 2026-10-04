@@ -300,6 +300,18 @@ iverilog -g2012 -Wall -s cgx1_vector_int32_pipeline_tb -o build/rtl/cgx1_vector_
 echo "==> Run vector INT32 pipeline RTL"
 timeout 30s vvp build/rtl/cgx1_vector_int32_pipeline_tb.vvp
 
+echo "==> Compile per-wave vector instruction word decoder and execution RTL"
+iverilog -g2012 -Wall -s cgx1_vector_instruction_word_decoder_tb \
+    -o build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp \
+    source/rtl/cgx1_vector_instruction_word_decoder.sv \
+    source/rtl/cgx1_vector_resident_wave_scheduler.sv \
+    source/rtl/cgx1_resident_vector_execution_frontend.sv \
+    source/rtl/cgx1_vector_int32_alu.sv \
+    source/rtl/cgx1_vector_int32_pipeline.sv \
+    source/rtl/tests/cgx1_vector_instruction_word_decoder_tb.sv
+echo "==> Run per-wave vector instruction word decoder and execution RTL"
+timeout 30s vvp build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp
+
 echo "==> Compile resident vector scheduler RTL"
 iverilog -g2012 -Wall -s cgx1_vector_resident_wave_scheduler_tb -o build/rtl/cgx1_vector_resident_wave_scheduler_tb.vvp \
     source/rtl/cgx1_vector_resident_wave_scheduler.sv \

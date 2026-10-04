@@ -447,6 +447,32 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_dispatch_scheduler_tb \
 echo "==> Run CU workgroup dispatch scheduler RTL"
 timeout 30s vvp build/rtl/cgx1_compute_workgroup_dispatch_scheduler_tb.vvp
 
+echo "==> Compile bounded command packet parser RTL"
+iverilog -g2012 -Wall -s cgx1_compute_workgroup_command_packet_parser_tb \
+    -o build/rtl/cgx1_compute_workgroup_command_packet_parser_tb.vvp \
+    source/rtl/cgx1_compute_workgroup_command_packet_parser.sv \
+    source/rtl/tests/cgx1_compute_workgroup_command_packet_parser_tb.sv
+echo "==> Run bounded command packet parser RTL"
+timeout 45s vvp build/rtl/cgx1_compute_workgroup_command_packet_parser_tb.vvp
+
+echo "==> Compile command packet parser with a narrower virtual-address width"
+iverilog -g2012 -Wall -Pcgx1_compute_workgroup_command_packet_parser_tb.PC_WIDTH=48 \
+    -s cgx1_compute_workgroup_command_packet_parser_tb \
+    -o build/rtl/cgx1_compute_workgroup_command_packet_parser_pc48_tb.vvp \
+    source/rtl/cgx1_compute_workgroup_command_packet_parser.sv \
+    source/rtl/tests/cgx1_compute_workgroup_command_packet_parser_tb.sv
+echo "==> Run narrow-width command packet parser RTL"
+timeout 45s vvp build/rtl/cgx1_compute_workgroup_command_packet_parser_pc48_tb.vvp
+
+echo "==> Compile command packet parser and CU dispatcher integration RTL"
+iverilog -g2012 -Wall -s cgx1_compute_workgroup_command_runtime_tb \
+    -o build/rtl/cgx1_compute_workgroup_command_runtime_tb.vvp \
+    source/rtl/cgx1_compute_workgroup_command_packet_parser.sv \
+    source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv \
+    source/rtl/tests/cgx1_compute_workgroup_command_runtime_tb.sv
+echo "==> Run command packet parser and CU dispatcher integration RTL"
+timeout 45s vvp build/rtl/cgx1_compute_workgroup_command_runtime_tb.vvp
+
 echo "==> Compile CU dispatch scheduler with authoritative workgroup frontend"
 iverilog -g2012 -Wall -s cgx1_compute_workgroup_dispatch_integration_tb \
     -o build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp \

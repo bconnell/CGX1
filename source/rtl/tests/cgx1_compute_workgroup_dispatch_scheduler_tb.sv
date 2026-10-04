@@ -24,7 +24,7 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
     logic [(SLOTS*9)-1:0] submit_vgpr_register_counts_flat = '0;
     logic [15:0] submit_scalar_state_units_per_wave = 1;
     logic [31:0] submit_shared_local_bytes = 0;
-    logic [15:0] submit_other_workgroup_state_units = 0;
+    logic [31:0] submit_other_workgroup_state_units = 32'h1234_abcd;
 
     logic dispatch_valid, dispatch_ready = 1;
     logic [5:0] dispatch_queue_context_id;
@@ -37,7 +37,7 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
     logic [(SLOTS*9)-1:0] dispatch_vgpr_register_counts_flat;
     logic [15:0] dispatch_scalar_state_units_per_wave;
     logic [31:0] dispatch_shared_local_bytes;
-    logic [15:0] dispatch_other_workgroup_state_units;
+    logic [31:0] dispatch_other_workgroup_state_units;
 
     logic dispatch_result_valid = 0;
     logic dispatch_accepted = 0;
@@ -48,7 +48,17 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
     logic [WG_WIDTH-1:0] completion_workgroup_id;
     logic [1:0] completion_status;
     logic [4:0] completion_failure;
+    logic [63:0] submit_submission_id = 0;
+    logic [63:0] submit_packet_byte_position = 0;
+    logic [63:0] submit_queue_incarnation_id = 0;
+    logic [63:0] dispatch_submission_id, dispatch_packet_byte_position;
+    logic [63:0] dispatch_queue_incarnation_id;
+    logic [63:0] completion_submission_id, completion_packet_byte_position;
+    logic [63:0] completion_queue_incarnation_id;
     logic [PENDING_WIDTH-1:0] pending_count;
+    logic [63:0] expected_completion_submission_id;
+    logic [63:0] expected_completion_packet_byte_position;
+    logic [63:0] expected_completion_queue_incarnation_id;
 
     cgx1_compute_workgroup_dispatch_scheduler #(
         .RESIDENT_WAVE_SLOTS(SLOTS),
@@ -71,6 +81,10 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
             submit_queue_context_id = context_id;
             submit_priority = priority_value;
             submit_workgroup_id = workgroup_id;
+            submit_submission_id = 64'h1000000000000000 | workgroup_id;
+            submit_packet_byte_position = 64'h2000000000000000
+                | ({56'b0, workgroup_id} << 8);
+            submit_queue_incarnation_id = 64'h3000000000000000 | context_id;
             submit_graphics = graphics;
             submit_process_id = process_id;
             submit_address_space_id = address_space_id;
@@ -101,6 +115,9 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
                 pending_count, tile_eligible, dispatch_ready, dut.selected_valid,
                 dut.selected_attempt, dut.inflight_q, dut.entry_valid[0],
                 dut.selected_context, dut.entry_workgroup_id[0]);
+            expected_completion_submission_id = dispatch_submission_id;
+            expected_completion_packet_byte_position = dispatch_packet_byte_position;
+            expected_completion_queue_incarnation_id = dispatch_queue_incarnation_id;
         end
     endtask
 
@@ -114,6 +131,19 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
                 $fatal(1, "wrong dispatch selected: context=%0d workgroup=%0d expected=%0d/%0d",
                     dispatch_queue_context_id, dispatch_workgroup_id,
                     expected_context, expected_workgroup);
+            expected_completion_submission_id = 64'h1000000000000000
+                | expected_workgroup;
+            expected_completion_packet_byte_position = 64'h2000000000000000
+                | ({56'b0, expected_workgroup} << 8);
+            expected_completion_queue_incarnation_id = 64'h3000000000000000
+                | expected_context;
+            if (dispatch_submission_id !== expected_completion_submission_id
+                || dispatch_packet_byte_position !== expected_completion_packet_byte_position
+                || dispatch_queue_incarnation_id !== expected_completion_queue_incarnation_id)
+                $fatal(1, "dispatch lost packet completion correlation");
+            if (dispatch_other_workgroup_state_units !== 32'h1234_abcd)
+                $fatal(1, "dispatch truncated the 32-bit workgroup-state demand: %h",
+                    dispatch_other_workgroup_state_units);
         end
     endtask
 
@@ -138,6 +168,10 @@ module cgx1_compute_workgroup_dispatch_scheduler_tb;
                     || completion_failure !== expected_completion_failure)
                     $fatal(1, "completion mismatch: valid=%0b status=%0d failure=%0d",
                         completion_valid, completion_status, completion_failure);
+                if (completion_submission_id !== expected_completion_submission_id
+                    || completion_packet_byte_position !== expected_completion_packet_byte_position
+                    || completion_queue_incarnation_id !== expected_completion_queue_incarnation_id)
+                    $fatal(1, "admission result lost packet completion correlation");
             end
             @(negedge clk);
             dispatch_result_valid = 0;

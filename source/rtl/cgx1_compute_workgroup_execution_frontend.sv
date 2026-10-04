@@ -27,7 +27,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     input logic [(RESIDENT_WAVE_SLOTS*9)-1:0] dispatch_vgpr_register_counts_flat,
     input logic [15:0] dispatch_scalar_state_units_per_wave,
     input logic [31:0] dispatch_shared_local_bytes,
-    input logic [15:0] dispatch_other_workgroup_state_units,
+    input logic [31:0] dispatch_other_workgroup_state_units,
     output logic dispatch_result_valid,
     output logic dispatch_accepted,
     output logic [4:0] dispatch_failure,
@@ -207,7 +207,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [(RESIDENT_WAVE_SLOTS*32)-1:0] txn_initial_live_lane_mask_flat_q;
     logic [15:0] txn_scalar_units_q;
     logic [31:0] txn_shared_bytes_q;
-    logic [15:0] txn_other_units_q;
+    logic [31:0] txn_other_units_q;
     integer txn_wave_index_q;
     integer txn_reserved_count_q;
     integer rollback_index_q;
@@ -326,7 +326,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     integer requested_scalar;
     integer used_scalar;
     integer used_shared;
-    integer used_other;
+    logic [63:0] used_other;
     integer plan_slot [0:RESIDENT_WAVE_SLOTS-1];
     integer comb_wave;
     integer comb_slot;
@@ -340,7 +340,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         integer row_count;
         integer scalar_demand;
         logic [63:0] shared_demand;
-        integer other_demand;
+        logic [63:0] other_demand;
         logic slot_found;
         allocator_in_use = allocation_reserved_bitmap | allocation_active_bitmap;
         planned_slots_flat = '0;
@@ -357,7 +357,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         scalar_demand = $unsigned(dispatch_scalar_state_units_per_wave)
             * $unsigned(dispatch_wave_count);
         shared_demand = {32'b0, dispatch_shared_local_bytes};
-        other_demand = $unsigned(dispatch_other_workgroup_state_units);
+        other_demand = {32'b0, dispatch_other_workgroup_state_units};
         control_entry_invalid = (dispatch_start_pc[1:0] != 2'b00);
         for (comb_wave = 0; comb_wave < RESIDENT_WAVE_SLOTS; comb_wave = comb_wave + 1)
             plan_slot[comb_wave] = -1;

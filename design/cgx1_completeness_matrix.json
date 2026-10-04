@@ -33,12 +33,12 @@
     "local_cpp_command": "ctest --test-dir build --output-on-failure"
   },
   "local_working_tree_candidate": {
-    "base_commit": "dcbc8f82cdb6f1454b057955a4425b68465721d0",
-    "source_fingerprint_sha256": "c519f7e5800d4758963c79460bb496dd93a0755d2daf7f13251580ecd9a873d3",
+    "base_commit": "1978d247a4ba95a2e00fe2b5c744e1b10709a43f",
+    "source_fingerprint_sha256": "76fd474d7bdee99c900087cc58d5178c0d7859fb41124f60454f4aef1f086ea2",
     "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
-    "local_build": "cmake --build build -j2 under Ubuntu WSL: passed",
-    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 26/26 passed, including fragmented reserved flags, queue-incarnation correlation, literal packet bytes, duplicate same-context tokens, and terminal admission rejection",
-    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including standalone dispatch, scheduler/frontend integration, workgroup LSU, complete workgroup frontend, and cgx1_top power-eligibility tests",
+    "local_build": "cmake --build build -j2 under Ubuntu WSL: passed on the current local candidate",
+    "local_cpp": "cmake --build build -j2 and ctest --test-dir build --output-on-failure under Ubuntu WSL: 26/26 passed on the current local candidate, including bounded command-queue framing, queue-incarnation correlation, cancellation/drain behavior, and deterministic scheduling/reuse",
+    "local_rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0, including parser benches at 57-bit and 48-bit PC widths, parser-local recovery preserving a scheduler-owned descriptor, parser-to-CU-dispatch correlation, full-width resource propagation, authoritative workgroup frontend, LSU, and cgx1_top power-eligibility tests",
     "windows_validation": "scripts/validate_windows.ps1 passed hygiene, integrity, design consistency, all negative controls, and Markdown links, then stopped at CMake configuration because cmake.exe is unavailable on Windows PATH",
     "hosted_ci": "not run for this local candidate"
   },
@@ -239,8 +239,8 @@
         "contract": "partial",
         "reference_model": "validated",
         "executable_tests": "validated",
-        "rtl": "not_started",
-        "rtl_simulation": "not_started",
+        "rtl": "validated",
+        "rtl_simulation": "validated",
         "subsystem_integration": "validated",
         "cu_integration": "partial",
         "gpu_integration": "not_started",
@@ -252,7 +252,7 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet, feeds the existing CU dispatch scheduler, and reports completion after admission or quiescent retirement. The packet format is not a frozen public ABI. RTL packet parsing, global queue management, graphics packets, compiler lowering, kernel/object loading, grid/argument ABI, host runtime APIs, multi-CU placement, and all physical evidence remain open."
+      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet, feeds the existing CU dispatch scheduler, and reports completion after admission or quiescent retirement. RTL adds a bounded ready/valid parser feeding the existing one-CU dispatcher and preserves packet identity through the CU admission result; parser recovery clears only parser fault/partial-packet state and does not cancel complete parser-output or dispatcher-owned descriptors. Full RTL queue reset/cancellation is not implemented. Parser errors remain separate from final workgroup completion. The packet format is not a frozen public ABI. Hardware per-context rings, global queue management, retirement-based RTL command completion, graphics packets, compiler lowering, kernel/object loading, grid/argument ABI, host runtime APIs, multi-CU placement, and all physical evidence remain open."
     },
     {
       "id": "physical_implementation",

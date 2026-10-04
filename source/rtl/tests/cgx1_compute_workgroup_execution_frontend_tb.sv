@@ -17,7 +17,8 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [(SLOTS*9)-1:0] dispatch_vgpr_register_counts_flat;
     logic [VA_WIDTH-1:0] dispatch_start_pc = '0;
     logic [(SLOTS*32)-1:0] dispatch_initial_live_lane_mask_flat = '1;
-    logic [15:0] dispatch_scalar_state_units_per_wave, dispatch_other_workgroup_state_units;
+    logic [15:0] dispatch_scalar_state_units_per_wave;
+    logic [31:0] dispatch_other_workgroup_state_units;
     logic [31:0] dispatch_shared_local_bytes;
     logic dispatch_result_valid, dispatch_accepted;
     logic [4:0] dispatch_failure;
@@ -179,7 +180,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         input logic [8:0] count3,
         input logic [15:0] scalar_units_per_wave,
         input logic [31:0] shared_bytes,
-        input logic [15:0] other_units,
+        input logic [31:0] other_units,
         input logic [4:0] expected_failure);
     begin
         @(negedge clk);
@@ -430,6 +431,10 @@ module cgx1_compute_workgroup_execution_frontend_tb;
             16'd32768, 32'd64, 16'd1, 5'd10);
         dispatch_with_resource_demand(8'd9, 1, 16, 0, 0, 0,
             16'd1, 32'h80000000, 16'd1, 5'd12);
+        dispatch_with_resource_demand(8'd70, 1, 16, 0, 0, 0,
+            16'd1, 32'd64, 32'h00010000, 5'd14);
+        dispatch_with_resource_demand(8'd71, 1, 16, 0, 0, 0,
+            16'd1, 32'd64, 32'h80000000, 5'd14);
         if (allocation_active_bitmap != '0 || allocation_reserved_bitmap != '0
             || resident_wave_count != 0 || workgroup_active_mask != '0)
             $fatal(1, "overflowing resource demands changed allocator or scheduler state");

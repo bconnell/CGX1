@@ -13,7 +13,7 @@ module cgx1_workgroup_residency_barrier_tb;
     logic [(SLOTS*SLOT_WIDTH)-1:0] commit_wave_slot_map_flat;
     logic [15:0] commit_scalar_state_units_per_wave;
     logic [31:0] commit_shared_local_bytes;
-    logic [15:0] commit_other_workgroup_state_units;
+    logic [31:0] commit_other_workgroup_state_units;
     logic commit_ready, commit_accepted;
     logic barrier_arrive_valid;
     logic [7:0] barrier_arrive_workgroup_id;
@@ -112,7 +112,11 @@ module cgx1_workgroup_residency_barrier_tb;
 
         // Arbitrary local slot assignment; a waiting wave retains ownership and
         // a live sibling can keep progressing until the full participant set arrives.
+        commit_other_workgroup_state_units = 32'h1234_5678;
         commit_group(8'd2, 2, {4'b0, 2'd3, 2'd1});
+        if (other_workgroup_state_units_used != 32'h1234_5678)
+            $fatal(1, "barrier context truncated full-width workgroup state: %h",
+                other_workgroup_state_units_used);
         query_workgroup_id = 2;
         arrive(2, 4'b0001, 1'b0, 0);
         if (barrier_waiting_mask[1] != 1'b1 || issuable_wave_mask[3] != 1'b1
@@ -152,6 +156,7 @@ module cgx1_workgroup_residency_barrier_tb;
         @(posedge clk); #1; @(negedge clk); allocator_release_accepted_mask = 0;
         if (workgroup_active_mask[1] || shared_local_bytes_used != 0)
             $fatal(1, "common workgroup state outlived its final allocator release");
+        commit_other_workgroup_state_units = 3;
 
         // Retiring one participant cannot remove a temporarily busy survivor
         // from the required set for the barrier generation.

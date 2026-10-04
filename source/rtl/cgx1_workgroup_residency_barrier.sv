@@ -23,7 +23,7 @@ module cgx1_workgroup_residency_barrier #(
     input logic [(RESIDENT_WAVE_SLOTS*WAVE_SLOT_WIDTH)-1:0] commit_wave_slot_map_flat,
     input logic [15:0] commit_scalar_state_units_per_wave,
     input logic [31:0] commit_shared_local_bytes,
-    input logic [15:0] commit_other_workgroup_state_units,
+    input logic [31:0] commit_other_workgroup_state_units,
     output logic commit_ready,
     output logic commit_accepted,
 
@@ -82,7 +82,7 @@ module cgx1_workgroup_residency_barrier #(
     logic [31:0] group_barrier_generation_q [0:MAX_WORKGROUP_CONTEXTS-1];
     logic [15:0] group_scalar_units_q [0:MAX_WORKGROUP_CONTEXTS-1];
     logic [31:0] group_shared_bytes_q [0:MAX_WORKGROUP_CONTEXTS-1];
-    logic [15:0] group_other_units_q [0:MAX_WORKGROUP_CONTEXTS-1];
+    logic [31:0] group_other_units_q [0:MAX_WORKGROUP_CONTEXTS-1];
     logic [RESIDENT_WAVE_SLOTS-1:0] slot_owned_q;
     logic [WORKGROUP_CONTEXT_WIDTH-1:0] slot_group_q [0:RESIDENT_WAVE_SLOTS-1];
     logic [LOCAL_WAVE_WIDTH-1:0] slot_local_q [0:RESIDENT_WAVE_SLOTS-1];
@@ -94,7 +94,7 @@ module cgx1_workgroup_residency_barrier #(
     integer terminate_group_index;
     integer used_scalar;
     integer used_shared;
-    integer used_other;
+    logic [63:0] used_other;
     integer owned_count;
     logic [RESIDENT_WAVE_SLOTS-1:0] commit_slots_seen;
     logic commit_slots_valid;

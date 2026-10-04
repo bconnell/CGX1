@@ -37,7 +37,10 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
     input logic [(RESIDENT_WAVE_SLOTS*9)-1:0] submit_vgpr_register_counts_flat,
     input logic [15:0] submit_scalar_state_units_per_wave,
     input logic [31:0] submit_shared_local_bytes,
-    input logic [15:0] submit_other_workgroup_state_units,
+    input logic [31:0] submit_other_workgroup_state_units,
+    input logic [63:0] submit_submission_id,
+    input logic [63:0] submit_packet_byte_position,
+    input logic [63:0] submit_queue_incarnation_id,
 
     output logic dispatch_valid,
     input logic dispatch_ready,
@@ -52,7 +55,10 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
     output logic [(RESIDENT_WAVE_SLOTS*9)-1:0] dispatch_vgpr_register_counts_flat,
     output logic [15:0] dispatch_scalar_state_units_per_wave,
     output logic [31:0] dispatch_shared_local_bytes,
-    output logic [15:0] dispatch_other_workgroup_state_units,
+    output logic [31:0] dispatch_other_workgroup_state_units,
+    output logic [63:0] dispatch_submission_id,
+    output logic [63:0] dispatch_packet_byte_position,
+    output logic [63:0] dispatch_queue_incarnation_id,
 
     input logic dispatch_result_valid,
     input logic dispatch_accepted,
@@ -63,6 +69,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
     output logic [63:0] completion_process_id,
     output logic [63:0] completion_address_space_id,
     output logic [WORKGROUP_ID_WIDTH-1:0] completion_workgroup_id,
+    output logic [63:0] completion_submission_id,
+    output logic [63:0] completion_packet_byte_position,
+    output logic [63:0] completion_queue_incarnation_id,
     // 0 admitted, 1 terminal admission failure, 2 queue faulted, 3 graphics on compute CU.
     output logic [1:0] completion_status,
     output logic [4:0] completion_failure,
@@ -95,7 +104,10 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
     logic [(RESIDENT_WAVE_SLOTS*9)-1:0] entry_vgpr_counts [0:MAX_PENDING_ENTRIES-1];
     logic [15:0] entry_scalar_units [0:MAX_PENDING_ENTRIES-1];
     logic [31:0] entry_shared_bytes [0:MAX_PENDING_ENTRIES-1];
-    logic [15:0] entry_other_units [0:MAX_PENDING_ENTRIES-1];
+    logic [31:0] entry_other_units [0:MAX_PENDING_ENTRIES-1];
+    logic [63:0] entry_submission_id [0:MAX_PENDING_ENTRIES-1];
+    logic [63:0] entry_packet_byte_position [0:MAX_PENDING_ENTRIES-1];
+    logic [63:0] entry_queue_incarnation_id [0:MAX_PENDING_ENTRIES-1];
     logic [63:0] entry_order [0:MAX_PENDING_ENTRIES-1];
 
     logic signed [63:0] context_credit [0:63];
@@ -110,6 +122,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
     logic [63:0] inflight_process_q;
     logic [63:0] inflight_address_space_q;
     logic [WORKGROUP_ID_WIDTH-1:0] inflight_workgroup_q;
+    logic [63:0] inflight_submission_id_q;
+    logic [63:0] inflight_packet_byte_position_q;
+    logic [63:0] inflight_queue_incarnation_id_q;
 
     logic free_slot_found;
     logic [PENDING_INDEX_WIDTH-1:0] free_slot;
@@ -265,6 +280,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
         dispatch_scalar_state_units_per_wave = '0;
         dispatch_shared_local_bytes = '0;
         dispatch_other_workgroup_state_units = '0;
+        dispatch_submission_id = '0;
+        dispatch_packet_byte_position = '0;
+        dispatch_queue_incarnation_id = '0;
         if (selected_valid) begin
             dispatch_process_id = entry_process_id[selected_entry];
             dispatch_address_space_id = entry_address_space_id[selected_entry];
@@ -276,6 +294,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
             dispatch_scalar_state_units_per_wave = entry_scalar_units[selected_entry];
             dispatch_shared_local_bytes = entry_shared_bytes[selected_entry];
             dispatch_other_workgroup_state_units = entry_other_units[selected_entry];
+            dispatch_submission_id = entry_submission_id[selected_entry];
+            dispatch_packet_byte_position = entry_packet_byte_position[selected_entry];
+            dispatch_queue_incarnation_id = entry_queue_incarnation_id[selected_entry];
         end
     end
 
@@ -296,6 +317,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                 entry_scalar_units[seq_i] <= '0;
                 entry_shared_bytes[seq_i] <= '0;
                 entry_other_units[seq_i] <= '0;
+                entry_submission_id[seq_i] <= '0;
+                entry_packet_byte_position[seq_i] <= '0;
+                entry_queue_incarnation_id[seq_i] <= '0;
                 entry_order[seq_i] <= '0;
             end
             for (seq_i = 0; seq_i < 64; seq_i = seq_i + 1) begin
@@ -310,11 +334,17 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
             inflight_process_q <= '0;
             inflight_address_space_q <= '0;
             inflight_workgroup_q <= '0;
+            inflight_submission_id_q <= '0;
+            inflight_packet_byte_position_q <= '0;
+            inflight_queue_incarnation_id_q <= '0;
             completion_valid <= 1'b0;
             completion_queue_context_id <= '0;
             completion_process_id <= '0;
             completion_address_space_id <= '0;
             completion_workgroup_id <= '0;
+            completion_submission_id <= '0;
+            completion_packet_byte_position <= '0;
+            completion_queue_incarnation_id <= '0;
             completion_status <= '0;
             completion_failure <= '0;
         end else begin
@@ -343,6 +373,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                 entry_scalar_units[free_slot] <= submit_scalar_state_units_per_wave;
                 entry_shared_bytes[free_slot] <= submit_shared_local_bytes;
                 entry_other_units[free_slot] <= submit_other_workgroup_state_units;
+                entry_submission_id[free_slot] <= submit_submission_id;
+                entry_packet_byte_position[free_slot] <= submit_packet_byte_position;
+                entry_queue_incarnation_id[free_slot] <= submit_queue_incarnation_id;
                 entry_order[free_slot] <= next_order_q;
                 next_order_q <= next_order_q + 1'b1;
             end
@@ -368,6 +401,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                     completion_process_id <= entry_process_id[selected_entry];
                     completion_address_space_id <= entry_address_space_id[selected_entry];
                     completion_workgroup_id <= entry_workgroup_id[selected_entry];
+                    completion_submission_id <= entry_submission_id[selected_entry];
+                    completion_packet_byte_position <= entry_packet_byte_position[selected_entry];
+                    completion_queue_incarnation_id <= entry_queue_incarnation_id[selected_entry];
                     completion_status <= selected_faulted ? 2'd2 : 2'd3;
                     completion_failure <= '0;
                     if (!selected_context_has_other)
@@ -379,6 +415,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                     inflight_process_q <= entry_process_id[selected_entry];
                     inflight_address_space_q <= entry_address_space_id[selected_entry];
                     inflight_workgroup_q <= entry_workgroup_id[selected_entry];
+                    inflight_submission_id_q <= entry_submission_id[selected_entry];
+                    inflight_packet_byte_position_q <= entry_packet_byte_position[selected_entry];
+                    inflight_queue_incarnation_id_q <= entry_queue_incarnation_id[selected_entry];
                 end
             end
 
@@ -392,6 +431,9 @@ module cgx1_compute_workgroup_dispatch_scheduler #(
                     completion_process_id <= inflight_process_q;
                     completion_address_space_id <= inflight_address_space_q;
                     completion_workgroup_id <= inflight_workgroup_q;
+                    completion_submission_id <= inflight_submission_id_q;
+                    completion_packet_byte_position <= inflight_packet_byte_position_q;
+                    completion_queue_incarnation_id <= inflight_queue_incarnation_id_q;
                     completion_status <= dispatch_accepted ? 2'd0 : 2'd1;
                     completion_failure <= dispatch_accepted ? '0 : dispatch_failure;
                     if (!inflight_context_has_other)

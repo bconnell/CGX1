@@ -24,7 +24,10 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
     logic [(SLOTS*9)-1:0] submit_vgpr_register_counts_flat = '0;
     logic [15:0] submit_scalar_state_units_per_wave = 1;
     logic [31:0] submit_shared_local_bytes = 0;
-    logic [15:0] submit_other_workgroup_state_units = 0;
+    logic [31:0] submit_other_workgroup_state_units = 0;
+    logic [63:0] submit_submission_id = 0;
+    logic [63:0] submit_packet_byte_position = 0;
+    logic [63:0] submit_queue_incarnation_id = 64'habc0000000000003;
 
     logic dispatch_valid, dispatch_ready;
     logic [5:0] dispatch_queue_context_id;
@@ -37,7 +40,7 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
     logic [(SLOTS*9)-1:0] dispatch_vgpr_register_counts_flat;
     logic [15:0] dispatch_scalar_state_units_per_wave;
     logic [31:0] dispatch_shared_local_bytes;
-    logic [15:0] dispatch_other_workgroup_state_units;
+    logic [31:0] dispatch_other_workgroup_state_units;
     logic dispatch_result_valid, dispatch_accepted;
     logic [4:0] dispatch_failure;
     logic completion_valid;
@@ -46,6 +49,10 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
     logic [WG_WIDTH-1:0] completion_workgroup_id;
     logic [1:0] completion_status;
     logic [4:0] completion_failure;
+    logic [63:0] dispatch_submission_id, dispatch_packet_byte_position;
+    logic [63:0] dispatch_queue_incarnation_id;
+    logic [63:0] completion_submission_id, completion_packet_byte_position;
+    logic [63:0] completion_queue_incarnation_id;
     logic [2:0] pending_count;
 
     logic terminate_wave_valid = 0;
@@ -77,6 +84,9 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
         .submit_scalar_state_units_per_wave(submit_scalar_state_units_per_wave),
         .submit_shared_local_bytes(submit_shared_local_bytes),
         .submit_other_workgroup_state_units(submit_other_workgroup_state_units),
+        .submit_submission_id(submit_submission_id),
+        .submit_packet_byte_position(submit_packet_byte_position),
+        .submit_queue_incarnation_id(submit_queue_incarnation_id),
         .dispatch_valid(dispatch_valid), .dispatch_ready(dispatch_ready),
         .dispatch_queue_context_id(dispatch_queue_context_id),
         .dispatch_process_id(dispatch_process_id),
@@ -88,12 +98,18 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
         .dispatch_scalar_state_units_per_wave(dispatch_scalar_state_units_per_wave),
         .dispatch_shared_local_bytes(dispatch_shared_local_bytes),
         .dispatch_other_workgroup_state_units(dispatch_other_workgroup_state_units),
+        .dispatch_submission_id(dispatch_submission_id),
+        .dispatch_packet_byte_position(dispatch_packet_byte_position),
+        .dispatch_queue_incarnation_id(dispatch_queue_incarnation_id),
         .dispatch_result_valid(dispatch_result_valid), .dispatch_accepted(dispatch_accepted),
         .dispatch_failure(dispatch_failure), .completion_valid(completion_valid),
         .completion_ready(1'b1), .completion_queue_context_id(completion_queue_context_id),
         .completion_process_id(completion_process_id),
         .completion_address_space_id(completion_address_space_id),
         .completion_workgroup_id(completion_workgroup_id),
+        .completion_submission_id(completion_submission_id),
+        .completion_packet_byte_position(completion_packet_byte_position),
+        .completion_queue_incarnation_id(completion_queue_incarnation_id),
         .completion_status(completion_status), .completion_failure(completion_failure),
         .pending_count(pending_count)
     );
@@ -159,6 +175,8 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
         begin
             @(negedge clk);
             submit_workgroup_id = id;
+            submit_submission_id = 64'h7000000000000000 | id;
+            submit_packet_byte_position = 64'h8000000000000000 | id;
             submit_wave_count = waves;
             submit_start_pc = 57'h1000;
             submit_shared_local_bytes = shared_bytes;
@@ -190,6 +208,10 @@ module cgx1_compute_workgroup_dispatch_integration_tb;
                 || completion_address_space_id !== 64'h2003)
                 $fatal(1, "dispatch completion mismatch for WG %0d: valid=%0b status=%0d failure=%0d",
                     id, completion_valid, completion_status, completion_failure);
+            if (completion_submission_id !== (64'h7000000000000000 | id)
+                || completion_packet_byte_position !== (64'h8000000000000000 | id)
+                || completion_queue_incarnation_id !== 64'habc0000000000003)
+                $fatal(1, "dispatch completion lost command packet correlation for WG %0d", id);
         end
     endtask
 

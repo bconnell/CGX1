@@ -881,7 +881,14 @@ Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "modul
 Require-Literal "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv" "module cgx1_compute_workgroup_execution_frontend_tb"
 Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" ".allocation_active_bitmap(allocation_active_bitmap)"
 Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask"
-Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "assign vector_exec_request_valid = vector_request_valid & issuable_wave_mask"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "assign vector_exec_request_valid = vector_request_valid_effective & issuable_wave_mask"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "& ~instruction_fetch_issue_block_mask & ~control_event_slot_mask;"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "| instruction_fetch_busy_mask;"
+Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" ".quiescence_busy_mask(instruction_fetch_busy_mask)"
+Require-Literal "source/rtl/cgx1_instruction_fetch_unit.sv" "module cgx1_instruction_fetch_unit"
+Require-Literal "source/rtl/cgx1_instruction_fetch_unit.sv" "&& (pc_q[slot] == response_pc)"
+Require-Literal "source/rtl/tests/cgx1_instruction_fetch_unit_tb.sv" "module cgx1_instruction_fetch_unit_tb"
+Require-Literal "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv" "fetched vector word did not complete pooled-VGPR writeback"
 $workgroupBoundary = $architecture.execution_model.workgroup_residency_barrier_rtl
 if (-not [bool]$workgroupBoundary.reference_model_implemented -or
     -not [bool]$workgroupBoundary.rtl_implemented -or

@@ -13,7 +13,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     parameter integer WAVE_SLOT_WIDTH = (RESIDENT_WAVE_SLOTS <= 1) ? 1 : $clog2(RESIDENT_WAVE_SLOTS),
     parameter integer WAVE_COUNT_WIDTH = (RESIDENT_WAVE_SLOTS <= 1) ? 1 : $clog2(RESIDENT_WAVE_SLOTS + 1),
     parameter integer MAX_MATRIX_BURST = 4,
-    parameter integer VIRTUAL_ADDRESS_WIDTH = 57
+    parameter integer VIRTUAL_ADDRESS_WIDTH = 57,
+    parameter integer ENABLE_INSTRUCTION_FETCH = 0
 ) (
     input logic clk,
     input logic reset_n,
@@ -72,6 +73,38 @@ module cgx1_compute_workgroup_execution_frontend #(
     output logic control_event_ready,
     output logic control_event_accepted,
     output logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] control_pc_flat,
+    input logic instruction_fetch_enable,
+    output logic instruction_memory_request_valid,
+    input logic instruction_memory_request_ready,
+    output logic [WORKGROUP_ID_WIDTH-1:0] instruction_memory_request_workgroup_id,
+    output logic [WAVE_SLOT_WIDTH-1:0] instruction_memory_request_wave_slot,
+    output logic [31:0] instruction_memory_request_epoch,
+    output logic [63:0] instruction_memory_request_transaction_tag,
+    output logic [VIRTUAL_ADDRESS_WIDTH-1:0] instruction_memory_request_pc,
+    input logic instruction_memory_response_valid,
+    output logic instruction_memory_response_ready,
+    input logic [WORKGROUP_ID_WIDTH-1:0] instruction_memory_response_workgroup_id,
+    input logic [WAVE_SLOT_WIDTH-1:0] instruction_memory_response_wave_slot,
+    input logic [31:0] instruction_memory_response_epoch,
+    input logic [63:0] instruction_memory_response_transaction_tag,
+    input logic [VIRTUAL_ADDRESS_WIDTH-1:0] instruction_memory_response_pc,
+    input logic [31:0] instruction_memory_response_word,
+    input logic [2:0] instruction_memory_response_fault_code,
+    output logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_unhandled_valid,
+    input logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_unhandled_ready,
+    output logic [(RESIDENT_WAVE_SLOTS*4)-1:0] instruction_fetch_unhandled_class_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] instruction_fetch_unhandled_word_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*WORKGROUP_ID_WIDTH)-1:0] instruction_fetch_unhandled_workgroup_id_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] instruction_fetch_unhandled_pc_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] instruction_fetch_unhandled_epoch_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*64)-1:0] instruction_fetch_unhandled_transaction_tag_flat,
+    output logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_fault_valid_mask,
+    input logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_fault_ready_mask,
+    output logic [(RESIDENT_WAVE_SLOTS*WORKGROUP_ID_WIDTH)-1:0] instruction_fetch_fault_workgroup_id_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] instruction_fetch_fault_epoch_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*64)-1:0] instruction_fetch_fault_transaction_tag_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] instruction_fetch_fault_pc_flat,
+    output logic [(RESIDENT_WAVE_SLOTS*3)-1:0] instruction_fetch_fault_code_flat,
     output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] control_live_lane_mask_flat,
     output logic [(RESIDENT_WAVE_SLOTS*32)-1:0] control_active_lane_mask_flat,
     output logic [RESIDENT_WAVE_SLOTS-1:0] control_reconverged_mask,
@@ -233,10 +266,36 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [RESIDENT_WAVE_SLOTS-1:0] control_advance_valid_mask;
     logic [RESIDENT_WAVE_SLOTS-1:0] control_event_slot_mask;
     logic [(RESIDENT_WAVE_SLOTS*32)-1:0] vector_request_lane_mask_effective;
+    logic [RESIDENT_WAVE_SLOTS-1:0] vector_request_valid_effective;
+    logic [(RESIDENT_WAVE_SLOTS*4)-1:0] vector_request_opcode_effective;
+    logic [(RESIDENT_WAVE_SLOTS*8)-1:0] vector_request_source0_effective;
+    logic [(RESIDENT_WAVE_SLOTS*8)-1:0] vector_request_source1_effective;
+    logic [(RESIDENT_WAVE_SLOTS*8)-1:0] vector_request_destination_effective;
+    logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] control_advance_sequential_pc_flat;
     logic [(RESIDENT_WAVE_SLOTS*32)-1:0] memory_issue_lane_mask_effective;
     logic barrier_state_arrive_ready, barrier_state_arrive_accepted;
     logic control_terminal_ready, control_terminal_selected;
     logic [RESIDENT_WAVE_SLOTS-1:0] lsu_busy_mask;
+    logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_busy_mask;
+    logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_issue_block_mask;
+    logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_instruction_valid;
+    logic [(RESIDENT_WAVE_SLOTS*32)-1:0] instruction_fetch_instruction_word_flat;
+    logic [(RESIDENT_WAVE_SLOTS*WORKGROUP_ID_WIDTH)-1:0] instruction_fetch_instruction_workgroup_id_flat;
+    logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] instruction_fetch_instruction_pc_flat;
+    logic [(RESIDENT_WAVE_SLOTS*32)-1:0] instruction_fetch_instruction_epoch_flat;
+    logic [(RESIDENT_WAVE_SLOTS*64)-1:0] instruction_fetch_instruction_transaction_tag_flat;
+    logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_instruction_ready;
+    logic [RESIDENT_WAVE_SLOTS-1:0] fetched_vector_request_valid;
+    logic [(RESIDENT_WAVE_SLOTS*4)-1:0] fetched_vector_request_opcode_flat;
+    logic [(RESIDENT_WAVE_SLOTS*8)-1:0] fetched_vector_request_source0_flat;
+    logic [(RESIDENT_WAVE_SLOTS*8)-1:0] fetched_vector_request_source1_flat;
+    logic [(RESIDENT_WAVE_SLOTS*8)-1:0] fetched_vector_request_destination_flat;
+    logic [(RESIDENT_WAVE_SLOTS*32)-1:0] fetched_vector_request_lane_mask_flat;
+    logic [(RESIDENT_WAVE_SLOTS*VIRTUAL_ADDRESS_WIDTH)-1:0] fetched_vector_sequential_pc_flat;
+    logic [RESIDENT_WAVE_SLOTS-1:0] fetch_fault_candidate_valid;
+    logic [WAVE_SLOT_WIDTH-1:0] fetch_fault_candidate_slot;
+    logic fetch_fault_to_barrier;
+    logic [RESIDENT_WAVE_SLOTS-1:0] instruction_fetch_fault_ready_to_unit;
     logic [(RESIDENT_WAVE_SLOTS*256)-1:0] memory_destination_pending_mask_flat;
     logic [RESIDENT_WAVE_SLOTS-1:0] busy_bitmap;
     logic [RESIDENT_WAVE_SLOTS-1:0] vector_execution_busy_bitmap_raw;
@@ -530,11 +589,167 @@ module cgx1_compute_workgroup_execution_frontend #(
         end
     end
 
+    generate
+        if (ENABLE_INSTRUCTION_FETCH != 0) begin : instruction_fetch_enabled
+            logic [RESIDENT_WAVE_SLOTS-1:0] fetch_eligible_mask;
+
+            assign fetch_eligible_mask = control_issue_eligible_mask
+                & {RESIDENT_WAVE_SLOTS{instruction_fetch_enable}};
+
+            cgx1_instruction_fetch_unit #(
+                .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS),
+                .WORKGROUP_ID_WIDTH(WORKGROUP_ID_WIDTH),
+                .WAVE_SLOT_WIDTH(WAVE_SLOT_WIDTH),
+                .MEMORY_EPOCH_WIDTH(32),
+                .TRANSACTION_TAG_WIDTH(64),
+                .VIRTUAL_ADDRESS_WIDTH(VIRTUAL_ADDRESS_WIDTH)
+            ) instruction_fetch (
+                .clk(clk), .reset_n(reset_n), .execution_epoch(memory_epoch),
+                .wave_live_mask(live_wave_mask), .fetch_eligible_mask(fetch_eligible_mask),
+                .wave_workgroup_id_flat(barrier_slot_workgroup_id_flat),
+                .wave_pc_flat(control_pc_flat),
+                .issue_block_mask(instruction_fetch_issue_block_mask),
+                .quiescence_busy_mask(instruction_fetch_busy_mask),
+                .instruction_valid(instruction_fetch_instruction_valid),
+                .instruction_word_flat(instruction_fetch_instruction_word_flat),
+                .instruction_workgroup_id_flat(instruction_fetch_instruction_workgroup_id_flat),
+                .instruction_pc_flat(instruction_fetch_instruction_pc_flat),
+                .instruction_epoch_flat(instruction_fetch_instruction_epoch_flat),
+                .instruction_transaction_tag_flat(instruction_fetch_instruction_transaction_tag_flat),
+                .instruction_ready(instruction_fetch_instruction_ready),
+                .request_valid(instruction_memory_request_valid),
+                .request_ready(instruction_memory_request_ready),
+                .request_workgroup_id(instruction_memory_request_workgroup_id),
+                .request_wave_slot(instruction_memory_request_wave_slot),
+                .request_epoch(instruction_memory_request_epoch),
+                .request_transaction_tag(instruction_memory_request_transaction_tag),
+                .request_pc(instruction_memory_request_pc),
+                .response_valid(instruction_memory_response_valid),
+                .response_ready(instruction_memory_response_ready),
+                .response_workgroup_id(instruction_memory_response_workgroup_id),
+                .response_wave_slot(instruction_memory_response_wave_slot),
+                .response_epoch(instruction_memory_response_epoch),
+                .response_transaction_tag(instruction_memory_response_transaction_tag),
+                .response_pc(instruction_memory_response_pc),
+                .response_word(instruction_memory_response_word),
+                .response_fault_code(instruction_memory_response_fault_code),
+                .fault_valid_mask(instruction_fetch_fault_valid_mask),
+                .fault_workgroup_id_flat(instruction_fetch_fault_workgroup_id_flat),
+                .fault_epoch_flat(instruction_fetch_fault_epoch_flat),
+                .fault_transaction_tag_flat(instruction_fetch_fault_transaction_tag_flat),
+                .fault_pc_flat(instruction_fetch_fault_pc_flat),
+                .fault_code_flat(instruction_fetch_fault_code_flat),
+                .fault_ready_mask(instruction_fetch_fault_ready_to_unit)
+            );
+
+            cgx1_vector_instruction_word_decoder #(
+                .RESIDENT_WAVE_SLOTS(RESIDENT_WAVE_SLOTS)
+            ) fetched_word_decoder (
+                .instruction_valid(instruction_fetch_instruction_valid),
+                .instruction_word_flat(instruction_fetch_instruction_word_flat),
+                .instruction_lane_mask_flat(control_active_lane_mask_flat),
+                .instruction_ready(instruction_fetch_instruction_ready),
+                .vector_request_valid(fetched_vector_request_valid),
+                .vector_request_opcode_flat(fetched_vector_request_opcode_flat),
+                .vector_request_source0_flat(fetched_vector_request_source0_flat),
+                .vector_request_source1_flat(fetched_vector_request_source1_flat),
+                .vector_request_destination_flat(fetched_vector_request_destination_flat),
+                .vector_request_lane_mask_flat(fetched_vector_request_lane_mask_flat),
+                .vector_request_accepted(vector_request_accepted),
+                .unhandled_instruction_valid(instruction_fetch_unhandled_valid),
+                .unhandled_instruction_ready(instruction_fetch_unhandled_ready),
+                .unhandled_instruction_class_flat(instruction_fetch_unhandled_class_flat),
+                .unhandled_instruction_word_flat(instruction_fetch_unhandled_word_flat)
+            );
+
+            assign instruction_fetch_unhandled_workgroup_id_flat
+                = instruction_fetch_instruction_workgroup_id_flat;
+            assign instruction_fetch_unhandled_pc_flat = instruction_fetch_instruction_pc_flat;
+            assign instruction_fetch_unhandled_epoch_flat = instruction_fetch_instruction_epoch_flat;
+            assign instruction_fetch_unhandled_transaction_tag_flat
+                = instruction_fetch_instruction_transaction_tag_flat;
+        end else begin : instruction_fetch_disabled
+            assign instruction_fetch_issue_block_mask = '0;
+            assign instruction_fetch_busy_mask = '0;
+            assign instruction_fetch_instruction_valid = '0;
+            assign instruction_fetch_instruction_word_flat = '0;
+            assign instruction_fetch_instruction_workgroup_id_flat = '0;
+            assign instruction_fetch_instruction_pc_flat = '0;
+            assign instruction_fetch_instruction_epoch_flat = '0;
+            assign instruction_fetch_instruction_transaction_tag_flat = '0;
+            assign instruction_fetch_instruction_ready = '0;
+            assign fetched_vector_request_valid = '0;
+            assign fetched_vector_request_opcode_flat = '0;
+            assign fetched_vector_request_source0_flat = '0;
+            assign fetched_vector_request_source1_flat = '0;
+            assign fetched_vector_request_destination_flat = '0;
+            assign fetched_vector_request_lane_mask_flat = '0;
+            assign instruction_memory_request_valid = 1'b0;
+            assign instruction_memory_request_workgroup_id = '0;
+            assign instruction_memory_request_wave_slot = '0;
+            assign instruction_memory_request_epoch = '0;
+            assign instruction_memory_request_transaction_tag = '0;
+            assign instruction_memory_request_pc = '0;
+            assign instruction_memory_response_ready = 1'b0;
+            assign instruction_fetch_unhandled_valid = '0;
+            assign instruction_fetch_unhandled_class_flat = '0;
+            assign instruction_fetch_unhandled_word_flat = '0;
+            assign instruction_fetch_unhandled_workgroup_id_flat = '0;
+            assign instruction_fetch_unhandled_pc_flat = '0;
+            assign instruction_fetch_unhandled_epoch_flat = '0;
+            assign instruction_fetch_unhandled_transaction_tag_flat = '0;
+            assign instruction_fetch_fault_valid_mask = '0;
+            assign instruction_fetch_fault_workgroup_id_flat = '0;
+            assign instruction_fetch_fault_epoch_flat = '0;
+            assign instruction_fetch_fault_transaction_tag_flat = '0;
+            assign instruction_fetch_fault_pc_flat = '0;
+            assign instruction_fetch_fault_code_flat = '0;
+        end
+    endgenerate
+
+    always_comb begin : fetched_vector_request_multiplex
+        integer slot;
+        logic [VIRTUAL_ADDRESS_WIDTH-1:0] fetched_pc;
+        logic [VIRTUAL_ADDRESS_WIDTH-1:0] maximum_aligned_pc;
+        vector_request_valid_effective = vector_request_valid | fetched_vector_request_valid;
+        vector_request_opcode_effective = vector_request_opcode;
+        vector_request_source0_effective = vector_request_source0;
+        vector_request_source1_effective = vector_request_source1;
+        vector_request_destination_effective = vector_request_destination;
+        control_advance_sequential_pc_flat = decoded_sequential_pc_flat;
+        fetched_vector_sequential_pc_flat = '0;
+        maximum_aligned_pc = {VIRTUAL_ADDRESS_WIDTH{1'b1}};
+        maximum_aligned_pc[1:0] = 2'b00;
+        for (slot = 0; slot < RESIDENT_WAVE_SLOTS; slot = slot + 1) begin
+            fetched_pc = instruction_fetch_instruction_pc_flat[
+                (slot*VIRTUAL_ADDRESS_WIDTH)+:VIRTUAL_ADDRESS_WIDTH];
+            if (fetched_vector_request_valid[slot]) begin
+                vector_request_opcode_effective[(slot*4)+:4]
+                    = fetched_vector_request_opcode_flat[(slot*4)+:4];
+                vector_request_source0_effective[(slot*8)+:8]
+                    = fetched_vector_request_source0_flat[(slot*8)+:8];
+                vector_request_source1_effective[(slot*8)+:8]
+                    = fetched_vector_request_source1_flat[(slot*8)+:8];
+                vector_request_destination_effective[(slot*8)+:8]
+                    = fetched_vector_request_destination_flat[(slot*8)+:8];
+                if (fetched_pc == maximum_aligned_pc)
+                    fetched_vector_sequential_pc_flat[(slot*VIRTUAL_ADDRESS_WIDTH)+:VIRTUAL_ADDRESS_WIDTH]
+                        = {{(VIRTUAL_ADDRESS_WIDTH-1){1'b0}}, 1'b1};
+                else
+                    fetched_vector_sequential_pc_flat[(slot*VIRTUAL_ADDRESS_WIDTH)+:VIRTUAL_ADDRESS_WIDTH]
+                        = fetched_pc + VIRTUAL_ADDRESS_WIDTH'(4);
+                control_advance_sequential_pc_flat[(slot*VIRTUAL_ADDRESS_WIDTH)+:VIRTUAL_ADDRESS_WIDTH]
+                    = fetched_vector_sequential_pc_flat[(slot*VIRTUAL_ADDRESS_WIDTH)+:VIRTUAL_ADDRESS_WIDTH];
+            end
+        end
+    end
+
     assign dispatch_ready = (txn_state_q == ST_IDLE)
         && !(workgroup_retire_valid_q && !workgroup_retire_ready
             && (dispatch_workgroup_id == workgroup_retire_id_q));
     assign query_workgroup_id = dispatch_workgroup_id;
-    assign busy_bitmap = matrix_busy_raw | vector_execution_busy_bitmap_raw | lsu_busy_mask;
+    assign busy_bitmap = matrix_busy_raw | vector_execution_busy_bitmap_raw | lsu_busy_mask
+        | instruction_fetch_busy_mask;
     assign matrix_execution_busy_bitmap = matrix_busy_raw;
     assign vector_execution_busy_bitmap = vector_execution_busy_bitmap_raw | lsu_busy_mask;
     assign resident_wave_mask = barrier_resident_mask & allocation_active_bitmap;
@@ -548,23 +763,28 @@ module cgx1_compute_workgroup_execution_frontend #(
     assign scalar_state_units_used = barrier_scalar_used;
     assign shared_local_bytes_used = shared_memory_allocated_bytes;
     assign other_workgroup_state_units_used = barrier_other_used;
-    assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask & ~lsu_busy_mask
+    assign matrix_exec_request_valid = matrix_request_valid & issuable_wave_mask
+        & ~lsu_busy_mask & ~instruction_fetch_issue_block_mask
         & control_reconverged_mask & ~control_event_slot_mask;
-    assign vector_exec_request_valid = vector_request_valid & issuable_wave_mask
-        & ~control_event_slot_mask;
+    assign vector_exec_request_valid = vector_request_valid_effective & issuable_wave_mask
+        & ~instruction_fetch_issue_block_mask & ~control_event_slot_mask;
     // Preserve same-wave program order: an already-presented matrix/vector
     // request and any live execution finish before the LSU captures its next op.
     assign memory_issue_slot_available = issuable_wave_mask
         & ~matrix_busy_raw & ~vector_execution_busy_bitmap_raw
-        & ~matrix_request_valid & ~vector_request_valid & ~control_event_slot_mask;
+        & ~instruction_fetch_issue_block_mask
+        & ~matrix_request_valid & ~vector_request_valid_effective & ~control_event_slot_mask;
     assign lsu_issue_valid = memory_issue_valid & memory_issue_slot_available;
     assign memory_issue_ready = lsu_issue_ready & memory_issue_slot_available;
     assign memory_issue_accepted = lsu_issue_accepted;
     assign control_advance_valid_mask = matrix_request_accepted
-        | vector_request_accepted | memory_issue_accepted;
+        | vector_request_accepted | memory_issue_accepted
+        | (instruction_fetch_unhandled_valid & instruction_fetch_unhandled_ready);
     assign control_clear_mask = release_done_mask;
-    assign control_issue_eligible_mask = issuable_wave_mask & ~busy_bitmap
-        & ~matrix_request_valid & ~vector_request_valid & ~memory_issue_valid;
+    assign control_issue_eligible_mask = issuable_wave_mask
+        & ~matrix_busy_raw & ~vector_execution_busy_bitmap_raw & ~lsu_busy_mask
+        & ~instruction_fetch_issue_block_mask
+        & ~matrix_request_valid & ~vector_request_valid_effective & ~memory_issue_valid;
 
     always_comb begin : control_issue_masks
         control_event_slot_mask = '0;
@@ -574,7 +794,9 @@ module cgx1_compute_workgroup_execution_frontend #(
             control_event_slot_mask[control_event_wave_slot] = 1'b1;
         for (integer lane_slot = 0; lane_slot < RESIDENT_WAVE_SLOTS; lane_slot = lane_slot + 1) begin
             vector_request_lane_mask_effective[(lane_slot*32)+:32]
-                = vector_request_lane_mask[(lane_slot*32)+:32]
+                = (fetched_vector_request_valid[lane_slot]
+                    ? fetched_vector_request_lane_mask_flat[(lane_slot*32)+:32]
+                    : vector_request_lane_mask[(lane_slot*32)+:32])
                 & control_active_lane_mask_flat[(lane_slot*32)+:32]
                 & control_live_lane_mask_flat[(lane_slot*32)+:32];
             memory_issue_lane_mask_effective[(lane_slot*32)+:32]
@@ -587,10 +809,32 @@ module cgx1_compute_workgroup_execution_frontend #(
     assign control_terminal_selected = !terminate_wave_valid && control_terminal_valid;
     assign memory_fault_to_barrier = !terminate_wave_valid && !control_terminal_valid
         && lsu_fault_valid && memory_fault_ready;
+    always_comb begin : instruction_fetch_fault_arbitration
+        integer scan_slot;
+        integer selected_slot;
+        fetch_fault_candidate_valid = '0;
+        fetch_fault_candidate_slot = '0;
+        selected_slot = -1;
+        for (scan_slot = 0; scan_slot < RESIDENT_WAVE_SLOTS; scan_slot = scan_slot + 1) begin
+            if ((selected_slot < 0) && instruction_fetch_fault_valid_mask[scan_slot]
+                && instruction_fetch_fault_ready_mask[scan_slot])
+                selected_slot = scan_slot;
+        end
+        if (selected_slot >= 0) begin
+            fetch_fault_candidate_valid[selected_slot] = 1'b1;
+            fetch_fault_candidate_slot = selected_slot[WAVE_SLOT_WIDTH-1:0];
+        end
+        instruction_fetch_fault_ready_to_unit = '0;
+        if (fetch_fault_to_barrier && barrier_terminate_ready)
+            instruction_fetch_fault_ready_to_unit = fetch_fault_candidate_valid;
+    end
+    assign fetch_fault_to_barrier = !terminate_wave_valid && !control_terminal_valid
+        && !memory_fault_to_barrier && (fetch_fault_candidate_valid != '0);
     assign barrier_terminate_valid = terminate_wave_valid
-        || control_terminal_selected || memory_fault_to_barrier;
+        || control_terminal_selected || memory_fault_to_barrier || fetch_fault_to_barrier;
     assign barrier_terminate_slot = terminate_wave_valid ? terminate_wave_slot
-        : control_terminal_selected ? control_terminal_wave_slot : lsu_fault_wave_slot;
+        : control_terminal_selected ? control_terminal_wave_slot
+        : memory_fault_to_barrier ? lsu_fault_wave_slot : fetch_fault_candidate_slot;
     assign barrier_terminate_reason = terminate_wave_valid ? terminate_wave_reason
         : control_terminal_selected ? ((control_terminal_fault_code == 0) ? 2'b00 : 2'b10)
         : 2'b10;
@@ -776,7 +1020,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         .clear_mask(control_clear_mask),
         .issue_eligible_mask(control_issue_eligible_mask),
         .advance_valid_mask(control_advance_valid_mask),
-        .advance_sequential_pc_flat(decoded_sequential_pc_flat),
+        .advance_sequential_pc_flat(control_advance_sequential_pc_flat),
         .control_event_valid(control_event_valid),
         .control_event_wave_slot(control_event_wave_slot),
         .control_event_kind(control_event_kind),
@@ -884,9 +1128,9 @@ module cgx1_compute_workgroup_execution_frontend #(
         .matrix_request_b_base(matrix_request_b_base), .matrix_request_ready(matrix_request_ready),
         .matrix_request_accepted(matrix_request_accepted), .matrix_illegal_issue(matrix_illegal_issue),
         .matrix_illegal_wave_slot(matrix_illegal_wave_slot),
-        .vector_request_valid(vector_exec_request_valid), .vector_request_opcode(vector_request_opcode),
-        .vector_request_source0(vector_request_source0), .vector_request_source1(vector_request_source1),
-        .vector_request_destination(vector_request_destination),
+        .vector_request_valid(vector_exec_request_valid), .vector_request_opcode(vector_request_opcode_effective),
+        .vector_request_source0(vector_request_source0_effective), .vector_request_source1(vector_request_source1_effective),
+        .vector_request_destination(vector_request_destination_effective),
         .vector_request_lane_mask(vector_request_lane_mask_effective),
         .memory_destination_pending_mask_flat(memory_destination_pending_mask_flat),
         .vector_request_accepted(vector_request_accepted), .vector_complete_valid(vector_complete_valid),

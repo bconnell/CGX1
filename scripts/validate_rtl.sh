@@ -300,6 +300,14 @@ iverilog -g2012 -Wall -s cgx1_vector_int32_pipeline_tb -o build/rtl/cgx1_vector_
 echo "==> Run vector INT32 pipeline RTL"
 timeout 30s vvp build/rtl/cgx1_vector_int32_pipeline_tb.vvp
 
+echo "==> Compile identity-safe instruction fetch RTL"
+iverilog -g2012 -Wall -s cgx1_instruction_fetch_unit_tb \
+    -o build/rtl/cgx1_instruction_fetch_unit_tb.vvp \
+    source/rtl/cgx1_instruction_fetch_unit.sv \
+    source/rtl/tests/cgx1_instruction_fetch_unit_tb.sv
+echo "==> Run identity-safe instruction fetch RTL"
+timeout 30s vvp build/rtl/cgx1_instruction_fetch_unit_tb.vvp
+
 echo "==> Compile per-wave vector instruction word decoder and execution RTL"
 iverilog -g2012 -Wall -s cgx1_vector_instruction_word_decoder_tb \
     -o build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp \
@@ -542,6 +550,8 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_command_lifecycle_integration_tb
     source/rtl/cgx1_cu_shared_local_memory.sv \
     source/rtl/cgx1_compute_workgroup_lsu.sv \
     source/rtl/cgx1_wave_control_flow.sv \
+    source/rtl/cgx1_instruction_fetch_unit.sv \
+    source/rtl/cgx1_vector_instruction_word_decoder.sv \
     source/rtl/cgx1_compute_workgroup_execution_frontend.sv \
     source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv \
     source/rtl/cgx1_compute_workgroup_command_packet_parser.sv \
@@ -590,6 +600,8 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_dispatch_integration_tb \
     source/rtl/cgx1_cu_shared_local_memory.sv \
     source/rtl/cgx1_compute_workgroup_lsu.sv \
     source/rtl/cgx1_wave_control_flow.sv \
+    source/rtl/cgx1_instruction_fetch_unit.sv \
+    source/rtl/cgx1_vector_instruction_word_decoder.sv \
     source/rtl/cgx1_compute_workgroup_execution_frontend.sv \
     source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv \
     source/rtl/tests/cgx1_compute_workgroup_dispatch_integration_tb.sv
@@ -634,6 +646,8 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_execution_frontend_tb -o build/r
     source/rtl/cgx1_cu_shared_local_memory.sv \
     source/rtl/cgx1_compute_workgroup_lsu.sv \
     source/rtl/cgx1_wave_control_flow.sv \
+    source/rtl/cgx1_instruction_fetch_unit.sv \
+    source/rtl/cgx1_vector_instruction_word_decoder.sv \
     source/rtl/cgx1_compute_workgroup_execution_frontend.sv \
     source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv
 echo "==> Run authoritative pooled workgroup execution frontend RTL"

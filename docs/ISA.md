@@ -1,6 +1,6 @@
 # CGX 1 Instruction Set and Execution Model
 
-[Documentation index](README.md) · [Engineering specification](ENGINEERING_SPEC.md) · [Matrix engine precision](MATRIX_ENGINE.md) · [Virtual memory](VIRTUAL_MEMORY.md) · [Scheduling and preemption](SCHEDULING_PREEMPTION.md)
+[Documentation index](README.md) · [Engineering specification](ENGINEERING_SPEC.md) · [Instruction fetch](INSTRUCTION_FETCH.md) · [Matrix engine precision](MATRIX_ENGINE.md) · [Virtual memory](VIRTUAL_MEMORY.md) · [Scheduling and preemption](SCHEDULING_PREEMPTION.md)
 
 This document defines the first software-visible execution contract for CGX 1. It is an architecture target, not fabricated silicon behavior.
 
@@ -79,7 +79,7 @@ The current RTL ALU and executable reference use the following internal opcode m
 | `0x6` | logical SHR, with the low five bits of each source1 lane as the shift count |
 | `0x7` | arithmetic SHR, with the low five bits of each source1 lane as the shift count |
 
-These mappings describe the current INT32 implementation subset and are **not frozen ISA assignments**. The executable reference in [`source/isa/cgx1_vector_semantics.hpp`](../source/isa/cgx1_vector_semantics.hpp) covers these operations, active-lane destination updates, and illegal vector opcodes. [`source/isa/cgx1_vector_stream.hpp`](../source/isa/cgx1_vector_stream.hpp) adds a bounded software step over an immutable base-word image: it fetches at the supplied 57-bit aligned PC and advances by four only after a supported vector operation executes. Other instruction classes and illegal vector opcodes leave the PC unchanged. The RTL [`cgx1_vector_instruction_word_decoder.sv`](../source/rtl/cgx1_vector_instruction_word_decoder.sv) maps externally supplied base words into the existing per-wave vector request format and passes other classes through unchanged. It does not own instruction-memory requests/responses, wave-PC state, extension-word handling, or execution for other classes. Full Vector class semantics and the integrated hardware instruction stream remain open.
+These mappings describe the current INT32 implementation subset and are **not frozen ISA assignments**. The executable reference in [`source/isa/cgx1_vector_semantics.hpp`](../source/isa/cgx1_vector_semantics.hpp) covers these operations, active-lane destination updates, and illegal vector opcodes. [`source/isa/cgx1_vector_stream.hpp`](../source/isa/cgx1_vector_stream.hpp) adds a bounded software step over an immutable base-word image: it fetches at the supplied 57-bit aligned PC and advances by four only after a supported vector operation executes. Other instruction classes and illegal vector opcodes leave the software-reference PC unchanged. The RTL [`cgx1_vector_instruction_word_decoder.sv`](../source/rtl/cgx1_vector_instruction_word_decoder.sv) maps base words into the existing per-wave vector request format and passes other classes through unchanged. The optional integrated [instruction-fetch boundary](INSTRUCTION_FETCH.md) captures request identity, holds per-wave responses, and connects fetched provisional vector words to the authoritative CU control-flow PC and resident execution path. Non-vector words still require an external decoder/handler; extension words, frozen opcodes, full Vector class semantics, and toolchain integration remain open.
 
 The current LSU implementation begins at an already-decoded wave request boundary. This document does not yet assign memory opcodes or define address, mask, store-data, and destination operand encodings, so the RTL slice does not establish a base-ISA memory encoding.
 
@@ -87,7 +87,7 @@ The current LSU implementation begins at an already-decoded wave request boundar
 
 Branches may change the active-lane mask. The post-decode control-flow boundary maintains a 57-bit PC and live/active lane masks for each resident wave, supports explicit branch joins, call/return and structured-loop state, and advances the PC only when the decoded operation is accepted. The executable contract and current reference/RTL evidence are documented in [Decoded Control Flow](CONTROL_FLOW.md).
 
-This work does not assign control opcodes or operand encodings, implement fetch/decode, or establish compiler/runtime lowering. A decoder must provide the event fields and explicit join PC consumed by this boundary. Divergent paths execute under masks; software must use compiler/runtime-defined reconvergence points.
+This work does not assign control opcodes or operand encodings, decode fetched control words, or establish compiler/runtime lowering. When the optional fetch path is enabled, a decoder/handler must provide the event fields, explicit join PC, and sequential-PC metadata consumed by this boundary. Divergent paths execute under masks; software must use compiler/runtime-defined reconvergence points.
 
 Software must not assume inactive lanes make forward progress. Synchronization that requires all lanes must use subgroup or workgroup primitives rather than relying on branch timing.
 

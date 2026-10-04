@@ -115,6 +115,36 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [1023:0] memory_global_response_lane_data_flat;
     logic [2:0] memory_global_response_fault_code;
     logic [5:0] memory_global_response_fault_lane;
+    logic instruction_fetch_enable = 1'b0;
+    logic instruction_memory_request_valid, instruction_memory_request_ready;
+    logic [7:0] instruction_memory_request_workgroup_id;
+    logic [SLOT_WIDTH-1:0] instruction_memory_request_wave_slot;
+    logic [31:0] instruction_memory_request_epoch;
+    logic [63:0] instruction_memory_request_transaction_tag;
+    logic [VA_WIDTH-1:0] instruction_memory_request_pc;
+    logic instruction_memory_response_valid, instruction_memory_response_ready;
+    logic [7:0] instruction_memory_response_workgroup_id;
+    logic [SLOT_WIDTH-1:0] instruction_memory_response_wave_slot;
+    logic [31:0] instruction_memory_response_epoch;
+    logic [63:0] instruction_memory_response_transaction_tag;
+    logic [VA_WIDTH-1:0] instruction_memory_response_pc;
+    logic [31:0] instruction_memory_response_word;
+    logic [2:0] instruction_memory_response_fault_code;
+    logic [SLOTS-1:0] instruction_fetch_unhandled_valid;
+    logic [SLOTS-1:0] instruction_fetch_unhandled_ready = '0;
+    logic [(SLOTS*4)-1:0] instruction_fetch_unhandled_class_flat;
+    logic [(SLOTS*32)-1:0] instruction_fetch_unhandled_word_flat;
+    logic [(SLOTS*8)-1:0] instruction_fetch_unhandled_workgroup_id_flat;
+    logic [(SLOTS*VA_WIDTH)-1:0] instruction_fetch_unhandled_pc_flat;
+    logic [(SLOTS*32)-1:0] instruction_fetch_unhandled_epoch_flat;
+    logic [(SLOTS*64)-1:0] instruction_fetch_unhandled_transaction_tag_flat;
+    logic [SLOTS-1:0] instruction_fetch_fault_valid_mask;
+    logic [SLOTS-1:0] instruction_fetch_fault_ready_mask = '0;
+    logic [(SLOTS*8)-1:0] instruction_fetch_fault_workgroup_id_flat;
+    logic [(SLOTS*32)-1:0] instruction_fetch_fault_epoch_flat;
+    logic [(SLOTS*64)-1:0] instruction_fetch_fault_transaction_tag_flat;
+    logic [(SLOTS*VA_WIDTH)-1:0] instruction_fetch_fault_pc_flat;
+    logic [(SLOTS*3)-1:0] instruction_fetch_fault_code_flat;
     logic [SLOTS-1:0] allocation_reserved_bitmap, allocation_active_bitmap, allocation_sanitized_bitmap;
     logic [(SLOTS*ROW_WIDTH)-1:0] allocation_row_base_flat;
     logic [(SLOTS*9)-1:0] allocation_register_count_flat;
@@ -128,6 +158,9 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     integer map_before;
     logic [63:0] tag0;
     logic [31:0] epoch0;
+    logic [63:0] fetch_tag0, fetch_tag1;
+    logic [31:0] fetch_epoch0, fetch_epoch1;
+    logic [VA_WIDTH-1:0] fetch_pc0, fetch_pc1;
     logic [SLOTS-1:0] active_before, reserved_before;
     logic [(SLOTS*ROW_WIDTH)-1:0] row_base_before;
     logic [(SLOTS*9)-1:0] register_count_before;
@@ -139,7 +172,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         .PHYSICAL_ROWS(ROWS), .RESIDENT_WAVE_SLOTS(SLOTS),
         .MAX_WORKGROUP_CONTEXTS(GROUPS), .WORKGROUP_ID_WIDTH(8),
         .ROW_WIDTH(ROW_WIDTH), .WAVE_SLOT_WIDTH(SLOT_WIDTH),
-        .WAVE_COUNT_WIDTH(COUNT_WIDTH)
+        .WAVE_COUNT_WIDTH(COUNT_WIDTH), .ENABLE_INSTRUCTION_FETCH(1)
     ) dut(.*);
 
     task automatic dispatch(input logic [7:0] id, input logic [COUNT_WIDTH-1:0] waves,
@@ -424,6 +457,18 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         memory_global_response_transaction_tag = '0; memory_global_response_write = 1'b0;
         memory_global_response_lane_mask = '0; memory_global_response_lane_data_flat = '0;
         memory_global_response_fault_code = '0; memory_global_response_fault_lane = '0;
+        instruction_fetch_enable = 1'b0;
+        instruction_memory_request_ready = 1'b0;
+        instruction_memory_response_valid = 1'b0;
+        instruction_memory_response_workgroup_id = '0;
+        instruction_memory_response_wave_slot = '0;
+        instruction_memory_response_epoch = '0;
+        instruction_memory_response_transaction_tag = '0;
+        instruction_memory_response_pc = '0;
+        instruction_memory_response_word = '0;
+        instruction_memory_response_fault_code = '0;
+        instruction_fetch_unhandled_ready = '0;
+        instruction_fetch_fault_ready_mask = '0;
         repeat (3) @(posedge clk); @(negedge clk); reset_n = 1;
 
         // Exact-size rejection and maximum-fit complete admission use the actual allocator.
@@ -1165,7 +1210,260 @@ module cgx1_compute_workgroup_execution_frontend_tb;
             $fatal(1, "reused resident slot retained prior control-flow state");
         abort_group(8'd76);
 
-        $display("[pass] authoritative residency, barriers, LSU waits, decoded control flow, fault/kill drain, region reuse, and randomized arrivals passed.");
+        // End-to-end fetch owns the dispatch PC, captures request identity,
+        // accepts out-of-order-ready sibling work through the existing decoder,
+        // and prevents release until a killed outstanding request drains.
+        dispatch_start_pc = 57'h5000;
+        memory_epoch = 32'hc001;
+        instruction_fetch_enable = 1'b1;
+        instruction_memory_request_ready = 1'b0;
+        dispatch_with_resource_demand(8'd77, 2, 16, 16, 0, 0, 0, 64, 0, 0);
+        set_register(1, 1, 32'd10);
+        set_register(1, 2, 32'd20);
+        timeout = 0;
+        while (!instruction_memory_request_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "first resident wave did not request its dispatch PC");
+        end
+        if (instruction_memory_request_workgroup_id != 8'd77
+            || instruction_memory_request_wave_slot != 0
+            || instruction_memory_request_epoch != memory_epoch
+            || instruction_memory_request_pc != 57'h5000)
+            $fatal(1, "first instruction fetch did not retain its wave/workgroup/epoch/PC identity");
+        fetch_tag0 = instruction_memory_request_transaction_tag;
+        fetch_epoch0 = instruction_memory_request_epoch;
+        fetch_pc0 = instruction_memory_request_pc;
+        repeat (2) begin
+            @(posedge clk); #1;
+            if (!instruction_memory_request_valid
+                || instruction_memory_request_workgroup_id != 8'd77
+                || instruction_memory_request_wave_slot != 0
+                || instruction_memory_request_transaction_tag != fetch_tag0
+                || instruction_memory_request_pc != fetch_pc0)
+                $fatal(1, "presented instruction request changed during downstream backpressure");
+        end
+        control_event_valid = 1'b1;
+        control_event_wave_slot = 0;
+        control_event_kind = 3'd0;
+        control_event_sequential_pc = 57'h5004;
+        #1;
+        if (control_event_accepted || instruction_memory_request_valid !== 1'b1)
+            $fatal(1, "fetch-waiting wave accepted dependent control work or lost its request");
+        @(negedge clk); control_event_valid = 1'b0; instruction_memory_request_ready = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_request_ready = 1'b0;
+        timeout = 0;
+        while (!instruction_memory_request_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "unrelated resident wave did not request while its sibling waited");
+        end
+        if (instruction_memory_request_workgroup_id != 8'd77
+            || instruction_memory_request_wave_slot != 1
+            || instruction_memory_request_epoch != memory_epoch
+            || instruction_memory_request_pc != 57'h5000
+            || !dut.instruction_fetch_issue_block_mask[0])
+            $fatal(1, "sibling fetch identity or independent wait state was incorrect");
+        fetch_tag1 = instruction_memory_request_transaction_tag;
+        fetch_epoch1 = instruction_memory_request_epoch;
+        fetch_pc1 = instruction_memory_request_pc;
+        @(negedge clk); instruction_memory_request_ready = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_request_ready = 1'b0;
+        instruction_memory_response_workgroup_id = 8'd77;
+        instruction_memory_response_wave_slot = 1;
+        instruction_memory_response_epoch = fetch_epoch1;
+        instruction_memory_response_transaction_tag = fetch_tag1;
+        instruction_memory_response_pc = fetch_pc1;
+        instruction_memory_response_word = 32'h1003_0102;
+        instruction_memory_response_fault_code = 0;
+        instruction_memory_response_valid = 1'b1; #1;
+        if (!instruction_memory_response_ready)
+            $fatal(1, "matching sibling instruction response was backpressured");
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_response_valid = 1'b0;
+        timeout = 0;
+        while (!vector_request_accepted[1]) begin
+            @(negedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "fetched vector word did not enter resident execution");
+        end
+        @(posedge clk); #1;
+        if (control_pc_flat[VA_WIDTH+:VA_WIDTH] != 57'h5004
+            || !dut.instruction_fetch_busy_mask[0]
+            || !dut.instruction_fetch_issue_block_mask[0])
+            $fatal(1, "accepted fetched instruction failed to advance only its PC or retain sibling wait");
+        instruction_fetch_enable = 1'b0;
+        wait_vector_complete(1);
+        if (control_pc_flat[0+:VA_WIDTH] != 57'h5000)
+            $fatal(1, "waiting sibling PC advanced before its instruction response");
+        base_row = $unsigned(allocation_row_base_flat[(1*ROW_WIDTH)+:ROW_WIDTH]);
+        if (dut.execution_frontend.pooled.storage.data[base_row+1][3][0+:32] != 32'd30
+            || dut.execution_frontend.pooled.storage.data[base_row+1][3][32+:32] != 32'd30)
+            $fatal(1, "fetched vector word did not complete pooled-VGPR writeback");
+
+        @(negedge clk); workgroup_abort_id = 8'd77; workgroup_abort_valid = 1'b1; #1;
+        if (!workgroup_abort_ready || !workgroup_abort_accepted)
+            $fatal(1, "workgroup abort was not accepted with an instruction fetch outstanding");
+        @(posedge clk); #1;
+        @(negedge clk); workgroup_abort_valid = 1'b0;
+        if (!release_pending_wave_mask[0] || !dut.instruction_fetch_busy_mask[0])
+            $fatal(1, "workgroup release ignored outstanding instruction fetch activity");
+        instruction_memory_response_workgroup_id = 8'd77;
+        instruction_memory_response_wave_slot = 0;
+        instruction_memory_response_epoch = fetch_epoch0;
+        instruction_memory_response_transaction_tag = fetch_tag0;
+        instruction_memory_response_pc = fetch_pc0;
+        instruction_memory_response_word = 32'h1004_0102;
+        instruction_memory_response_fault_code = 0;
+        instruction_memory_response_valid = 1'b1; #1;
+        if (!instruction_memory_response_ready)
+            $fatal(1, "aborted instruction fetch response was not drained");
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_response_valid = 1'b0;
+        timeout = 0;
+        while (workgroup_active_mask != '0) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "drained instruction fetch did not release the aborted workgroup");
+        end
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "instruction fetch drain leaked CU resources");
+
+        // Fetch-service faults report the captured identity and use the same
+        // terminal barrier path, including normal complete-workgroup release.
+        instruction_fetch_enable = 1'b1;
+        instruction_memory_request_ready = 1'b1;
+        dispatch_start_pc = 57'h6000;
+        dispatch_with_resource_demand(8'd78, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        timeout = 0;
+        while (!instruction_memory_request_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "fetch-fault wave did not issue an instruction request");
+        end
+        if (instruction_memory_request_wave_slot != 0
+            || instruction_memory_request_pc != 57'h6000)
+            $fatal(1, "fetch-fault request identity was incorrect");
+        fetch_tag0 = instruction_memory_request_transaction_tag;
+        fetch_epoch0 = instruction_memory_request_epoch;
+        fetch_pc0 = instruction_memory_request_pc;
+        @(posedge clk); #1;
+        instruction_memory_response_workgroup_id = 8'd78;
+        instruction_memory_response_wave_slot = 0;
+        instruction_memory_response_epoch = fetch_epoch0;
+        instruction_memory_response_transaction_tag = fetch_tag0;
+        instruction_memory_response_pc = fetch_pc0;
+        instruction_memory_response_word = '0;
+        instruction_memory_response_fault_code = 3'd2;
+        instruction_memory_response_valid = 1'b1; #1;
+        @(posedge clk); #1;
+        if (!instruction_fetch_fault_valid_mask[0]
+            || instruction_fetch_fault_workgroup_id_flat[0+:8] != 8'd78
+            || instruction_fetch_fault_epoch_flat[0+:32] != fetch_epoch0
+            || instruction_fetch_fault_transaction_tag_flat[0+:64] != fetch_tag0
+            || instruction_fetch_fault_pc_flat[0+:VA_WIDTH] != fetch_pc0
+            || instruction_fetch_fault_code_flat[0+:3] != 3'd2)
+            $fatal(1, "instruction fetch fault lost captured transaction identity");
+        @(negedge clk); instruction_memory_response_valid = 1'b0;
+        instruction_fetch_fault_ready_mask[0] = 1'b1;
+        timeout = 0;
+        while (workgroup_active_mask != '0) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "instruction fetch fault did not retire its workgroup");
+        end
+        @(negedge clk); instruction_fetch_fault_ready_mask = '0;
+        instruction_fetch_enable = 1'b0;
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "instruction fetch fault leaked CU resources");
+
+        // An accepted raw-class word hands sequential-PC authority back to
+        // the existing external decoder/handler metadata input.
+        instruction_fetch_enable = 1'b1;
+        instruction_memory_request_ready = 1'b1;
+        dispatch_start_pc = 57'h7000;
+        decoded_sequential_pc_flat[0+:VA_WIDTH] = 57'h7008;
+        dispatch_with_resource_demand(8'd79, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        timeout = 0;
+        while (!instruction_memory_request_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "raw-class wave did not issue an instruction request");
+        end
+        if (instruction_memory_request_workgroup_id != 8'd79
+            || instruction_memory_request_wave_slot != 0
+            || instruction_memory_request_pc != 57'h7000)
+            $fatal(1, "raw-class fetch request identity was incorrect");
+        fetch_tag0 = instruction_memory_request_transaction_tag;
+        fetch_epoch0 = instruction_memory_request_epoch;
+        fetch_pc0 = instruction_memory_request_pc;
+        @(posedge clk); #1;
+        @(negedge clk);
+        instruction_memory_response_workgroup_id = 8'd79;
+        instruction_memory_response_wave_slot = 0;
+        instruction_memory_response_epoch = fetch_epoch0;
+        instruction_memory_response_transaction_tag = fetch_tag0;
+        instruction_memory_response_pc = fetch_pc0;
+        instruction_memory_response_word = 32'h2000_0000;
+        instruction_memory_response_fault_code = 0;
+        instruction_memory_response_valid = 1'b1; #1;
+        if (!instruction_memory_response_ready)
+            $fatal(1, "matching raw-class response was backpressured");
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_response_valid = 1'b0;
+        if (!instruction_fetch_unhandled_valid[0]
+            || instruction_fetch_unhandled_class_flat[0+:4] != 4'h2
+            || instruction_fetch_unhandled_word_flat[0+:32] != 32'h2000_0000
+            || instruction_fetch_unhandled_workgroup_id_flat[0+:8] != 8'd79
+            || instruction_fetch_unhandled_pc_flat[0+:VA_WIDTH] != 57'h7000
+            || instruction_fetch_unhandled_epoch_flat[0+:32] != fetch_epoch0
+            || instruction_fetch_unhandled_transaction_tag_flat[0+:64] != fetch_tag0)
+            $fatal(1, "raw-class handler handoff lost instruction identity");
+        repeat (2) begin
+            @(posedge clk); #1;
+            if (!instruction_fetch_unhandled_valid[0]
+                || control_pc_flat[0+:VA_WIDTH] != 57'h7000)
+                $fatal(1, "raw-class instruction retired or advanced before handler acceptance");
+        end
+        @(negedge clk); instruction_fetch_unhandled_ready[0] = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk); instruction_fetch_unhandled_ready[0] = 1'b0;
+        if (control_pc_flat[0+:VA_WIDTH] != 57'h7008
+            || instruction_fetch_unhandled_valid[0])
+            $fatal(1, "accepted raw-class instruction did not advance to handler-supplied sequential PC");
+        timeout = 0;
+        while (!instruction_memory_request_valid) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "raw-class acceptance did not fetch its next PC");
+        end
+        if (instruction_memory_request_pc != 57'h7008)
+            $fatal(1, "raw-class acceptance retried the same PC instead of the supplied next PC");
+        fetch_tag0 = instruction_memory_request_transaction_tag;
+        fetch_epoch0 = instruction_memory_request_epoch;
+        fetch_pc0 = instruction_memory_request_pc;
+        @(negedge clk); workgroup_abort_id = 8'd79; workgroup_abort_valid = 1'b1; #1;
+        if (!workgroup_abort_ready || !workgroup_abort_accepted)
+            $fatal(1, "raw-class workgroup abort was not accepted");
+        @(posedge clk); #1;
+        @(negedge clk); workgroup_abort_valid = 1'b0;
+        instruction_memory_request_ready = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_request_ready = 1'b0;
+        instruction_memory_response_workgroup_id = 8'd79;
+        instruction_memory_response_wave_slot = 0;
+        instruction_memory_response_epoch = fetch_epoch0;
+        instruction_memory_response_transaction_tag = fetch_tag0;
+        instruction_memory_response_pc = fetch_pc0;
+        instruction_memory_response_word = 32'h2000_0000;
+        instruction_memory_response_fault_code = 0;
+        instruction_memory_response_valid = 1'b1; #1;
+        @(posedge clk); #1;
+        @(negedge clk); instruction_memory_response_valid = 1'b0;
+        timeout = 0;
+        while (workgroup_active_mask != '0) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100) $fatal(1, "raw-class stale response did not release aborted workgroup");
+        end
+        instruction_fetch_enable = 1'b0;
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "raw-class acceptance/release leaked workgroup resources");
+
+        $display("[pass] authoritative residency, LSU and instruction fetch waits, decoded control flow, stale response drain, fault/kill lifecycle, and region reuse passed.");
         $finish;
     end
 endmodule

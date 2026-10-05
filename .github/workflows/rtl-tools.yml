@@ -27,9 +27,27 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Install Verilator and Yosys
+      - name: Install Yosys and Verilator build prerequisites
         run: |
           timeout 5m sudo apt-get update
-          timeout 5m sudo apt-get install -y --no-install-recommends verilator yosys
+          timeout 5m sudo apt-get install -y --no-install-recommends \
+            autoconf bison flex g++ help2man make perl python3 zlib1g-dev libfl2 libfl-dev yosys
+      - name: Check out Verilator v5.052 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: verilator/verilator
+          ref: ea338be98e1e838d3518809ce8899f85a009963c
+          path: .tools/verilator
+          fetch-depth: 1
+      - name: Build pinned Verilator v5.052
+        run: |
+          cd .tools/verilator
+          autoconf
+          ./configure --prefix="$RUNNER_TEMP/verilator-5.052"
+          make -j2
+          make install
+          echo "$RUNNER_TEMP/verilator-5.052/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/verilator-5.052/bin/verilator" --version
+          [[ "$("$RUNNER_TEMP/verilator-5.052/bin/verilator" --version)" == "Verilator 5.052 "* ]]
       - name: Run bounded lint, formal, and synthesis smoke
         run: ./scripts/validate_rtl_tools.sh

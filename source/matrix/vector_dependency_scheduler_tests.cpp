@@ -52,13 +52,17 @@ int Pick(
     const std::array<bool, 8>& ready,
     bool accept)
 {
-    for (std::uint32_t offset = 0U; offset < valid.size(); ++offset)
+    const auto slot_count = static_cast<std::uint32_t>(valid.size());
+    if (slot_count == 0U)
+        return -1;
+
+    for (std::uint32_t offset = 0U; offset < slot_count; ++offset)
     {
-        const auto index = (scheduler.next + offset) % valid.size();
+        const auto index = (scheduler.next + offset) % slot_count;
         if (valid[index] && ready[index])
         {
             if (accept)
-                scheduler.next = (index + 1U) % valid.size();
+                scheduler.next = (index + 1U) % slot_count;
             return static_cast<int>(index);
         }
     }

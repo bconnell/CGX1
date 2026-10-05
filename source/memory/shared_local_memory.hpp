@@ -137,7 +137,7 @@ public:
         if (!inserted)
             return AllocationStatus::DuplicateWorkgroupId;
         allocatedBytes_ += byteCount;
-        std::fill_n(storage_.begin() + *base, byteCount, 0U);
+        std::fill_n(storage_.begin() + *base, byteCount, std::uint8_t{0});
         return AllocationStatus::Allocated;
     }
 

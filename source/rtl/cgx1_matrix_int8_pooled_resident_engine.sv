@@ -179,6 +179,8 @@ module cgx1_matrix_int8_pooled_resident_engine #(
         .ordinary_write_port_conflict(ordinary_write_port_conflict),
         .ordinary_ready(ordinary_ready),
         .ordinary_issue_accepted(ordinary_issue_accepted),
+        .matrix_source_pending_mask_flat(matrix_source_pending_flat),
+        .matrix_destination_pending_mask_flat(matrix_destination_pending_flat),
         .resident_wave_busy(resident_wave_busy)
     );
 

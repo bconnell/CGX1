@@ -80,7 +80,7 @@ module cgx1_tile_power_manager #(
 
             if (reset_n && !emergency_isolation_required) begin
                 for (slot = 0; slot < TILE_COUNT; slot = slot + 1) begin
-                    tile_state = $unsigned(tile_operating_state_flat[(slot*3)+:3]);
+                    tile_state = int'($unsigned(tile_operating_state_flat[(slot*3)+:3]));
                     if ((tile_state >= T3_ECO) && (tile_state <= T5_BOOST)
                         && (tile_state <= tile_state_limit)
                         && tile_power_good[slot]

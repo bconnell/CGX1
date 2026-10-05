@@ -35,6 +35,26 @@ def require_fingerprint_match(windows_fingerprint: str, linux_fingerprint: str, 
         )
 
 
+def require_git_candidate_identity(
+    root: Path,
+    expected_commit: str,
+    expected_tree: str,
+) -> tuple[str, str]:
+    top_level = Path(git(root, "rev-parse", "--show-toplevel")).resolve()
+    if top_level != root.resolve():
+        raise WslCandidateError(
+            f"Linux Git selected repository {top_level}, expected translated checkout {root.resolve()}"
+        )
+    commit = git(root, "rev-parse", f"{expected_commit}^{{commit}}")
+    tree = git(root, "rev-parse", f"{commit}^{{tree}}")
+    if commit != expected_commit or tree != expected_tree:
+        raise WslCandidateError(
+            f"Linux Git candidate identity mismatch: requested commit/tree={expected_commit}/{expected_tree}, "
+            f"resolved={commit}/{tree}"
+        )
+    return commit, tree
+
+
 def git(root: Path, *arguments: str, check: bool = True) -> str:
     command = [
         "git", "-c", f"safe.directory={root.resolve()}", "-C", str(root), *arguments,
@@ -97,18 +117,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     result_code = 1
     try:
         required_linux_tools()
-        top_level = Path(git(root, "rev-parse", "--show-toplevel")).resolve()
-        if top_level != root:
-            raise WslCandidateError(
-                f"Linux Git selected repository {top_level}, expected translated checkout {root}"
-            )
-        commit = git(root, "rev-parse", f"{args.commit}^{{commit}}")
-        tree = git(root, "rev-parse", f"{commit}^{{tree}}")
-        if commit != args.commit or tree != args.tree:
-            raise WslCandidateError(
-                f"Linux Git candidate identity mismatch: requested commit/tree={args.commit}/{args.tree}, "
-                f"resolved={commit}/{tree}"
-            )
+        commit, tree = require_git_candidate_identity(root, args.commit, args.tree)
 
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import validate_evidence

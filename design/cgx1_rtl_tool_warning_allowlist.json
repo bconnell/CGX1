@@ -1,4 +1,15 @@
 {
   "schema_version": 1,
-  "rules": []
+  "rules": [
+    {
+      "tool": "verilator",
+      "pattern": "^%Warning-TIMESCALEMOD: source/rtl/cgx1_compute_int8_vector_execution_frontend\\.sv:",
+      "reason": "This combinational/sequential integration frontend contains no delay controls. Its functional time behavior is cycle based, so the warning comes from a neighboring module's explicit timescale and cannot affect this module's simulation delays."
+    },
+    {
+      "tool": "verilator",
+      "pattern": "^%Warning-TIMESCALEMOD: source/rtl/cgx1_compute_mixed_service_policy\\.sv:",
+      "reason": "This cycle-based policy module contains no delay controls. Its functional time behavior is cycle based, so the warning comes from a neighboring module's explicit timescale and cannot affect this module's simulation delays."
+    }
+  ]
 }

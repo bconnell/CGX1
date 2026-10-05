@@ -25,19 +25,21 @@ module cgx1_matrix_vgpr_preflight #(
     integer accumulator_offset;
 
     function automatic logic register_initialized(
-        input logic [7:0] architectural_register
+        input integer architectural_register
     );
         integer physical_row_index;
         integer bitmap_index;
         begin
-            physical_row_index = $unsigned(allocation_row_base)
-                + ($unsigned(architectural_register) >> 3);
-            bitmap_index = (physical_row_index * 8)
-                + architectural_register[2:0];
+            physical_row_index = int'($unsigned(allocation_row_base))
+                + (architectural_register >> 3);
 
-            if (physical_row_index >= PHYSICAL_ROWS) begin
+            if ((architectural_register < 0)
+                || (architectural_register > 255)
+                || (physical_row_index >= PHYSICAL_ROWS)) begin
                 register_initialized = 1'b0;
             end else begin
+                bitmap_index = (physical_row_index * 8)
+                    + (architectural_register % 8);
                 register_initialized = valid_bitmap[bitmap_index];
             end
         end
@@ -60,13 +62,13 @@ module cgx1_matrix_vgpr_preflight #(
         if (guard_legal) begin
             for (source_offset = 0; source_offset < 4; source_offset = source_offset + 1) begin
                 inputs_initialized_next = inputs_initialized_next
-                    && register_initialized(source_a_base + source_offset)
-                    && register_initialized(source_b_base + source_offset);
+                    && register_initialized(int'($unsigned(source_a_base)) + source_offset)
+                    && register_initialized(int'($unsigned(source_b_base)) + source_offset);
             end
 
             for (accumulator_offset = 0; accumulator_offset < 8; accumulator_offset = accumulator_offset + 1) begin
                 inputs_initialized_next = inputs_initialized_next
-                    && register_initialized(destination_base + accumulator_offset);
+                    && register_initialized(int'($unsigned(destination_base)) + accumulator_offset);
             end
         end
 

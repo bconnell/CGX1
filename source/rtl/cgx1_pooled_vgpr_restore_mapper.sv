@@ -17,6 +17,7 @@ module cgx1_pooled_vgpr_restore_mapper #(
 );
 
     logic [ROW_WIDTH:0] translated_row;
+    localparam logic [ROW_WIDTH:0] PHYSICAL_ROWS_LIMIT = (ROW_WIDTH + 1)'(PHYSICAL_ROWS);
 
     always_comb begin
         translated_row = {1'b0, allocation_row_base}
@@ -28,7 +29,7 @@ module cgx1_pooled_vgpr_restore_mapper #(
             && allocation_sanitized
             && (allocation_register_count != 9'd0)
             && ({1'b0, architectural_register} < allocation_register_count)
-            && (translated_row < PHYSICAL_ROWS);
+            && (translated_row < PHYSICAL_ROWS_LIMIT);
     end
 
 endmodule

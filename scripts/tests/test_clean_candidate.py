@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import sys
 
@@ -17,6 +18,8 @@ from validate_clean_candidate import (  # noqa: E402
     require_contributor_uid,
     require_empty_build_start,
     require_candidate_paths,
+    CleanCandidate,
+    run_linux_candidate_validation,
 )
 
 
@@ -89,6 +92,32 @@ class CleanCandidateTests(unittest.TestCase):
 
         require_contributor_uid("posix", 65534)
         require_contributor_uid("nt", None)
+
+    def test_linux_candidate_runs_release_failure_proof_after_both_ctest_builds(self) -> None:
+        candidate = CleanCandidate(
+            path=Path("/tmp/cgx1-candidate"), tree="tree", commit="commit", ref="ref",
+        )
+        with patch("validate_clean_candidate._run") as run, patch(
+            "validate_clean_candidate.run_rtl_validation", return_value="passed",
+        ) as rtl:
+            result = run_linux_candidate_validation(candidate, 1800, False)
+
+        commands = [call.args[0] for call in run.call_args_list]
+        cmake_index = next(index for index, command in enumerate(commands)
+                           if any("run_clean_cmake_tests.py" in argument for argument in command))
+        failure_probe_index = next(index for index, command in enumerate(commands)
+                                   if any("prove_release_test_check_failure.py" in argument
+                                          for argument in command))
+        self.assertEqual(sys.executable, commands[cmake_index][0])
+        self.assertIn("both", commands[cmake_index])
+        self.assertEqual(
+            [sys.executable, "scripts/prove_release_test_check_failure.py", "--root",
+             str(candidate.path)],
+            commands[failure_probe_index],
+        )
+        self.assertLess(cmake_index, failure_probe_index)
+        rtl.assert_called_once_with(candidate.path, 1800, False)
+        self.assertEqual("passed", result)
 
 
 if __name__ == "__main__":

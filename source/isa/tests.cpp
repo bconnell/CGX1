@@ -96,7 +96,8 @@ void TestVectorShiftCountsUseFiveBits()
     VectorRegisterFile registers{};
     registers[1].fill(0x80000001U);
     registers[2].fill(0U);
-    for (const std::uint8_t opcode : {5U, 6U, 7U})
+    for (const std::uint8_t opcode : {
+             std::uint8_t{5}, std::uint8_t{6}, std::uint8_t{7}})
     {
         const auto word = EncodeBase(BaseInstruction{
             InstructionClass::Vector, opcode, 3U, 1U, 2U

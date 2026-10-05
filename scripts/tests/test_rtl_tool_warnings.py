@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import unittest
 from pathlib import Path
 
@@ -10,6 +11,23 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RtlToolWarningTests(unittest.TestCase):
+    def test_timescalemod_allowlist_is_limited_to_two_reviewed_modules(self):
+        allowlist_path = SCRIPT.parents[1] / "design" / "cgx1_rtl_tool_warning_allowlist.json"
+        allowlist = json.loads(allowlist_path.read_text(encoding="utf-8"))
+        approved_logs = [
+            ("verilator", "%Warning-TIMESCALEMOD: source/rtl/cgx1_compute_int8_vector_execution_frontend.sv:1:1: mixed timescale"),
+            ("verilator", "%Warning-TIMESCALEMOD: source/rtl/cgx1_compute_mixed_service_policy.sv:1:1: mixed timescale"),
+        ]
+
+        self.assertEqual([], MODULE.classify_logs(approved_logs, allowlist))
+
+        unrelated_log = [
+            ("verilator", "%Warning-TIMESCALEMOD: source/rtl/cgx1_unreviewed_module.sv:1:1: mixed timescale"),
+        ]
+        errors = MODULE.classify_logs(unrelated_log, allowlist)
+        self.assertEqual(1, len(errors))
+        self.assertIn("unclassified verilator warning", errors[0])
+
     def test_logs_without_warnings_pass(self):
         self.assertEqual(MODULE.classify_logs([("yosys", "2 cells\n")], {"schema_version": 1, "rules": []}), [])
 

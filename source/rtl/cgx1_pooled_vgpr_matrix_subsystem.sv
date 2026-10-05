@@ -53,6 +53,15 @@ module cgx1_pooled_vgpr_matrix_subsystem #(
     output logic                               matrix_rf_write_ready
 );
 
+    localparam logic [WAVE_SLOT_WIDTH:0] RESIDENT_WAVE_SLOTS_LIMIT =
+        (WAVE_SLOT_WIDTH + 1)'(RESIDENT_WAVE_SLOTS);
+
+    function automatic logic wave_slot_in_range(
+        input logic [WAVE_SLOT_WIDTH-1:0] wave_slot
+    );
+        wave_slot_in_range = {1'b0, wave_slot} < RESIDENT_WAVE_SLOTS_LIMIT;
+    endfunction
+
     logic invalidate_valid;
     logic [ROW_WIDTH-1:0] invalidate_row;
     logic invalidate_ready;
@@ -168,18 +177,18 @@ module cgx1_pooled_vgpr_matrix_subsystem #(
     );
 
     always_comb begin
-        release_slot_valid = $unsigned(release_wave_slot) < RESIDENT_WAVE_SLOTS;
+        release_slot_valid = wave_slot_in_range(release_wave_slot);
         same_wave_restore_pending = release_slot_valid
             && restore_valid
-            && ($unsigned(restore_wave_slot) < RESIDENT_WAVE_SLOTS)
+            && wave_slot_in_range(restore_wave_slot)
             && (restore_wave_slot == release_wave_slot);
         same_wave_matrix_read_active = release_slot_valid
             && matrix_rf_read_valid
-            && ($unsigned(matrix_rf_read_wave_slot) < RESIDENT_WAVE_SLOTS)
+            && wave_slot_in_range(matrix_rf_read_wave_slot)
             && (matrix_rf_read_wave_slot == release_wave_slot);
         same_wave_matrix_write_active = release_slot_valid
             && matrix_rf_write_valid
-            && ($unsigned(matrix_rf_write_wave_slot) < RESIDENT_WAVE_SLOTS)
+            && wave_slot_in_range(matrix_rf_write_wave_slot)
             && (matrix_rf_write_wave_slot == release_wave_slot);
         same_wave_execution_busy = 1'b0;
         if (release_slot_valid) begin
@@ -192,23 +201,25 @@ module cgx1_pooled_vgpr_matrix_subsystem #(
             && !same_wave_matrix_read_active
             && !same_wave_matrix_write_active
             && !same_wave_execution_busy;
-
-        allocator_activate_valid = activate_valid
-            && !(restore_valid
-                && ($unsigned(restore_wave_slot) < RESIDENT_WAVE_SLOTS)
-                && ($unsigned(activate_wave_slot) < RESIDENT_WAVE_SLOTS)
-                && (restore_wave_slot == activate_wave_slot));
-        activate_ready = allocator_activate_ready
-            && allocator_activate_valid;
-        activate_accepted = allocator_activate_accepted;
-        release_ready = allocator_release_ready && allocator_release_valid;
-        release_accepted = allocator_release_accepted;
     end
 
     always_comb begin
-        restore_slot_valid = $unsigned(restore_wave_slot) < RESIDENT_WAVE_SLOTS;
-        matrix_read_slot_valid = $unsigned(matrix_rf_read_wave_slot) < RESIDENT_WAVE_SLOTS;
-        matrix_write_slot_valid = $unsigned(matrix_rf_write_wave_slot) < RESIDENT_WAVE_SLOTS;
+        allocator_activate_valid = activate_valid
+            && !(restore_valid
+                && wave_slot_in_range(restore_wave_slot)
+                && wave_slot_in_range(activate_wave_slot)
+                && (restore_wave_slot == activate_wave_slot));
+    end
+
+    assign activate_ready = allocator_activate_ready && allocator_activate_valid;
+    assign activate_accepted = allocator_activate_accepted;
+    assign release_ready = allocator_release_ready && allocator_release_valid;
+    assign release_accepted = allocator_release_accepted;
+
+    always_comb begin
+        restore_slot_valid = wave_slot_in_range(restore_wave_slot);
+        matrix_read_slot_valid = wave_slot_in_range(matrix_rf_read_wave_slot);
+        matrix_write_slot_valid = wave_slot_in_range(matrix_rf_write_wave_slot);
 
         restore_allocation_reserved = 1'b0;
         restore_allocation_sanitized = 1'b0;
@@ -296,7 +307,9 @@ module cgx1_pooled_vgpr_matrix_subsystem #(
                 && (release_wave_slot == restore_wave_slot))
             && !matrix_rf_read_valid
             && !matrix_rf_write_valid;
+    end
 
+    always_comb begin
         storage_write_valid = 1'b0;
         storage_write_row = '0;
         storage_write_bank = '0;
@@ -316,7 +329,9 @@ module cgx1_pooled_vgpr_matrix_subsystem #(
             storage_write_lane_mask = 32'hFFFFFFFF;
             storage_write_data = restore_data;
         end
+    end
 
+    always_comb begin
         matrix_rf_read_ready = matrix_rf_read_valid
             && matrix_read0_map_valid
             && matrix_read1_map_valid

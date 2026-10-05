@@ -16,6 +16,7 @@ module cgx1_pooled_vgpr_mapper #(
 );
 
     logic [ROW_WIDTH:0] translated_row;
+    localparam logic [ROW_WIDTH:0] PHYSICAL_ROWS_LIMIT = (ROW_WIDTH + 1)'(PHYSICAL_ROWS);
 
     always_comb begin
         bank_class = architectural_register[2:0];
@@ -26,12 +27,12 @@ module cgx1_pooled_vgpr_mapper #(
         address_valid = allocation_active
             && (allocation_register_count != 9'd0)
             && ({1'b0, architectural_register} < allocation_register_count)
-            && (translated_row < PHYSICAL_ROWS);
+            && (translated_row < PHYSICAL_ROWS_LIMIT);
     end
 
 `ifndef SYNTHESIS
     always_comb begin
-        if (address_valid && (translated_row >= PHYSICAL_ROWS)) begin
+        if (address_valid && (translated_row >= PHYSICAL_ROWS_LIMIT)) begin
             $fatal(1, "pooled VGPR translation exceeded physical row capacity");
         end
     end

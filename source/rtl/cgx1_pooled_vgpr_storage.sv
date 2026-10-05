@@ -38,6 +38,13 @@ module cgx1_pooled_vgpr_storage #(
     integer valid_row;
     integer valid_bank;
     logic [1023:0] write_next_data;
+    localparam logic [ROW_WIDTH:0] PHYSICAL_ROWS_LIMIT = (ROW_WIDTH + 1)'(PHYSICAL_ROWS);
+
+    function automatic logic physical_row_in_range(
+        input logic [ROW_WIDTH-1:0] physical_row
+    );
+        physical_row_in_range = {1'b0, physical_row} < PHYSICAL_ROWS_LIMIT;
+    endfunction
 
     always_comb begin
         valid_bitmap = '0;
@@ -46,21 +53,21 @@ module cgx1_pooled_vgpr_storage #(
                 valid_bitmap[(valid_row * 8) + valid_bank] = initialized[valid_row][valid_bank];
             end
         end
-        invalidate_ready = reset_n && (invalidate_row < PHYSICAL_ROWS);
+        invalidate_ready = reset_n && physical_row_in_range(invalidate_row);
         read_bank_conflict = read_valid
             && (read0_bank == read1_bank)
             && (read0_row != read1_row);
         read_ready = reset_n
             && !write_valid
             && !read_bank_conflict
-            && (read0_row < PHYSICAL_ROWS)
-            && (read1_row < PHYSICAL_ROWS)
+            && physical_row_in_range(read0_row)
+            && physical_row_in_range(read1_row)
             && !(invalidate_valid
                 && ((invalidate_row == read0_row)
                     || (invalidate_row == read1_row)));
         write_ready = reset_n
             && !read_valid
-            && (write_row < PHYSICAL_ROWS)
+            && physical_row_in_range(write_row)
             && !(invalidate_valid && (invalidate_row == write_row));
 
         read0_initialized = 1'b0;
@@ -118,10 +125,10 @@ module cgx1_pooled_vgpr_storage #(
 
 `ifndef SYNTHESIS
     always_ff @(posedge clk) begin
-        if (invalidate_valid && (invalidate_row >= PHYSICAL_ROWS)) begin
+        if (invalidate_valid && !physical_row_in_range(invalidate_row)) begin
             $fatal(1, "pooled VGPR invalidation row is out of range");
         end
-        if (write_valid && (write_row >= PHYSICAL_ROWS)) begin
+        if (write_valid && !physical_row_in_range(write_row)) begin
             $fatal(1, "pooled VGPR write row is out of range");
         end
     end

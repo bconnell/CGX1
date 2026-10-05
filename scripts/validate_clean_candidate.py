@@ -40,6 +40,7 @@ DEFAULT_REQUIRED_PATHS = (
     "scripts/validate_clean_candidate.py",
     "scripts/run_wsl_candidate.py",
     "scripts/run_clean_cmake_tests.py",
+    "scripts/prove_release_test_check_failure.py",
     "scripts/validate_evidence.py",
     "scripts/validate_hardening_ledgers.py",
     "scripts/validate_randomized_tests.py",
@@ -269,6 +270,31 @@ def run_rtl_validation(root: Path, timeout_seconds: int, skip_rtl: bool) -> str:
     )
 
 
+def run_linux_candidate_validation(
+    candidate: CleanCandidate,
+    timeout_seconds: int,
+    skip_rtl: bool,
+) -> str:
+    python = sys.executable
+    for script in (
+        "validate_resource_limits.py", "validate_hardening_ledgers.py",
+        "validate_rtl_inventory.py", "validate_randomized_tests.py",
+        "check_release_test_checks.py",
+    ):
+        _run([python, str(candidate.path / "scripts" / script)], candidate.path, timeout_seconds)
+    _run([python, "-m", "unittest", "discover", "-s", "scripts/tests", "-v"],
+         candidate.path, timeout_seconds)
+    _run([python, "scripts/validate_evidence.py", "--root", str(candidate.path),
+          "--candidate", candidate.commit], candidate.path, timeout_seconds)
+    _run([python, "scripts/check_markdown_links.py", "--root", str(candidate.path)],
+         candidate.path, timeout_seconds)
+    _run([python, "scripts/run_clean_cmake_tests.py", "--root", str(candidate.path),
+          "--config", "both", "--jobs", "2"], candidate.path, timeout_seconds)
+    _run([python, "scripts/prove_release_test_check_failure.py", "--root", str(candidate.path)],
+         candidate.path, timeout_seconds)
+    return run_rtl_validation(candidate.path, timeout_seconds, skip_rtl)
+
+
 def run_unprivileged_wsl_candidate_validation(
     source_root: Path,
     candidate: CleanCandidate,
@@ -370,24 +396,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     root, candidate, before, args.timeout_seconds,
                 )
         else:
-            python = sys.executable
-            for script in (
-                "validate_resource_limits.py", "validate_hardening_ledgers.py",
-                "validate_rtl_inventory.py", "validate_randomized_tests.py",
-                "check_release_test_checks.py",
-            ):
-                _run([python, str(candidate.path / "scripts" / script)], candidate.path,
-                     args.timeout_seconds)
-            _run([python, "-m", "unittest", "discover", "-s", "scripts/tests", "-v"],
-                 candidate.path, args.timeout_seconds)
-            _run([python, "scripts/validate_evidence.py", "--root", str(candidate.path),
-                  "--candidate", candidate.commit], candidate.path, args.timeout_seconds)
-            _run([python, "scripts/check_markdown_links.py", "--root", str(candidate.path)],
-                 candidate.path, args.timeout_seconds)
-            _run([python, "scripts/run_clean_cmake_tests.py", "--root", str(candidate.path),
-                  "--config", "both", "--jobs", "2"], candidate.path, args.timeout_seconds)
-
-            rtl_status = run_rtl_validation(candidate.path, args.timeout_seconds, args.skip_rtl)
+            rtl_status = run_linux_candidate_validation(
+                candidate, args.timeout_seconds, args.skip_rtl,
+            )
         after_git = _candidate_git_identity(candidate)
         after_checkout = _working_fingerprint(candidate.path)
         after_commit = _source_fingerprint(candidate.path, candidate.commit)

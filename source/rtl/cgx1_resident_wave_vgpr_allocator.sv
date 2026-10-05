@@ -44,6 +44,8 @@ module cgx1_resident_wave_vgpr_allocator #(
     localparam logic [1:0] STATE_FREE = 2'd0;
     localparam logic [1:0] STATE_RESERVED = 2'd1;
     localparam logic [1:0] STATE_ACTIVE = 2'd2;
+    localparam logic [WAVE_SLOT_WIDTH:0] RESIDENT_WAVE_SLOTS_LIMIT =
+        (WAVE_SLOT_WIDTH + 1)'(RESIDENT_WAVE_SLOTS);
 
     logic [1:0] state [0:RESIDENT_WAVE_SLOTS-1];
     logic [ROW_WIDTH-1:0] row_base [0:RESIDENT_WAVE_SLOTS-1];
@@ -59,7 +61,8 @@ module cgx1_resident_wave_vgpr_allocator #(
     logic [WAVE_SLOT_WIDTH-1:0] invalidate_wave_slot;
     logic [WAVE_SLOT_WIDTH-1:0] invalidate_rr_q;
 
-    integer wave_index;
+    integer comb_wave_index;
+    integer sequential_wave_index;
     integer row_index;
     integer base_index;
     integer probe_index;
@@ -67,25 +70,33 @@ module cgx1_resident_wave_vgpr_allocator #(
     integer scan_index;
     logic candidate_free;
 
+    function automatic logic wave_slot_in_range(
+        input logic [WAVE_SLOT_WIDTH-1:0] wave_slot
+    );
+        wave_slot_in_range = {1'b0, wave_slot} < RESIDENT_WAVE_SLOTS_LIMIT;
+    endfunction
+
     always_comb begin
         occupied_rows = '0;
         for (row_index = 0; row_index < PHYSICAL_ROWS; row_index = row_index + 1) begin
-            for (wave_index = 0; wave_index < RESIDENT_WAVE_SLOTS; wave_index = wave_index + 1) begin
-                if ((state[wave_index] != STATE_FREE)
-                    && (row_index >= row_base[wave_index])
-                    && (row_index < (row_base[wave_index] + row_count[wave_index]))) begin
+            for (comb_wave_index = 0; comb_wave_index < RESIDENT_WAVE_SLOTS; comb_wave_index = comb_wave_index + 1) begin
+                if ((state[comb_wave_index] != STATE_FREE)
+                    && (row_index >= int'($unsigned(row_base[comb_wave_index])))
+                    && (row_index < (int'($unsigned(row_base[comb_wave_index]))
+                        + int'($unsigned(row_count[comb_wave_index]))))) begin
                     occupied_rows[row_index] = 1'b1;
                 end
             end
         end
 
-        rows_needed = (reserve_register_count + 9'd7) >> 3;
+        rows_needed = {2'b00, reserve_register_count[8:3]}
+            + {7'b0000000, (|reserve_register_count[2:0])};
         fit_found = 1'b0;
         fit_base = '0;
 
         for (base_index = 0; base_index < PHYSICAL_ROWS; base_index = base_index + 1) begin
             candidate_free = 1'b1;
-            if ((base_index + rows_needed) > PHYSICAL_ROWS) begin
+            if ((base_index + int'($unsigned(rows_needed))) > PHYSICAL_ROWS) begin
                 candidate_free = 1'b0;
             end else begin
                 for (probe_index = 0; probe_index < PHYSICAL_ROWS; probe_index = probe_index + 1) begin
@@ -103,7 +114,7 @@ module cgx1_resident_wave_vgpr_allocator #(
         end
 
         release_ready = 1'b0;
-        if ($unsigned(release_wave_slot) < RESIDENT_WAVE_SLOTS) begin
+        if (wave_slot_in_range(release_wave_slot)) begin
             release_ready =
                 (state[release_wave_slot] == STATE_RESERVED)
                 || ((state[release_wave_slot] == STATE_ACTIVE)
@@ -112,7 +123,7 @@ module cgx1_resident_wave_vgpr_allocator #(
         release_accepted = release_valid && release_ready;
 
         reserve_ready = 1'b0;
-        if ($unsigned(reserve_wave_slot) < RESIDENT_WAVE_SLOTS) begin
+        if (wave_slot_in_range(reserve_wave_slot)) begin
             reserve_ready =
                 (state[reserve_wave_slot] == STATE_FREE)
                 && (reserve_register_count >= 9'd1)
@@ -123,7 +134,7 @@ module cgx1_resident_wave_vgpr_allocator #(
         reserve_accepted = reserve_valid && reserve_ready;
 
         activate_ready = 1'b0;
-        if ($unsigned(activate_wave_slot) < RESIDENT_WAVE_SLOTS) begin
+        if (wave_slot_in_range(activate_wave_slot)) begin
             activate_ready =
                 (state[activate_wave_slot] == STATE_RESERVED)
                 && (invalidated_rows[activate_wave_slot] == row_count[activate_wave_slot])
@@ -137,7 +148,7 @@ module cgx1_resident_wave_vgpr_allocator #(
         invalidate_row = '0;
 
         for (scan_offset = 0; scan_offset < RESIDENT_WAVE_SLOTS; scan_offset = scan_offset + 1) begin
-            scan_index = $unsigned(invalidate_rr_q) + scan_offset;
+            scan_index = int'($unsigned(invalidate_rr_q)) + scan_offset;
             if (scan_index >= RESIDENT_WAVE_SLOTS) begin
                 scan_index = scan_index - RESIDENT_WAVE_SLOTS;
             end
@@ -159,15 +170,15 @@ module cgx1_resident_wave_vgpr_allocator #(
         allocation_sanitized_bitmap = '0;
         allocation_row_base_flat = '0;
         allocation_register_count_flat = '0;
-        for (wave_index = 0; wave_index < RESIDENT_WAVE_SLOTS; wave_index = wave_index + 1) begin
-            allocation_reserved_bitmap[wave_index] = state[wave_index] == STATE_RESERVED;
-            allocation_active_bitmap[wave_index] = state[wave_index] == STATE_ACTIVE;
-            allocation_sanitized_bitmap[wave_index] =
-                (state[wave_index] == STATE_RESERVED)
-                && (row_count[wave_index] != 0)
-                && (invalidated_rows[wave_index] == row_count[wave_index]);
-            allocation_row_base_flat[(wave_index * ROW_WIDTH) +: ROW_WIDTH] = row_base[wave_index];
-            allocation_register_count_flat[(wave_index * 9) +: 9] = register_count[wave_index];
+        for (comb_wave_index = 0; comb_wave_index < RESIDENT_WAVE_SLOTS; comb_wave_index = comb_wave_index + 1) begin
+            allocation_reserved_bitmap[comb_wave_index] = state[comb_wave_index] == STATE_RESERVED;
+            allocation_active_bitmap[comb_wave_index] = state[comb_wave_index] == STATE_ACTIVE;
+            allocation_sanitized_bitmap[comb_wave_index] =
+                (state[comb_wave_index] == STATE_RESERVED)
+                && (row_count[comb_wave_index] != 0)
+                && (invalidated_rows[comb_wave_index] == row_count[comb_wave_index]);
+            allocation_row_base_flat[(comb_wave_index * ROW_WIDTH) +: ROW_WIDTH] = row_base[comb_wave_index];
+            allocation_register_count_flat[(comb_wave_index * 9) +: 9] = register_count[comb_wave_index];
         end
 
         query_reserved = 1'b0;
@@ -176,7 +187,7 @@ module cgx1_resident_wave_vgpr_allocator #(
         query_row_base = '0;
         query_row_count = '0;
         query_register_count = '0;
-        if ($unsigned(query_wave_slot) < RESIDENT_WAVE_SLOTS) begin
+        if (wave_slot_in_range(query_wave_slot)) begin
             query_reserved = state[query_wave_slot] == STATE_RESERVED;
             query_active = state[query_wave_slot] == STATE_ACTIVE;
             query_sanitized =
@@ -192,12 +203,12 @@ module cgx1_resident_wave_vgpr_allocator #(
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             invalidate_rr_q <= '0;
-            for (wave_index = 0; wave_index < RESIDENT_WAVE_SLOTS; wave_index = wave_index + 1) begin
-                state[wave_index] <= STATE_FREE;
-                row_base[wave_index] <= '0;
-                row_count[wave_index] <= '0;
-                register_count[wave_index] <= '0;
-                invalidated_rows[wave_index] <= '0;
+            for (sequential_wave_index = 0; sequential_wave_index < RESIDENT_WAVE_SLOTS; sequential_wave_index = sequential_wave_index + 1) begin
+                state[sequential_wave_index] <= STATE_FREE;
+                row_base[sequential_wave_index] <= '0;
+                row_count[sequential_wave_index] <= '0;
+                register_count[sequential_wave_index] <= '0;
+                invalidated_rows[sequential_wave_index] <= '0;
             end
         end else begin
             if (release_accepted) begin
@@ -220,7 +231,7 @@ module cgx1_resident_wave_vgpr_allocator #(
             if (invalidate_valid && invalidate_ready) begin
                 invalidated_rows[invalidate_wave_slot]
                     <= invalidated_rows[invalidate_wave_slot] + 1'b1;
-                if ($unsigned(invalidate_wave_slot) == (RESIDENT_WAVE_SLOTS - 1)) begin
+                if (int'($unsigned(invalidate_wave_slot)) == (RESIDENT_WAVE_SLOTS - 1)) begin
                     invalidate_rr_q <= '0;
                 end else begin
                     invalidate_rr_q <= invalidate_wave_slot + 1'b1;

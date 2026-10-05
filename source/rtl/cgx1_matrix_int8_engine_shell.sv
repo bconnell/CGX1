@@ -103,6 +103,7 @@ module cgx1_matrix_int8_engine_shell (
         .issue_accepted_d_base(accepted_d_base),
         .issue_accepted_a_base(accepted_a_base),
         .issue_accepted_b_base(accepted_b_base),
+        .issue_accepted_wave_slot(),
         .illegal_issue(controller_illegal_issue),
         .issue_opcode(issue_opcode),
         .issue_full_wave_active(issue_full_wave_active),
@@ -120,13 +121,17 @@ module cgx1_matrix_int8_engine_shell (
         .rf_read_valid(rf_read_valid),
         .rf_read_addr0(rf_read_addr0),
         .rf_read_addr1(rf_read_addr1),
+        .rf_read_wave_slot(),
         .rf_write_valid(rf_write_valid),
         .rf_write_addr(rf_write_addr),
+        .rf_write_wave_slot(),
         .source_release_valid(source_release_valid),
         .source_release_a_base(source_release_a_base),
         .source_release_b_base(source_release_b_base),
+        .source_release_wave_slot(),
         .destination_complete_valid(destination_complete_valid),
-        .destination_complete_base(destination_complete_base)
+        .destination_complete_base(destination_complete_base),
+        .destination_complete_wave_slot()
     );
 
     cgx1_matrix_int8_path int8_path (

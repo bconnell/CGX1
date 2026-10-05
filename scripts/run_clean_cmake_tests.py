@@ -279,8 +279,6 @@ def main() -> int:
         "cmake": first_line(["cmake", "--version"], root),
         "ctest": first_line(["ctest", "--version"], root),
         "ctest_executable": shutil.which("ctest"),
-        "c_banner": first_line(["cc", "--version"], root),
-        "cxx_banner": first_line(["c++", "--version"], root),
         "free_bytes_before": shutil.disk_usage(base.parent).free,
         "minimum_free_bytes": MIN_FREE_BYTES, "build_tree_bytes": None,
         "configurations": [], "total_elapsed_seconds": None,

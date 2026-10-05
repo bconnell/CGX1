@@ -21,7 +21,7 @@ module cgx1_pooled_vgpr_restore_mapper #(
 
     always_comb begin
         translated_row = {1'b0, allocation_row_base}
-            + (architectural_register >> 3);
+            + (ROW_WIDTH + 1)'($unsigned(architectural_register >> 3));
         bank_class = architectural_register[2:0];
         physical_row = translated_row[ROW_WIDTH-1:0];
 

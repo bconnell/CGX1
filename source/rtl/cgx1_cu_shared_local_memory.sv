@@ -187,7 +187,7 @@ module cgx1_cu_shared_local_memory #(
             allocation_plan_failure = ALLOC_FAIL_DUPLICATE_ID;
         else if (allocation_free_group == -1)
             allocation_plan_failure = ALLOC_FAIL_CONTEXTS_FULL;
-        else if (({32'b0, used_bytes_q} + {32'b0, allocation_byte_count}) > CU_SHARED_BYTES)
+        else if (({32'b0, used_bytes_q} + {32'b0, allocation_byte_count}) > 64'(CU_SHARED_BYTES))
             allocation_plan_failure = ALLOC_FAIL_CAPACITY_BUSY;
         else if (allocation_byte_count == 0) begin
             allocation_plan_base = 0;
@@ -209,11 +209,11 @@ module cgx1_cu_shared_local_memory #(
                         end
                     end
                     if ((nearest_group == -1)
-                        && (({32'b0, aligned_cursor} + {32'b0, allocation_byte_count}) <= CU_SHARED_BYTES)) begin
+                        && (({32'b0, aligned_cursor} + {32'b0, allocation_byte_count}) <= 64'(CU_SHARED_BYTES))) begin
                         allocation_plan_base = aligned_cursor;
                         range_found = 1'b1;
                     end else if ((nearest_group != -1)
-                        && (({32'b0, aligned_cursor} + {32'b0, allocation_byte_count}) <= nearest_base)) begin
+                        && (({32'b0, aligned_cursor} + {32'b0, allocation_byte_count}) <= 64'($unsigned(nearest_base)))) begin
                         allocation_plan_base = aligned_cursor;
                         range_found = 1'b1;
                     end else if (nearest_group != -1) begin
@@ -234,6 +234,7 @@ module cgx1_cu_shared_local_memory #(
         integer transaction_index;
         integer lane;
         logic [63:0] lane_address;
+        lane_address = '0;
         request_group_index = -1;
         request_free_transaction = -1;
         request_wave_busy = 1'b0;
@@ -318,6 +319,11 @@ module cgx1_cu_shared_local_memory #(
         logic [1023:0] lane_data_next;
         logic [63:0] physical_address;
 
+        word_address = 0;
+        physical_address = '0;
+        service_index = 0;
+        service_lane = 0;
+        service_word = 0;
         bank_grant_valid = '0;
         for (bank = 0; bank < BANK_COUNT; bank = bank + 1) begin
             bank_grant_txn[bank] = -1;
@@ -339,7 +345,7 @@ module cgx1_cu_shared_local_memory #(
                         if (!found && txn_remaining_mask_q[candidate][lane]) begin
                             physical_address = {32'b0, group_base_q[txn_group_index_q[candidate]]}
                                 + {32'b0, txn_addresses_q[candidate][(lane*32)+:32]};
-                            word_address = physical_address / 4;
+                            word_address = int'(physical_address / 64'd4);
                             if ((word_address % BANK_COUNT) == bank) begin
                                 bank_grant_valid[bank] = 1'b1;
                                 bank_grant_txn[bank] = candidate;
@@ -360,7 +366,7 @@ module cgx1_cu_shared_local_memory #(
                 if (!txn_write_q[service_index]) begin
                     physical_address = {32'b0, group_base_q[txn_group_index_q[service_index]]}
                         + {32'b0, txn_addresses_q[service_index][(service_lane*32)+:32]};
-                    service_word = physical_address / 4;
+                    service_word = int'(physical_address / 64'd4);
                     if (memory_valid_q[service_word])
                         txn_lane_data_next[service_index][(service_lane*32)+:32]
                             = memory_data_q[service_word];
@@ -385,7 +391,7 @@ module cgx1_cu_shared_local_memory #(
         response_selected_index = -1;
         cancel_same_response = 1'b0;
         if (response_hold_valid_q)
-            response_selected_index = $unsigned(response_hold_index_q);
+            response_selected_index = int'($unsigned(response_hold_index_q));
         else
             response_selected_index = request_response_index;
         if (response_selected_index != -1) begin
@@ -507,7 +513,7 @@ module cgx1_cu_shared_local_memory #(
                     allocation_pending_id_q <= allocation_workgroup_id;
                     allocation_pending_base_q <= allocation_plan_base;
                     allocation_pending_bytes_q <= allocation_byte_count;
-                    allocation_pending_group_q <= allocation_plan_group;
+                    allocation_pending_group_q <= GROUP_INDEX_WIDTH'(allocation_plan_group);
                     if (allocation_byte_count == 0) begin
                         group_active_q[allocation_plan_group] <= 1'b1;
                         group_id_q[allocation_plan_group] <= allocation_workgroup_id;
@@ -521,8 +527,8 @@ module cgx1_cu_shared_local_memory #(
                         allocation_scrub_active_q <= 1'b1;
                         allocation_scrub_word_q <= allocation_plan_base / 4;
                         allocation_scrub_end_word_q
-                            <= ({32'b0, allocation_plan_base}
-                                + {32'b0, allocation_byte_count} + 64'd3) / 4;
+                            <= int'(({32'b0, allocation_plan_base}
+                                + {32'b0, allocation_byte_count} + 64'd3) / 64'd4);
                     end
                 end
             end
@@ -582,13 +588,13 @@ module cgx1_cu_shared_local_memory #(
 
             if (response_hold_valid_q
                 && cancel_accepted
-                && cancel_transaction_index == $unsigned(response_hold_index_q)) begin
+                && cancel_transaction_index == int'($unsigned(response_hold_index_q))) begin
                 response_hold_valid_q <= 1'b0;
             end else if (response_valid && response_ready) begin
                 response_hold_valid_q <= 1'b0;
             end else if (!response_hold_valid_q && response_valid && !response_ready) begin
                 response_hold_valid_q <= 1'b1;
-                response_hold_index_q <= response_selected_index;
+                response_hold_index_q <= TRANSACTION_INDEX_WIDTH'(response_selected_index);
             end
 
             if (cancel_accepted) begin
@@ -615,7 +621,7 @@ module cgx1_cu_shared_local_memory #(
                 if (request_group_index == -1)
                     txn_group_index_q[request_free_transaction] <= '0;
                 else
-                    txn_group_index_q[request_free_transaction] <= request_group_index;
+                    txn_group_index_q[request_free_transaction] <= GROUP_INDEX_WIDTH'(request_group_index);
                 if ((request_fault_code != MEM_FAULT_NONE) || (request_lane_mask == 0))
                     txn_state_q[request_free_transaction] <= TXN_RESPONSE;
                 else

@@ -223,7 +223,7 @@ module cgx1_matrix_int8_resident_engine #(
     always_comb begin
         matrix_request_accepted = '0;
         if (controller_issue_accepted
-            && ($unsigned(accepted_wave_slot) < RESIDENT_WAVE_SLOTS)) begin
+            && (int'($unsigned(accepted_wave_slot)) < RESIDENT_WAVE_SLOTS)) begin
             matrix_request_accepted[accepted_wave_slot] = 1'b1;
         end
 

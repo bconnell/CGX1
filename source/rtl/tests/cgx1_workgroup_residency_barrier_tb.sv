@@ -42,7 +42,8 @@ module cgx1_workgroup_residency_barrier_tb;
     logic [SLOTS-1:0] final_wave_release_mask;
     logic [(SLOTS*8)-1:0] slot_workgroup_id_flat;
     logic [COUNT_WIDTH-1:0] resident_wave_count;
-    logic [31:0] scalar_state_units_used, shared_local_bytes_used, other_workgroup_state_units_used;
+    logic [31:0] scalar_state_units_used, shared_local_bytes_used;
+    logic [63:0] other_workgroup_state_units_used;
     integer generation;
     always #5 clk = ~clk;
 
@@ -95,6 +96,29 @@ module cgx1_workgroup_residency_barrier_tb;
         workgroup_abort_valid = 0; workgroup_abort_id = 0;
         allocator_release_accepted_mask = 0; query_workgroup_id = 0;
         repeat (3) @(posedge clk); @(negedge clk); reset_n = 1;
+
+        // Aggregate state accounting must not wrap when two valid per-group
+        // requests sum to more than the 32-bit per-group request field.
+        commit_other_workgroup_state_units = 32'h8000_0000;
+        commit_group(8'd8, 1, 8'b0);
+        commit_group(8'd9, 1, 8'b00_00_00_01);
+        if (other_workgroup_state_units_used != 64'h0000_0001_0000_0000)
+            $fatal(1, "aggregated other workgroup state wrapped: %h",
+                other_workgroup_state_units_used);
+        for (integer retire_slot = 0; retire_slot < 2; retire_slot = retire_slot + 1) begin
+            @(negedge clk);
+            terminate_wave_slot = retire_slot;
+            terminate_wave_reason = 0;
+            terminate_wave_valid = 1;
+            #1;
+            if (!terminate_wave_ready)
+                $fatal(1, "overflow accounting fixture wave retirement was refused");
+            @(posedge clk); #1; @(negedge clk); terminate_wave_valid = 0;
+        end
+        allocator_release_accepted_mask = 4'b0011;
+        @(posedge clk); #1; @(negedge clk); allocator_release_accepted_mask = 0;
+        if (other_workgroup_state_units_used != 0 || workgroup_active_mask != 0)
+            $fatal(1, "overflow accounting fixture did not release all group state");
 
         // One-wave workgroup releases each reused generation immediately.
         commit_group(8'd1, 1, 8'b0);

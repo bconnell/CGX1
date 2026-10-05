@@ -21,7 +21,7 @@ module cgx1_pooled_vgpr_mapper #(
     always_comb begin
         bank_class = architectural_register[2:0];
         translated_row = {1'b0, allocation_row_base}
-            + (architectural_register >> 3);
+            + (ROW_WIDTH + 1)'($unsigned(architectural_register >> 3));
         physical_row = translated_row[ROW_WIDTH-1:0];
 
         address_valid = allocation_active

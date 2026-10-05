@@ -61,7 +61,7 @@ module cgx1_matrix_pipeline_control #(
     localparam logic [2:0] MATRIX_SOURCE_A_BANK_CLASS = 3'd0;
     localparam logic [2:0] MATRIX_SOURCE_B_BANK_CLASS = 3'd4;
     localparam logic [3:0] MATRIX_OPCODE_MAX = 4'h6;
-    localparam logic [3:0] ISSUE_COOLDOWN_RELOAD = MATRIX_ISSUE_INTERVAL_CYCLES - 1;
+    localparam logic [3:0] ISSUE_COOLDOWN_RELOAD = 4'(MATRIX_ISSUE_INTERVAL_CYCLES - 1);
 
     logic [3:0] issue_cooldown_q, issue_cooldown_d;
 
@@ -241,9 +241,12 @@ module cgx1_matrix_pipeline_control #(
         rf_write_addr = writeback_d_q + {5'd0, writeback_cycle_q};
         rf_write_wave_slot = writeback_wave_q;
 
-        capture_finishing = capture_valid_q && (capture_cycle_q == MATRIX_CAPTURE_CYCLES - 1);
-        execute_finishing = execute_valid_q && (execute_cycle_q == MATRIX_EXECUTE_CYCLES - 1);
-        writeback_finishing = writeback_valid_q && (writeback_cycle_q == MATRIX_WRITEBACK_CYCLES - 1);
+        capture_finishing = capture_valid_q
+            && (int'($unsigned(capture_cycle_q)) == MATRIX_CAPTURE_CYCLES - 1);
+        execute_finishing = execute_valid_q
+            && (int'($unsigned(execute_cycle_q)) == MATRIX_EXECUTE_CYCLES - 1);
+        writeback_finishing = writeback_valid_q
+            && (int'($unsigned(writeback_cycle_q)) == MATRIX_WRITEBACK_CYCLES - 1);
 
         source_release_valid = capture_finishing;
         source_release_a_base = capture_a_q;

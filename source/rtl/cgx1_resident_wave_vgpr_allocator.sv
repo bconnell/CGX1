@@ -89,8 +89,8 @@ module cgx1_resident_wave_vgpr_allocator #(
             end
         end
 
-        rows_needed = {2'b00, reserve_register_count[8:3]}
-            + {7'b0000000, (|reserve_register_count[2:0])};
+        rows_needed = ROW_WIDTH'({2'b00, reserve_register_count[8:3]}
+            + {7'b0000000, (|reserve_register_count[2:0])});
         fit_found = 1'b0;
         fit_base = '0;
 

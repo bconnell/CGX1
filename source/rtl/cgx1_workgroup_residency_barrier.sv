@@ -70,7 +70,7 @@ module cgx1_workgroup_residency_barrier #(
     output logic [WAVE_COUNT_WIDTH-1:0] resident_wave_count,
     output logic [31:0] scalar_state_units_used,
     output logic [31:0] shared_local_bytes_used,
-    output logic [31:0] other_workgroup_state_units_used
+    output logic [63:0] other_workgroup_state_units_used
 );
 
     logic [MAX_WORKGROUP_CONTEXTS-1:0] group_active_q;
@@ -106,6 +106,8 @@ module cgx1_workgroup_residency_barrier #(
         integer slot_index;
         integer local_index;
         integer mapped_slot;
+        local_index = 0;
+        mapped_slot = 0;
         free_group_index = -1;
         duplicate_group_index = -1;
         arrival_group_index = -1;
@@ -116,7 +118,6 @@ module cgx1_workgroup_residency_barrier #(
         used_other = 0;
         owned_count = 0;
         resident_wave_mask = slot_owned_q;
-        final_wave_release_mask = '0;
         slot_workgroup_id_flat = '0;
         live_wave_mask = '0;
         barrier_waiting_mask = '0;
@@ -137,7 +138,7 @@ module cgx1_workgroup_residency_barrier #(
                 used_scalar = used_scalar
                     + CountOnes(group_owned_local_q[group_index]) * group_scalar_units_q[group_index];
                 used_shared = used_shared + group_shared_bytes_q[group_index];
-                used_other = used_other + group_other_units_q[group_index];
+                used_other = used_other + 64'($unsigned(group_other_units_q[group_index]));
             end else if (free_group_index < 0) begin
                 free_group_index = group_index;
             end
@@ -146,14 +147,11 @@ module cgx1_workgroup_residency_barrier #(
         for (slot_index = 0; slot_index < RESIDENT_WAVE_SLOTS; slot_index = slot_index + 1) begin
             if (slot_owned_q[slot_index]) begin
                 owned_count = owned_count + 1;
-                local_index = $unsigned(slot_local_q[slot_index]);
-                group_index = $unsigned(slot_group_q[slot_index]);
+                local_index = int'($unsigned(slot_local_q[slot_index]));
+                group_index = int'($unsigned(slot_group_q[slot_index]));
                 if (group_active_q[group_index]) begin
                     slot_workgroup_id_flat[(slot_index*WORKGROUP_ID_WIDTH)
                         +: WORKGROUP_ID_WIDTH] = group_id_q[group_index];
-                    if ((group_live_local_q[group_index] == '0)
-                        && (CountOnes(group_owned_local_q[group_index]) == 1))
-                        final_wave_release_mask[slot_index] = 1'b1;
                     if (group_live_local_q[group_index][local_index]) begin
                         live_wave_mask[slot_index] = 1'b1;
                         if (group_arrived_local_q[group_index][local_index])
@@ -166,14 +164,14 @@ module cgx1_workgroup_residency_barrier #(
                 end
             end
         end
-        if (terminate_wave_valid && ($unsigned(terminate_wave_slot) < RESIDENT_WAVE_SLOTS)
+        if (terminate_wave_valid && (int'($unsigned(terminate_wave_slot)) < RESIDENT_WAVE_SLOTS)
             && slot_owned_q[terminate_wave_slot]) begin
-            terminate_group_index = $unsigned(slot_group_q[terminate_wave_slot]);
+            terminate_group_index = int'($unsigned(slot_group_q[terminate_wave_slot]));
         end
 
         for (local_index = 0; local_index < RESIDENT_WAVE_SLOTS; local_index = local_index + 1) begin
-            if (local_index < $unsigned(commit_wave_count)) begin
-                mapped_slot = $unsigned(commit_wave_slot_map_flat[(local_index*WAVE_SLOT_WIDTH) +: WAVE_SLOT_WIDTH]);
+            if (local_index < int'($unsigned(commit_wave_count))) begin
+                mapped_slot = int'($unsigned(commit_wave_slot_map_flat[(local_index*WAVE_SLOT_WIDTH) +: WAVE_SLOT_WIDTH]));
                 if (mapped_slot >= RESIDENT_WAVE_SLOTS) begin
                     commit_slots_valid = 1'b0;
                 end else begin
@@ -187,7 +185,8 @@ module cgx1_workgroup_residency_barrier #(
         end
 
         commit_ready = (free_group_index >= 0) && (duplicate_group_index < 0)
-            && (commit_wave_count != 0) && ($unsigned(commit_wave_count) <= RESIDENT_WAVE_SLOTS)
+            && (commit_wave_count != 0)
+            && (int'($unsigned(commit_wave_count)) <= RESIDENT_WAVE_SLOTS)
             && commit_slots_valid;
         commit_accepted = commit_valid && commit_ready;
 
@@ -197,7 +196,7 @@ module cgx1_workgroup_residency_barrier #(
         if ((terminate_group_index >= 0) && (terminate_wave_reason != 2'b11)
             && !workgroup_abort_accepted)
             terminate_wave_ready = group_live_local_q[terminate_group_index]
-                [$unsigned(slot_local_q[terminate_wave_slot])];
+                [int'($unsigned(slot_local_q[terminate_wave_slot]))];
         terminate_wave_accepted = terminate_wave_valid && terminate_wave_ready;
 
         barrier_arrive_ready = 1'b0;
@@ -209,8 +208,8 @@ module cgx1_workgroup_residency_barrier #(
                     mapped_slot = -1;
                     for (slot_index = 0; slot_index < RESIDENT_WAVE_SLOTS; slot_index = slot_index + 1) begin
                         if (slot_owned_q[slot_index]
-                            && (slot_group_q[slot_index] == arrival_group_index)
-                            && (slot_local_q[slot_index] == local_index))
+                            && (int'($unsigned(slot_group_q[slot_index])) == arrival_group_index)
+                            && (int'($unsigned(slot_local_q[slot_index])) == local_index))
                             mapped_slot = slot_index;
                     end
                     if (!group_live_local_q[arrival_group_index][local_index]
@@ -230,7 +229,7 @@ module cgx1_workgroup_residency_barrier #(
         if (workgroup_abort_accepted) begin
             for (slot_index = 0; slot_index < RESIDENT_WAVE_SLOTS; slot_index = slot_index + 1) begin
                 if (slot_owned_q[slot_index]
-                    && (slot_group_q[slot_index] == abort_group_index))
+                    && (int'($unsigned(slot_group_q[slot_index])) == abort_group_index))
                     issuable_wave_mask[slot_index] = 1'b0;
             end
         end
@@ -239,7 +238,7 @@ module cgx1_workgroup_residency_barrier #(
         live_after_terminate = '0;
         if (terminate_wave_accepted) begin
             live_after_terminate = group_live_local_q[terminate_group_index]
-                & ~(1'b1 << slot_local_q[terminate_wave_slot]);
+                & ~(RESIDENT_WAVE_SLOTS'(1'b1) << slot_local_q[terminate_wave_slot]);
             arrived_after_terminate = group_arrived_local_q[terminate_group_index]
                 & live_after_terminate;
         end
@@ -248,6 +247,23 @@ module cgx1_workgroup_residency_barrier #(
         scalar_state_units_used = used_scalar;
         shared_local_bytes_used = used_shared;
         other_workgroup_state_units_used = used_other;
+    end
+
+    always_comb begin : final_wave_release_decode
+        integer slot_index;
+        integer group_index;
+        final_wave_release_mask = '0;
+        group_index = 0;
+        for (slot_index = 0; slot_index < RESIDENT_WAVE_SLOTS; slot_index = slot_index + 1) begin
+            if (slot_owned_q[slot_index]
+                && (int'($unsigned(slot_group_q[slot_index])) < MAX_WORKGROUP_CONTEXTS)) begin
+                group_index = int'($unsigned(slot_group_q[slot_index]));
+                if (group_active_q[group_index]
+                    && (group_live_local_q[group_index] == '0)
+                    && (CountOnes(group_owned_local_q[group_index]) == 1))
+                    final_wave_release_mask[slot_index] = 1'b1;
+            end
+        end
     end
 
     always_comb begin : query_decode
@@ -283,12 +299,15 @@ module cgx1_workgroup_residency_barrier #(
         integer group_index;
         integer slot_index;
         integer local_index;
+        group_index = 0;
+        slot_index = 0;
+        local_index = 0;
         for (group_index = 0; group_index < MAX_WORKGROUP_CONTEXTS; group_index = group_index + 1)
             released_local_mask[group_index] = '0;
         for (slot_index = 0; slot_index < RESIDENT_WAVE_SLOTS; slot_index = slot_index + 1) begin
             if (allocator_release_accepted_mask[slot_index] && slot_owned_q[slot_index]) begin
-                group_index = $unsigned(slot_group_q[slot_index]);
-                local_index = $unsigned(slot_local_q[slot_index]);
+                group_index = int'($unsigned(slot_group_q[slot_index]));
+                local_index = int'($unsigned(slot_local_q[slot_index]));
                 released_local_mask[group_index][local_index] = 1'b1;
             end
         end
@@ -363,7 +382,7 @@ module cgx1_workgroup_residency_barrier #(
                         <= group_barrier_generation_q[terminate_group_index] + 1'b1;
                     for (state_slot = 0; state_slot < RESIDENT_WAVE_SLOTS; state_slot = state_slot + 1) begin
                         if (slot_owned_q[state_slot]
-                            && (slot_group_q[state_slot] == terminate_group_index)
+                            && (int'($unsigned(slot_group_q[state_slot])) == terminate_group_index)
                             && live_after_terminate[slot_local_q[state_slot]]
                             && group_arrived_local_q[terminate_group_index][slot_local_q[state_slot]])
                             barrier_release_wave_mask[state_slot] <= 1'b1;
@@ -383,7 +402,7 @@ module cgx1_workgroup_residency_barrier #(
                     barrier_release_generation <= group_barrier_generation_q[arrival_group_index];
                     for (state_slot = 0; state_slot < RESIDENT_WAVE_SLOTS; state_slot = state_slot + 1) begin
                         if (slot_owned_q[state_slot]
-                            && (slot_group_q[state_slot] == arrival_group_index)
+                            && (int'($unsigned(slot_group_q[state_slot])) == arrival_group_index)
                             && group_live_local_q[arrival_group_index][slot_local_q[state_slot]])
                             barrier_release_wave_mask[state_slot] <= 1'b1;
                     end
@@ -398,17 +417,17 @@ module cgx1_workgroup_residency_barrier #(
                 group_id_q[free_group_index] <= commit_workgroup_id;
                 group_wave_count_q[free_group_index] <= commit_wave_count;
                 group_owned_local_q[free_group_index] <= {RESIDENT_WAVE_SLOTS{1'b1}}
-                    >> (RESIDENT_WAVE_SLOTS - $unsigned(commit_wave_count));
+                    >> (RESIDENT_WAVE_SLOTS - int'($unsigned(commit_wave_count)));
                 group_live_local_q[free_group_index] <= {RESIDENT_WAVE_SLOTS{1'b1}}
-                    >> (RESIDENT_WAVE_SLOTS - $unsigned(commit_wave_count));
+                    >> (RESIDENT_WAVE_SLOTS - int'($unsigned(commit_wave_count)));
                 group_arrived_local_q[free_group_index] <= '0;
                 group_barrier_generation_q[free_group_index] <= '0;
                 group_scalar_units_q[free_group_index] <= commit_scalar_state_units_per_wave;
                 group_shared_bytes_q[free_group_index] <= commit_shared_local_bytes;
                 group_other_units_q[free_group_index] <= commit_other_workgroup_state_units;
                 for (state_local = 0; state_local < RESIDENT_WAVE_SLOTS; state_local = state_local + 1) begin
-                    if (state_local < $unsigned(commit_wave_count)) begin
-                        state_slot = $unsigned(commit_wave_slot_map_flat[(state_local*WAVE_SLOT_WIDTH) +: WAVE_SLOT_WIDTH]);
+                    if (state_local < int'($unsigned(commit_wave_count))) begin
+                        state_slot = int'($unsigned(commit_wave_slot_map_flat[(state_local*WAVE_SLOT_WIDTH) +: WAVE_SLOT_WIDTH]));
                         slot_owned_q[state_slot] <= 1'b1;
                         slot_group_q[state_slot] <= free_group_index[WORKGROUP_CONTEXT_WIDTH-1:0];
                         slot_local_q[state_slot] <= state_local[LOCAL_WAVE_WIDTH-1:0];

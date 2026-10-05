@@ -16,7 +16,7 @@ module cgx1_compute_mixed_service_policy #(
   if(!reset_n) begin burst_q<='0;service_pending_q<=0;end
   else if(!competition) begin burst_q<='0;service_pending_q<=0;end
   else if(service_pending_q) begin if(non_matrix_progress) begin burst_q<='0;service_pending_q<=0;end end
-  else if(legal_matrix_accepted) begin if((burst_q+1'b1)>=MATRIX_BURST_LIMIT) begin burst_q<=MATRIX_BURST_LIMIT;service_pending_q<=1;end else burst_q<=burst_q+1'b1;end
+  else if(legal_matrix_accepted) begin if((int'($unsigned(burst_q))+1)>=MATRIX_BURST_LIMIT) begin burst_q<=COUNT_WIDTH'(MATRIX_BURST_LIMIT);service_pending_q<=1;end else burst_q<=COUNT_WIDTH'(int'($unsigned(burst_q))+1);end
  end
 `ifndef SYNTHESIS
  initial if(MATRIX_BURST_LIMIT<1) $fatal(1,"mixed compute matrix burst limit must be at least one");

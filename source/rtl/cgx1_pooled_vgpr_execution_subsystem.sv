@@ -49,8 +49,8 @@ module cgx1_pooled_vgpr_execution_subsystem #(
   .matrix_rf_active(matrix_rf_same_wave),.vector_rf_active(ordinary_rf_same_wave),.split_read_pending(split_same_wave),.restore_same_wave(restore_same_wave),.release_safe(release_guard_safe));
 
  always_comb begin
-  release_slot_valid=$unsigned(release_wave_slot)<RESIDENT_WAVE_SLOTS;
-  restore_same_wave=release_slot_valid&&restore_valid&&($unsigned(restore_wave_slot)<RESIDENT_WAVE_SLOTS)&&(restore_wave_slot==release_wave_slot);
+  release_slot_valid=int'($unsigned(release_wave_slot))<RESIDENT_WAVE_SLOTS;
+  restore_same_wave=release_slot_valid&&restore_valid&&(int'($unsigned(restore_wave_slot))<RESIDENT_WAVE_SLOTS)&&(restore_wave_slot==release_wave_slot);
   matrix_rf_same_wave=release_slot_valid&&((matrix_rf_read_valid&&matrix_rf_read_wave_slot==release_wave_slot)||(matrix_rf_write_valid&&matrix_rf_write_wave_slot==release_wave_slot));
   ordinary_rf_same_wave=release_slot_valid&&((ordinary_read_valid&&ordinary_read_wave_slot==release_wave_slot)||(ordinary_write_valid&&ordinary_write_wave_slot==release_wave_slot));
   split_same_wave=release_slot_valid&&split_pending&&(split_wave_slot==release_wave_slot);
@@ -74,7 +74,7 @@ module cgx1_pooled_vgpr_execution_subsystem #(
   .destination_base(matrix_request_d_base),.source_a_base(matrix_request_a_base),.source_b_base(matrix_request_b_base),.request_layout_legal(),.request_allocation_legal(),.request_initialized(),.request_preflight_ready(preflight_ready_raw),.gated_request_valid(gated_raw));
  always_comb begin matrix_request_preflight_ready=preflight_ready_raw; matrix_request_gated_valid=gated_raw; if(release_valid&&release_slot_valid) begin matrix_request_preflight_ready[release_wave_slot]=0; matrix_request_gated_valid[release_wave_slot]=0; end end
 
- function automatic logic slot_valid(input logic [WAVE_SLOT_WIDTH-1:0] slot); slot_valid=($unsigned(slot)<RESIDENT_WAVE_SLOTS); endfunction
+ function automatic logic slot_valid(input logic [WAVE_SLOT_WIDTH-1:0] slot); slot_valid=(int'($unsigned(slot))<RESIDENT_WAVE_SLOTS); endfunction
 
  logic restore_slot_valid_sel,restore_reserved_sel,restore_sanitized_sel;
  logic matrix_read_slot_valid_sel,matrix_read_active_sel,matrix_write_slot_valid_sel,matrix_write_active_sel;

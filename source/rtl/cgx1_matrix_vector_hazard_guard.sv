@@ -9,7 +9,7 @@ module cgx1_matrix_vector_hazard_guard (
  output logic raw_hazard, waw_hazard, war_hazard, matrix_runtime_ready
 );
  function automatic logic overlap(input logic [7:0] lbase,input integer lcount,input logic [7:0] rbase,input integer rcount);
-   integer lend,rend; begin lend=$unsigned(lbase)+lcount; rend=$unsigned(rbase)+rcount; overlap=($unsigned(lbase)<rend)&&($unsigned(rbase)<lend); end
+    integer lend,rend; begin lend=int'($unsigned(lbase))+lcount; rend=int'($unsigned(rbase))+rcount; overlap=(int'($unsigned(lbase))<rend)&&(int'($unsigned(rbase))<lend); end
  endfunction
  always_comb begin
    raw_hazard=0; waw_hazard=0; war_hazard=0;

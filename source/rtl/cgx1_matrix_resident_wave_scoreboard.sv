@@ -111,7 +111,7 @@ module cgx1_matrix_resident_wave_scoreboard #(
         selected_destination_pending_mask = '0;
 
         for (select_index = 0; select_index < RESIDENT_WAVE_SLOTS; select_index = select_index + 1) begin
-            if ($unsigned(ordinary_wave_slot) == select_index) begin
+            if (int'($unsigned(ordinary_wave_slot)) == select_index) begin
                 ordinary_slot_valid = 1'b1;
                 ordinary_raw_hazard = slot_raw_hazard[select_index];
                 ordinary_waw_hazard = slot_waw_hazard[select_index];

@@ -12,9 +12,9 @@ module cgx1_vector_matrix_dependency_ready_array #(
  always_comb begin
   raw_hazard='0;waw_hazard='0;war_hazard='0;dependency_ready='0;
   for(wave=0;wave<RESIDENT_WAVE_SLOTS;wave=wave+1) begin
-   s0i=(wave*256)+request_source0[(wave*8)+:8];
-   s1i=(wave*256)+request_source1[(wave*8)+:8];
-   di=(wave*256)+request_destination[(wave*8)+:8];
+   s0i=(wave*256)+int'($unsigned(request_source0[(wave*8)+:8]));
+   s1i=(wave*256)+int'($unsigned(request_source1[(wave*8)+:8]));
+   di=(wave*256)+int'($unsigned(request_destination[(wave*8)+:8]));
    raw_hazard[wave]=request_valid[wave]&&(matrix_destination_pending_flat[s0i]||matrix_destination_pending_flat[s1i]);
    waw_hazard[wave]=request_valid[wave]&&matrix_destination_pending_flat[di];
    war_hazard[wave]=request_valid[wave]&&matrix_source_pending_flat[di];

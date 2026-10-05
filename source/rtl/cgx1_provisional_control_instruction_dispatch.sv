@@ -55,8 +55,6 @@ module cgx1_provisional_control_instruction_dispatch #(
 
     always_comb begin : select_fetched_control_instruction
         control_instruction_candidate_mask = '0;
-        handler_valid = decoded_unhandled_valid;
-        decoder_ready = handler_ready;
         control_instruction_event_valid = 1'b0;
         control_instruction_event_wave_slot = '0;
         control_instruction_event_kind = '0;
@@ -79,21 +77,19 @@ module cgx1_provisional_control_instruction_dispatch #(
                 && ((decoded_opcode_flat[(decode_slot*4)+:4] == TERMINATE_OPCODE)
                     || (decoded_opcode_flat[(decode_slot*4)+:4] == BRANCH_OPCODE))) begin
                 control_instruction_candidate_mask[decode_slot] = 1'b1;
-                handler_valid[decode_slot] = 1'b0;
-                decoder_ready[decode_slot] = 1'b0;
             end
         end
 
         if (!external_control_event_valid) begin
             for (candidate_offset = 0; candidate_offset < RESIDENT_WAVE_SLOTS;
                  candidate_offset = candidate_offset + 1) begin
-                candidate_slot = $unsigned(round_robin_slot_q) + candidate_offset;
+                candidate_slot = int'($unsigned(round_robin_slot_q)) + candidate_offset;
                 if (candidate_slot >= RESIDENT_WAVE_SLOTS)
                     candidate_slot = candidate_slot - RESIDENT_WAVE_SLOTS;
                 if (!candidate_found && control_instruction_candidate_mask[candidate_slot]) begin
                     candidate_found = 1'b1;
                     control_instruction_event_valid = 1'b1;
-                    control_instruction_event_wave_slot = candidate_slot;
+                    control_instruction_event_wave_slot = candidate_slot[WAVE_SLOT_WIDTH-1:0];
                     if (decoded_opcode_flat[(candidate_slot*4)+:4] == TERMINATE_OPCODE) begin
                         control_instruction_event_kind = EVENT_TERMINATE;
                     end else begin
@@ -121,11 +117,24 @@ module cgx1_provisional_control_instruction_dispatch #(
                         control_instruction_event_taken_mask
                             = active_lane_mask_flat[(candidate_slot*32)+:32];
                     end
-                    decoder_ready[candidate_slot]
-                        = control_flow_event_ready && control_flow_event_accepted;
                 end
             end
         end
+    end
+
+    always_comb begin : decoder_acceptance
+        integer ready_slot;
+        handler_valid = decoded_unhandled_valid;
+        decoder_ready = handler_ready;
+        for (ready_slot = 0; ready_slot < RESIDENT_WAVE_SLOTS; ready_slot = ready_slot + 1) begin
+            if (control_instruction_candidate_mask[ready_slot]) begin
+                handler_valid[ready_slot] = 1'b0;
+                decoder_ready[ready_slot] = 1'b0;
+            end
+        end
+        if (control_instruction_event_valid)
+            decoder_ready[control_instruction_event_wave_slot] = control_flow_event_ready
+                && control_flow_event_accepted;
     end
 
     assign control_instruction_event_accepted = control_instruction_event_valid
@@ -135,7 +144,7 @@ module cgx1_provisional_control_instruction_dispatch #(
         if (!reset_n)
             round_robin_slot_q <= '0;
         else if (control_instruction_event_accepted) begin
-            if (($unsigned(control_instruction_event_wave_slot) + 1) >= RESIDENT_WAVE_SLOTS)
+            if ((int'($unsigned(control_instruction_event_wave_slot)) + 1) >= RESIDENT_WAVE_SLOTS)
                 round_robin_slot_q <= '0;
             else
                 round_robin_slot_q <= control_instruction_event_wave_slot + 1'b1;

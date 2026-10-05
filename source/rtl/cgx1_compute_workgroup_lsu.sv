@@ -183,30 +183,34 @@ module cgx1_compute_workgroup_lsu #(
         integer offset;
         integer slot;
         integer lane;
+        candidate = 0;
+        offset = 0;
+        slot = 0;
+        lane = 0;
         global_candidate = -1;
         local_candidate = -1;
         // A presented ready/valid request stays stable through kill until accepted.
         if (global_hold_valid_q) begin
-            slot = $unsigned(global_hold_slot_q);
+            slot = int'($unsigned(global_hold_slot_q));
             if ((slot < RESIDENT_WAVE_SLOTS)
                 && (state_q[slot] == ST_GLOBAL_QUEUED))
                 global_candidate = slot;
         end else begin
             for (offset = 0; offset < RESIDENT_WAVE_SLOTS; offset = offset + 1) begin
-                candidate = ($unsigned(global_rr_q) + offset) % RESIDENT_WAVE_SLOTS;
+                candidate = (int'($unsigned(global_rr_q)) + offset) % RESIDENT_WAVE_SLOTS;
                 if ((global_candidate < 0) && wave_live_mask[candidate]
                     && (state_q[candidate] == ST_GLOBAL_QUEUED))
                     global_candidate = candidate;
             end
         end
         if (local_hold_valid_q) begin
-            slot = $unsigned(local_hold_slot_q);
+            slot = int'($unsigned(local_hold_slot_q));
             if ((slot < RESIDENT_WAVE_SLOTS)
                 && (state_q[slot] == ST_LOCAL_QUEUED))
                 local_candidate = slot;
         end else begin
             for (offset = 0; offset < RESIDENT_WAVE_SLOTS; offset = offset + 1) begin
-                candidate = ($unsigned(local_rr_q) + offset) % RESIDENT_WAVE_SLOTS;
+                candidate = (int'($unsigned(local_rr_q)) + offset) % RESIDENT_WAVE_SLOTS;
                 if ((local_candidate < 0) && wave_live_mask[candidate]
                     && (state_q[candidate] == ST_LOCAL_QUEUED))
                     local_candidate = candidate;
@@ -261,8 +265,6 @@ module cgx1_compute_workgroup_lsu #(
         writeback_source = -1;
         completion_candidate = -1;
         fault_candidate = -1;
-        local_response_ready = 1'b1;
-        global_response_ready = 1'b1;
         writeback_valid = 1'b0;
         writeback_workgroup_id = '0;
         writeback_wave_slot = '0;
@@ -286,13 +288,13 @@ module cgx1_compute_workgroup_lsu #(
             if ((local_response_match < 0) && local_response_valid
                 && (state_q[slot] == ST_LOCAL_WAIT)
                 && (workgroup_q[slot] == local_response_workgroup_id)
-                && (slot == $unsigned(local_response_wave_id))
+                && (slot == int'($unsigned(local_response_wave_id)))
                 && (tag_q[slot] == local_response_transaction_tag))
                 local_response_match = slot;
             if ((global_response_match < 0) && global_response_valid
                 && (state_q[slot] == ST_GLOBAL_WAIT)
                 && (workgroup_q[slot] == global_response_workgroup_id)
-                && (slot == $unsigned(global_response_wave_id))
+                && (slot == int'($unsigned(global_response_wave_id)))
                 && (epoch_q[slot] == global_response_epoch)
                 && (tag_q[slot] == global_response_transaction_tag))
                 global_response_match = slot;
@@ -323,7 +325,6 @@ module cgx1_compute_workgroup_lsu #(
                 writeback_destination = destination_q[slot];
                 writeback_lane_mask = lane_mask_q[slot];
                 writeback_lane_data_flat = local_response_lane_data_flat;
-                local_response_ready = writeback_ready;
             end else begin
                 slot = writeback_source - RESIDENT_WAVE_SLOTS;
                 writeback_workgroup_id = workgroup_q[slot];
@@ -332,10 +333,29 @@ module cgx1_compute_workgroup_lsu #(
                 writeback_destination = destination_q[slot];
                 writeback_lane_mask = lane_mask_q[slot];
                 writeback_lane_data_flat = global_response_lane_data_flat;
-                global_response_ready = writeback_ready;
             end
         end
 
+        if (completion_candidate >= 0) begin
+            completion_valid = 1'b1;
+            completion_workgroup_id = workgroup_q[completion_candidate];
+            completion_wave_slot = completion_candidate[WAVE_SLOT_WIDTH-1:0];
+            completion_transaction_tag = tag_q[completion_candidate];
+            completion_write = write_q[completion_candidate];
+        end
+        if (fault_candidate >= 0) begin
+            fault_valid = 1'b1;
+            fault_workgroup_id = workgroup_q[fault_candidate];
+            fault_wave_slot = fault_candidate[WAVE_SLOT_WIDTH-1:0];
+            fault_transaction_tag = tag_q[fault_candidate];
+            fault_code = fault_code_q[fault_candidate];
+            fault_lane = fault_lane_q[fault_candidate];
+        end
+    end
+
+    always_comb begin : response_backpressure
+        local_response_ready = 1'b1;
+        global_response_ready = 1'b1;
         if ((local_response_match >= 0) && !wave_live_mask[local_response_match])
             local_response_ready = 1'b1;
         else if ((local_response_match >= 0)
@@ -359,29 +379,13 @@ module cgx1_compute_workgroup_lsu #(
             global_response_ready = (writeback_source
                 == (RESIDENT_WAVE_SLOTS + global_response_match))
                 ? writeback_ready : 1'b0;
-
-        if (completion_candidate >= 0) begin
-            completion_valid = 1'b1;
-            completion_workgroup_id = workgroup_q[completion_candidate];
-            completion_wave_slot = completion_candidate[WAVE_SLOT_WIDTH-1:0];
-            completion_transaction_tag = tag_q[completion_candidate];
-            completion_write = write_q[completion_candidate];
-        end
-        if (fault_candidate >= 0) begin
-            fault_valid = 1'b1;
-            fault_workgroup_id = workgroup_q[fault_candidate];
-            fault_wave_slot = fault_candidate[WAVE_SLOT_WIDTH-1:0];
-            fault_transaction_tag = tag_q[fault_candidate];
-            fault_code = fault_code_q[fault_candidate];
-            fault_lane = fault_lane_q[fault_candidate];
-        end
     end
 
     always_comb begin : cancel_arbitration
         integer slot;
         cancel_candidate = -1;
         if (cancel_hold_valid_q) begin
-            slot = $unsigned(cancel_hold_slot_q);
+            slot = int'($unsigned(cancel_hold_slot_q));
             if ((slot < RESIDENT_WAVE_SLOTS)
                 && (state_q[slot] == ST_LOCAL_WAIT)
                 && !wave_live_mask[slot]
@@ -458,7 +462,7 @@ module cgx1_compute_workgroup_lsu #(
                     workgroup_q[state_slot] <= wave_workgroup_id_flat[
                         (state_slot*WORKGROUP_ID_WIDTH)+:WORKGROUP_ID_WIDTH];
                     epoch_q[state_slot] <= memory_epoch;
-                    tag_q[state_slot] <= next_tag_q + accepted_prefix;
+                    tag_q[state_slot] <= next_tag_q + TRANSACTION_TAG_WIDTH'(accepted_prefix);
                     write_q[state_slot] <= issue_write[state_slot];
                     destination_q[state_slot] <= issue_destination_flat[(state_slot*8)+:8];
                     lane_mask_q[state_slot] <= issue_lane_mask_flat[(state_slot*32)+:32];
@@ -565,11 +569,11 @@ module cgx1_compute_workgroup_lsu #(
                 end
             end
             if (accepted_count != 0)
-                next_tag_q <= next_tag_q + accepted_count;
+                next_tag_q <= next_tag_q + TRANSACTION_TAG_WIDTH'(accepted_count);
 
             if (global_request_valid && global_request_ready) begin
                 global_hold_valid_q <= 1'b0;
-                global_rr_q <= (global_candidate + 1) % RESIDENT_WAVE_SLOTS;
+                global_rr_q <= WAVE_SLOT_WIDTH'((global_candidate + 1) % RESIDENT_WAVE_SLOTS);
             end else if (global_request_valid && !global_request_ready) begin
                 global_hold_valid_q <= 1'b1;
                 global_hold_slot_q <= global_candidate[WAVE_SLOT_WIDTH-1:0];
@@ -579,7 +583,7 @@ module cgx1_compute_workgroup_lsu #(
 
             if (local_request_valid && local_request_ready && local_request_accepted) begin
                 local_hold_valid_q <= 1'b0;
-                local_rr_q <= (local_candidate + 1) % RESIDENT_WAVE_SLOTS;
+                local_rr_q <= WAVE_SLOT_WIDTH'((local_candidate + 1) % RESIDENT_WAVE_SLOTS);
             end else if (local_request_valid && !local_request_ready) begin
                 local_hold_valid_q <= 1'b1;
                 local_hold_slot_q <= local_candidate[WAVE_SLOT_WIDTH-1:0];

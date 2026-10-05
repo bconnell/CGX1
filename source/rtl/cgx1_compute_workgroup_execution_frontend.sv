@@ -207,7 +207,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     output logic [WAVE_COUNT_WIDTH-1:0] resident_wave_count,
     output logic [31:0] scalar_state_units_used,
     output logic [31:0] shared_local_bytes_used,
-    output logic [31:0] other_workgroup_state_units_used
+    output logic [63:0] other_workgroup_state_units_used
 );
     localparam logic [4:0] FAIL_INVALID_WAVE_COUNT = 5'd1;
     localparam logic [4:0] FAIL_WORKGROUP_WAVE_LIMIT = 5'd2;
@@ -340,7 +340,8 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [MAX_WORKGROUP_CONTEXTS-1:0] barrier_active_mask;
     logic [RESIDENT_WAVE_SLOTS-1:0] barrier_final_wave_release_mask;
     logic [(RESIDENT_WAVE_SLOTS*WORKGROUP_ID_WIDTH)-1:0] barrier_slot_workgroup_id_flat;
-    logic [31:0] barrier_scalar_used, barrier_shared_used, barrier_other_used;
+    logic [31:0] barrier_scalar_used, barrier_shared_used;
+    logic [63:0] barrier_other_used;
     logic reserve_valid, reserve_ready, reserve_accepted;
     logic [WAVE_SLOT_WIDTH-1:0] reserve_wave_slot;
     logic [8:0] reserve_register_count;
@@ -413,7 +414,6 @@ module cgx1_compute_workgroup_execution_frontend #(
     integer free_rows;
     integer rows_used;
     integer requested_rows;
-    integer requested_scalar;
     integer used_scalar;
     integer used_shared;
     logic [63:0] used_other;
@@ -427,11 +427,16 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic control_entry_invalid;
 
     always_comb begin : admission_plan
-        integer row_count;
         integer scalar_demand;
+        integer row_count;
         logic [63:0] shared_demand;
         logic [63:0] other_demand;
         logic slot_found;
+        row_count = 0;
+        scalar_demand = 0;
+        shared_demand = '0;
+        other_demand = '0;
+        slot_found = 1'b0;
         allocator_in_use = allocation_reserved_bitmap | allocation_active_bitmap;
         planned_slots_flat = '0;
         plan_failure = 5'd0;
@@ -440,7 +445,6 @@ module cgx1_compute_workgroup_execution_frontend #(
         free_rows = PHYSICAL_ROWS;
         rows_used = 0;
         requested_rows = 0;
-        requested_scalar = 0;
         used_scalar = barrier_scalar_used;
         used_shared = shared_local_bytes_used;
         used_other = barrier_other_used;
@@ -452,10 +456,11 @@ module cgx1_compute_workgroup_execution_frontend #(
         for (comb_wave = 0; comb_wave < RESIDENT_WAVE_SLOTS; comb_wave = comb_wave + 1)
             plan_slot[comb_wave] = -1;
         for (comb_slot = 0; comb_slot < RESIDENT_WAVE_SLOTS; comb_slot = comb_slot + 1) begin
+            row_count = 0;
             if (!allocator_in_use[comb_slot])
                 free_slots = free_slots + 1;
             else begin
-                row_count = ($unsigned(allocation_register_count_flat[(comb_slot*9)+:9]) + 7) / 8;
+                row_count = (int'($unsigned(allocation_register_count_flat[(comb_slot*9)+:9])) + 7) / 8;
                 rows_used = rows_used + row_count;
             end
         end
@@ -464,8 +469,9 @@ module cgx1_compute_workgroup_execution_frontend #(
             active_contexts = active_contexts + barrier_active_mask[comb_slot];
 
         for (comb_wave = 0; comb_wave < RESIDENT_WAVE_SLOTS; comb_wave = comb_wave + 1) begin
-            if (comb_wave < $unsigned(dispatch_wave_count)) begin
-                comb_count = $unsigned(dispatch_vgpr_register_counts_flat[(comb_wave*9)+:9]);
+            comb_count = 0;
+            if (comb_wave < int'($unsigned(dispatch_wave_count))) begin
+                comb_count = int'($unsigned(dispatch_vgpr_register_counts_flat[(comb_wave*9)+:9]));
                 if (dispatch_initial_live_lane_mask_flat[(comb_wave*32)+:32] == 0)
                     control_entry_invalid = 1'b1;
                 if ((comb_count < 1) || (comb_count > 256))
@@ -473,11 +479,9 @@ module cgx1_compute_workgroup_execution_frontend #(
                 requested_rows = requested_rows + ((comb_count + 7) / 8);
             end
         end
-        requested_scalar = scalar_demand;
-
         if (dispatch_wave_count == 0)
             plan_failure = FAIL_INVALID_WAVE_COUNT;
-        else if ($unsigned(dispatch_wave_count) > RESIDENT_WAVE_SLOTS)
+        else if (int'($unsigned(dispatch_wave_count)) > RESIDENT_WAVE_SLOTS)
             plan_failure = FAIL_WORKGROUP_WAVE_LIMIT;
         else if (control_entry_invalid)
             plan_failure = FAIL_INVALID_CONTROL_ENTRY;
@@ -491,32 +495,34 @@ module cgx1_compute_workgroup_execution_frontend #(
             plan_failure = FAIL_VGPR_EXCEEDS_CU;
         else if (scalar_demand > SCALAR_PREDICATE_STATE_UNITS)
             plan_failure = FAIL_SCALAR_STATE_EXCEEDS_CU;
-        else if (shared_demand > SHARED_LOCAL_MEMORY_BYTES)
+        else if (shared_demand > 64'(SHARED_LOCAL_MEMORY_BYTES))
             plan_failure = FAIL_SHARED_MEMORY_EXCEEDS_CU;
-        else if (other_demand > OTHER_WORKGROUP_STATE_UNITS)
+        else if (other_demand > 64'(OTHER_WORKGROUP_STATE_UNITS))
             plan_failure = FAIL_OTHER_STATE_EXCEEDS_CU;
-        else if (free_slots < $unsigned(dispatch_wave_count))
+        else if (free_slots < int'($unsigned(dispatch_wave_count)))
             plan_failure = FAIL_WAVE_SLOTS_BUSY;
         else if (free_rows < requested_rows)
             plan_failure = FAIL_VGPR_ROWS_BUSY;
         else if ((used_scalar + scalar_demand) > SCALAR_PREDICATE_STATE_UNITS)
             plan_failure = FAIL_SCALAR_STATE_BUSY;
-        else if ((used_shared + shared_demand) > SHARED_LOCAL_MEMORY_BYTES)
+        else if ((64'($unsigned(used_shared)) + shared_demand)
+            > 64'(SHARED_LOCAL_MEMORY_BYTES))
             plan_failure = FAIL_SHARED_MEMORY_BUSY;
-        else if ((used_other + other_demand) > OTHER_WORKGROUP_STATE_UNITS)
+        else if ((used_other + other_demand) > 64'(OTHER_WORKGROUP_STATE_UNITS))
             plan_failure = FAIL_OTHER_STATE_BUSY;
 
         if (plan_failure == 0) begin
             comb_wave = 0;
             for (comb_slot = 0; comb_slot < RESIDENT_WAVE_SLOTS; comb_slot = comb_slot + 1) begin
-                if (!allocator_in_use[comb_slot] && (comb_wave < $unsigned(dispatch_wave_count))) begin
+                if (!allocator_in_use[comb_slot]
+                    && (comb_wave < int'($unsigned(dispatch_wave_count)))) begin
                     plan_slot[comb_wave] = comb_slot;
                     planned_slots_flat[(comb_wave*WAVE_SLOT_WIDTH)+:WAVE_SLOT_WIDTH]
                         = comb_slot[WAVE_SLOT_WIDTH-1:0];
                     comb_wave = comb_wave + 1;
                 end
             end
-            slot_found = (comb_wave == $unsigned(dispatch_wave_count));
+            slot_found = (comb_wave == int'($unsigned(dispatch_wave_count)));
             if (!slot_found)
                 plan_failure = FAIL_WAVE_SLOTS_BUSY;
         end
@@ -526,12 +532,13 @@ module cgx1_compute_workgroup_execution_frontend #(
         control_initialize_valid_mask = '0;
         control_initialize_pc_flat = '0;
         control_initialize_live_mask_flat = '0;
+        control_init_slot = 0;
         if (commit_accepted) begin
             for (control_init_wave = 0; control_init_wave < RESIDENT_WAVE_SLOTS;
                 control_init_wave = control_init_wave + 1) begin
-                if (control_init_wave < $unsigned(txn_wave_count_q)) begin
-                    control_init_slot = $unsigned(txn_wave_slot_map_flat_q[
-                        (control_init_wave*WAVE_SLOT_WIDTH)+:WAVE_SLOT_WIDTH]);
+                if (control_init_wave < int'($unsigned(txn_wave_count_q))) begin
+                    control_init_slot = int'($unsigned(txn_wave_slot_map_flat_q[
+                        (control_init_wave*WAVE_SLOT_WIDTH)+:WAVE_SLOT_WIDTH]));
                     control_initialize_valid_mask[control_init_slot] = 1'b1;
                     control_initialize_pc_flat[(control_init_slot*VIRTUAL_ADDRESS_WIDTH)
                         +:VIRTUAL_ADDRESS_WIDTH] = txn_start_pc_q;
@@ -783,9 +790,9 @@ module cgx1_compute_workgroup_execution_frontend #(
             ? control_event_join_pc : provisional_control_instruction_join_pc;
         control_flow_event_taken_mask = control_event_valid
             ? control_event_taken_mask : provisional_control_instruction_taken_mask;
-        control_event_ready = control_event_valid && control_flow_event_ready;
-        control_event_accepted = control_event_valid && control_flow_event_accepted;
     end
+    assign control_event_ready = control_event_valid && control_flow_event_ready;
+    assign control_event_accepted = control_event_valid && control_flow_event_accepted;
 
     always_comb begin : fetched_vector_request_multiplex
         integer slot;
@@ -871,7 +878,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         vector_request_lane_mask_effective = '0;
         memory_issue_lane_mask_effective = '0;
         if (control_flow_event_valid
-            && ($unsigned(control_flow_event_wave_slot) < RESIDENT_WAVE_SLOTS))
+            && (int'($unsigned(control_flow_event_wave_slot)) < RESIDENT_WAVE_SLOTS))
             control_event_slot_mask[control_flow_event_wave_slot] = 1'b1;
         for (integer lane_slot = 0; lane_slot < RESIDENT_WAVE_SLOTS; lane_slot = lane_slot + 1) begin
             vector_request_lane_mask_effective[(lane_slot*32)+:32]
@@ -937,7 +944,7 @@ module cgx1_compute_workgroup_execution_frontend #(
             memory_pending_slot = memory_pending_slot + 1) begin
             if (memory_load_destination_pending_mask[memory_pending_slot])
                 memory_destination_pending_mask_flat[(memory_pending_slot*256)
-                    + $unsigned(lsu_load_destination_register_flat[(memory_pending_slot*8)+:8])] = 1'b1;
+                    + int'($unsigned(lsu_load_destination_register_flat[(memory_pending_slot*8)+:8]))] = 1'b1;
         end
     end
 

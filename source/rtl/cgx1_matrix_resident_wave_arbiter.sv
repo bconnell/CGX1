@@ -39,7 +39,7 @@ module cgx1_matrix_resident_wave_arbiter #(
             select_request = '0;
             found = 1'b0;
             for (scan_index = 0; scan_index < RESIDENT_WAVE_SLOTS; scan_index = scan_index + 1) begin
-                candidate_index = $unsigned(start_slot) + scan_index;
+                candidate_index = int'($unsigned(start_slot)) + scan_index;
                 if (candidate_index >= RESIDENT_WAVE_SLOTS) begin
                     candidate_index = candidate_index - RESIDENT_WAVE_SLOTS;
                 end
@@ -73,7 +73,8 @@ module cgx1_matrix_resident_wave_arbiter #(
 
         round_robin_d = round_robin_q;
         if (selected_request[WAVE_SLOT_WIDTH] && grant_ready) begin
-            if ($unsigned(selected_request[WAVE_SLOT_WIDTH-1:0]) == RESIDENT_WAVE_SLOTS - 1) begin
+            if (int'($unsigned(selected_request[WAVE_SLOT_WIDTH-1:0]))
+                == RESIDENT_WAVE_SLOTS - 1) begin
                 round_robin_d = '0;
             end else begin
                 round_robin_d = selected_request[WAVE_SLOT_WIDTH-1:0] + 1'b1;

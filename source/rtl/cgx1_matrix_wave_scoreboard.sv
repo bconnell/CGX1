@@ -58,7 +58,7 @@ module cgx1_matrix_wave_scoreboard (
         begin
             mask = '0;
             for (offset = 0; offset < count; offset = offset + 1) begin
-                index = base + offset;
+                index = int'($unsigned(base)) + offset;
                 if (index >= 0 && index < 256) begin
                     mask[index] = 1'b1;
                 end
@@ -67,7 +67,7 @@ module cgx1_matrix_wave_scoreboard (
         end
     endfunction
 
-    always_comb begin
+    always_comb begin : pending_mask_decode
         issue_source_mask =
             register_range_mask(matrix_accepted_a_base, 4)
             | register_range_mask(matrix_accepted_b_base, 4);
@@ -89,25 +89,6 @@ module cgx1_matrix_wave_scoreboard (
 
         matrix_source_pending_mask = effective_source_pending;
         matrix_destination_pending_mask = effective_destination_pending;
-
-        ordinary_raw_hazard =
-            |(ordinary_read_mask & effective_destination_pending);
-        ordinary_waw_hazard =
-            |(ordinary_write_mask & effective_destination_pending);
-        ordinary_war_hazard =
-            |(ordinary_write_mask & effective_source_pending);
-
-        ordinary_read_port_conflict =
-            ordinary_uses_read_ports && matrix_rf_read_valid;
-        ordinary_write_port_conflict =
-            ordinary_uses_write_port && matrix_rf_write_valid;
-
-        ordinary_ready =
-            !ordinary_raw_hazard
-            && !ordinary_waw_hazard
-            && !ordinary_war_hazard
-            && !ordinary_read_port_conflict
-            && !ordinary_write_port_conflict;
 
         source_pending_d = source_pending_q;
         destination_pending_d = destination_pending_q;
@@ -132,6 +113,25 @@ module cgx1_matrix_wave_scoreboard (
             destination_pending_d =
                 destination_pending_d | issue_destination_mask;
         end
+    end
+
+    always_comb begin : ordinary_hazard_decode
+        ordinary_raw_hazard =
+            |(ordinary_read_mask & effective_destination_pending);
+        ordinary_waw_hazard =
+            |(ordinary_write_mask & effective_destination_pending);
+        ordinary_war_hazard =
+            |(ordinary_write_mask & effective_source_pending);
+        ordinary_read_port_conflict =
+            ordinary_uses_read_ports && matrix_rf_read_valid;
+        ordinary_write_port_conflict =
+            ordinary_uses_write_port && matrix_rf_write_valid;
+        ordinary_ready =
+            !ordinary_raw_hazard
+            && !ordinary_waw_hazard
+            && !ordinary_war_hazard
+            && !ordinary_read_port_conflict
+            && !ordinary_write_port_conflict;
     end
 
     always_ff @(posedge clk or negedge reset_n) begin

@@ -64,6 +64,7 @@ module cgx1_wave_control_flow #(
     localparam logic [3:0] FAULT_UNBALANCED_CONTROL = 4'd7;
     localparam logic [3:0] FAULT_NO_RUNNABLE_LANES = 4'd8;
     localparam logic [3:0] FAULT_INVALID_EVENT = 4'd9;
+    localparam integer CALL_STACK_INDEX_WIDTH = (CALL_STACK_DEPTH <= 1) ? 1 : $clog2(CALL_STACK_DEPTH);
 
     logic [RESIDENT_WAVE_SLOTS-1:0] initialized_q;
     logic [RESIDENT_WAVE_SLOTS-1:0] terminal_pending_q;
@@ -157,7 +158,7 @@ module cgx1_wave_control_flow #(
                 outer_join_match = 1'b0;
                 if ($unsigned(control_top_q[slot]) > 1) begin
                     for (scan_index = 0;
-                         scan_index < ($unsigned(control_top_q[slot]) - 1);
+                         scan_index < (int'($unsigned(control_top_q[slot])) - 1);
                          scan_index = scan_index + 1) begin
                         if ((control_kind_q[slot][scan_index] == FRAME_BRANCH)
                             && (control_join_pc_q[slot][scan_index] == pc_q[slot]))
@@ -176,12 +177,12 @@ module cgx1_wave_control_flow #(
                             fault_wave(slot, FAULT_NO_RUNNABLE_LANES);
                             done = 1'b1;
                         end else begin
-                            top = $unsigned(control_top_q[slot]) - 1;
+                            top = int'($unsigned(control_top_q[slot])) - 1;
                             deferred_mask = control_deferred_mask_q[slot][top] & live_mask_q[slot];
                             waiting_mask = control_waiting_mask_q[slot][top] & live_mask_q[slot];
                             if (control_kind_q[slot][top] == FRAME_BRANCH) begin
-                                saved_call_depth = $unsigned(control_saved_call_depth_q[slot][top]);
-                                if ($unsigned(call_top_q[slot]) < saved_call_depth) begin
+                                saved_call_depth = int'($unsigned(control_saved_call_depth_q[slot][top]));
+                                if (int'($unsigned(call_top_q[slot])) < saved_call_depth) begin
                                     fault_wave(slot, FAULT_UNBALANCED_CONTROL);
                                     done = 1'b1;
                                 end else if (!control_deferred_scheduled_q[slot][top]
@@ -199,8 +200,8 @@ module cgx1_wave_control_flow #(
                                     pc_q[slot] = control_join_pc_q[slot][top];
                                 end
                             end else if (waiting_mask != 0) begin
-                                saved_call_depth = $unsigned(control_saved_call_depth_q[slot][top]);
-                                if ($unsigned(call_top_q[slot]) < saved_call_depth) begin
+                                saved_call_depth = int'($unsigned(control_saved_call_depth_q[slot][top]));
+                                if (int'($unsigned(call_top_q[slot])) < saved_call_depth) begin
                                     fault_wave(slot, FAULT_UNBALANCED_CONTROL);
                                     done = 1'b1;
                                 end else begin
@@ -212,8 +213,8 @@ module cgx1_wave_control_flow #(
                             end else begin
                                 member_mask = control_member_mask_q[slot][top] & live_mask_q[slot];
                                 if (member_mask == 0) begin
-                                    saved_call_depth = $unsigned(control_saved_call_depth_q[slot][top]);
-                                    if ($unsigned(call_top_q[slot]) < saved_call_depth) begin
+                                    saved_call_depth = int'($unsigned(control_saved_call_depth_q[slot][top]));
+                                    if (int'($unsigned(call_top_q[slot])) < saved_call_depth) begin
                                         fault_wave(slot, FAULT_UNBALANCED_CONTROL);
                                         done = 1'b1;
                                     end else begin
@@ -230,9 +231,9 @@ module cgx1_wave_control_flow #(
                     end else if ((control_top_q[slot] != 0)
                         && (control_kind_q[slot][$unsigned(control_top_q[slot])-1] == FRAME_BRANCH)
                         && (control_join_pc_q[slot][$unsigned(control_top_q[slot])-1] == pc_q[slot])) begin
-                        top = $unsigned(control_top_q[slot]) - 1;
-                        saved_call_depth = $unsigned(control_saved_call_depth_q[slot][top]);
-                        if ($unsigned(call_top_q[slot]) != saved_call_depth) begin
+                        top = int'($unsigned(control_top_q[slot])) - 1;
+                        saved_call_depth = int'($unsigned(control_saved_call_depth_q[slot][top]));
+                        if (int'($unsigned(call_top_q[slot])) != saved_call_depth) begin
                             fault_wave(slot, FAULT_UNBALANCED_CONTROL);
                             done = 1'b1;
                         end else if (!control_deferred_scheduled_q[slot][top]) begin
@@ -296,7 +297,7 @@ module cgx1_wave_control_flow #(
 
         control_event_ready = 1'b0;
         control_event_accepted = 1'b0;
-        if (control_event_valid && ($unsigned(control_event_wave_slot) < RESIDENT_WAVE_SLOTS)
+        if (control_event_valid && (int'($unsigned(control_event_wave_slot)) < RESIDENT_WAVE_SLOTS)
             && initialized_q[control_event_wave_slot]
             && (live_mask_q[control_event_wave_slot] != 0)
             && (active_mask_q[control_event_wave_slot] != 0)
@@ -348,14 +349,14 @@ module cgx1_wave_control_flow #(
                 end else if (advance_valid_mask[seq_slot] && initialized_q[seq_slot]
                     && (live_mask_q[seq_slot] != 0) && (active_mask_q[seq_slot] != 0)
                     && !terminal_pending_q[seq_slot]
-                    && !(control_event_accepted && (control_event_wave_slot == seq_slot))) begin
+                    && !(control_event_accepted && (int'($unsigned(control_event_wave_slot)) == seq_slot))) begin
                     advance_wave(seq_slot,
                         advance_sequential_pc_flat[(seq_slot*VIRTUAL_ADDRESS_WIDTH)+:VIRTUAL_ADDRESS_WIDTH]);
                 end
             end
 
             if (control_event_accepted) begin
-                seq_slot = $unsigned(control_event_wave_slot);
+                seq_slot = int'($unsigned(control_event_wave_slot));
                 case (control_event_kind)
                     EVENT_ADVANCE: begin
                         advance_wave(seq_slot, control_event_sequential_pc);
@@ -375,10 +376,10 @@ module cgx1_wave_control_flow #(
                             else
                                 pc_q[seq_slot] = control_event_target_pc;
                             stabilize_wave(seq_slot);
-                        end else if ($unsigned(control_top_q[seq_slot]) >= CONTROL_STACK_DEPTH)
+                        end else if (int'($unsigned(control_top_q[seq_slot])) >= CONTROL_STACK_DEPTH)
                             fault_wave(seq_slot, FAULT_CONTROL_OVERFLOW);
                         else begin
-                            frame_index = $unsigned(control_top_q[seq_slot]);
+                            frame_index = int'($unsigned(control_top_q[seq_slot]));
                             control_kind_q[seq_slot][frame_index] = FRAME_BRANCH;
                             control_join_pc_q[seq_slot][frame_index] = control_event_join_pc;
                             control_deferred_pc_q[seq_slot][frame_index] = control_event_fallthrough_pc;
@@ -397,10 +398,11 @@ module cgx1_wave_control_flow #(
                     EVENT_CALL: begin
                         if (!pc_aligned(control_event_target_pc) || !pc_aligned(control_event_return_pc))
                             fault_wave(seq_slot, FAULT_INVALID_PC);
-                        else if ($unsigned(call_top_q[seq_slot]) >= CALL_STACK_DEPTH)
+                        else if (int'($unsigned(call_top_q[seq_slot])) >= CALL_STACK_DEPTH)
                             fault_wave(seq_slot, FAULT_CALL_OVERFLOW);
                         else begin
-                            call_return_pc_q[seq_slot][$unsigned(call_top_q[seq_slot])] = control_event_return_pc;
+                            call_return_pc_q[seq_slot][call_top_q[seq_slot][CALL_STACK_INDEX_WIDTH-1:0]]
+                                = control_event_return_pc;
                             call_top_q[seq_slot] = call_top_q[seq_slot] + 1'b1;
                             pc_q[seq_slot] = control_event_target_pc;
                         end
@@ -411,18 +413,19 @@ module cgx1_wave_control_flow #(
                         else begin
                             protected_call_depth = 0;
                             for (frame_index = 0;
-                                 frame_index < $unsigned(control_top_q[seq_slot]);
+                                 frame_index < int'($unsigned(control_top_q[seq_slot]));
                                  frame_index = frame_index + 1) begin
-                                if ($unsigned(control_saved_call_depth_q[seq_slot][frame_index])
+                                if (int'($unsigned(control_saved_call_depth_q[seq_slot][frame_index]))
                                     > protected_call_depth)
-                                    protected_call_depth = $unsigned(
-                                        control_saved_call_depth_q[seq_slot][frame_index]);
+                                    protected_call_depth = int'($unsigned(
+                                        control_saved_call_depth_q[seq_slot][frame_index]));
                             end
-                            if ($unsigned(call_top_q[seq_slot]) <= protected_call_depth)
+                            if (int'($unsigned(call_top_q[seq_slot])) <= protected_call_depth)
                                 fault_wave(seq_slot, FAULT_UNBALANCED_CONTROL);
                             else begin
                                 call_top_q[seq_slot] = call_top_q[seq_slot] - 1'b1;
-                                pc_q[seq_slot] = call_return_pc_q[seq_slot][$unsigned(call_top_q[seq_slot])];
+                                pc_q[seq_slot] = call_return_pc_q[seq_slot]
+                                    [call_top_q[seq_slot][CALL_STACK_INDEX_WIDTH-1:0]];
                                 stabilize_wave(seq_slot);
                             end
                         end
@@ -434,10 +437,10 @@ module cgx1_wave_control_flow #(
                             fault_wave(seq_slot, FAULT_INVALID_PC);
                         else if (active_mask_q[seq_slot] == 0)
                             fault_wave(seq_slot, FAULT_INVALID_MASK);
-                        else if ($unsigned(control_top_q[seq_slot]) >= CONTROL_STACK_DEPTH)
+                        else if (int'($unsigned(control_top_q[seq_slot])) >= CONTROL_STACK_DEPTH)
                             fault_wave(seq_slot, FAULT_CONTROL_OVERFLOW);
                         else begin
-                            frame_index = $unsigned(control_top_q[seq_slot]);
+                            frame_index = int'($unsigned(control_top_q[seq_slot]));
                             control_kind_q[seq_slot][frame_index] = FRAME_LOOP;
                             control_test_pc_q[seq_slot][frame_index] = control_event_loop_test_pc;
                             control_body_pc_q[seq_slot][frame_index] = control_event_loop_body_pc;
@@ -469,7 +472,7 @@ module cgx1_wave_control_flow #(
                             != control_saved_call_depth_q[seq_slot][$unsigned(control_top_q[seq_slot])-1])
                             fault_wave(seq_slot, FAULT_UNBALANCED_CONTROL);
                         else begin
-                            frame_index = $unsigned(control_top_q[seq_slot]) - 1;
+                            frame_index = int'($unsigned(control_top_q[seq_slot])) - 1;
                             expected_loop_mask = control_member_mask_q[seq_slot][frame_index]
                                 & live_mask_q[seq_slot] & ~control_waiting_mask_q[seq_slot][frame_index];
                             if ((active_mask_q[seq_slot] != expected_loop_mask)
@@ -517,8 +520,8 @@ module cgx1_wave_control_flow #(
             for (integer check_slot = 0; check_slot < RESIDENT_WAVE_SLOTS; check_slot = check_slot + 1) begin
                 if ((active_mask_q[check_slot] & ~live_mask_q[check_slot]) != 0)
                     $fatal(1, "wave control active lanes are not a subset of live lanes");
-                if ($unsigned(control_top_q[check_slot]) > CONTROL_STACK_DEPTH
-                    || $unsigned(call_top_q[check_slot]) > CALL_STACK_DEPTH)
+                if (int'($unsigned(control_top_q[check_slot])) > CONTROL_STACK_DEPTH
+                    || int'($unsigned(call_top_q[check_slot])) > CALL_STACK_DEPTH)
                     $fatal(1, "wave control stack depth exceeded its allocation");
                 if (initialized_q[check_slot] && (live_mask_q[check_slot] != 0)
                     && !pc_aligned(pc_q[check_slot]))

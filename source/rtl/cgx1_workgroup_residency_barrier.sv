@@ -101,6 +101,34 @@ module cgx1_workgroup_residency_barrier #(
     logic [RESIDENT_WAVE_SLOTS-1:0] arrived_after_terminate;
     logic [RESIDENT_WAVE_SLOTS-1:0] live_after_terminate;
 
+    always_comb begin : wave_state_projection
+        integer slot_index;
+        integer group_index;
+        integer local_index;
+        resident_wave_mask = slot_owned_q;
+        slot_workgroup_id_flat = '0;
+        live_wave_mask = '0;
+        barrier_waiting_mask = '0;
+        group_index = 0;
+        local_index = 0;
+
+        for (slot_index = 0; slot_index < RESIDENT_WAVE_SLOTS; slot_index = slot_index + 1) begin
+            if (slot_owned_q[slot_index]) begin
+                local_index = int'($unsigned(slot_local_q[slot_index]));
+                group_index = int'($unsigned(slot_group_q[slot_index]));
+                if (group_active_q[group_index]) begin
+                    slot_workgroup_id_flat[(slot_index*WORKGROUP_ID_WIDTH)
+                        +: WORKGROUP_ID_WIDTH] = group_id_q[group_index];
+                    if (group_live_local_q[group_index][local_index]) begin
+                        live_wave_mask[slot_index] = 1'b1;
+                        if (group_arrived_local_q[group_index][local_index])
+                            barrier_waiting_mask[slot_index] = 1'b1;
+                    end
+                end
+            end
+        end
+    end
+
     always_comb begin : control_decode
         integer group_index;
         integer slot_index;
@@ -117,10 +145,6 @@ module cgx1_workgroup_residency_barrier #(
         used_shared = 0;
         used_other = 0;
         owned_count = 0;
-        resident_wave_mask = slot_owned_q;
-        slot_workgroup_id_flat = '0;
-        live_wave_mask = '0;
-        barrier_waiting_mask = '0;
         issuable_wave_mask = '0;
         release_pending_wave_mask = '0;
         workgroup_active_mask = group_active_q;
@@ -150,13 +174,8 @@ module cgx1_workgroup_residency_barrier #(
                 local_index = int'($unsigned(slot_local_q[slot_index]));
                 group_index = int'($unsigned(slot_group_q[slot_index]));
                 if (group_active_q[group_index]) begin
-                    slot_workgroup_id_flat[(slot_index*WORKGROUP_ID_WIDTH)
-                        +: WORKGROUP_ID_WIDTH] = group_id_q[group_index];
                     if (group_live_local_q[group_index][local_index]) begin
-                        live_wave_mask[slot_index] = 1'b1;
-                        if (group_arrived_local_q[group_index][local_index])
-                            barrier_waiting_mask[slot_index] = 1'b1;
-                        else
+                        if (!group_arrived_local_q[group_index][local_index])
                             issuable_wave_mask[slot_index] = 1'b1;
                     end else begin
                         release_pending_wave_mask[slot_index] = 1'b1;

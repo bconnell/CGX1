@@ -44,6 +44,7 @@ module cgx1_resident_wave_vgpr_allocator #(
     localparam logic [1:0] STATE_FREE = 2'd0;
     localparam logic [1:0] STATE_RESERVED = 2'd1;
     localparam logic [1:0] STATE_ACTIVE = 2'd2;
+    localparam integer ROW_COUNT_WIDTH = ROW_WIDTH + 1;
     localparam logic [WAVE_SLOT_WIDTH:0] RESIDENT_WAVE_SLOTS_LIMIT =
         (WAVE_SLOT_WIDTH + 1)'(RESIDENT_WAVE_SLOTS);
 
@@ -56,7 +57,7 @@ module cgx1_resident_wave_vgpr_allocator #(
     logic [PHYSICAL_ROWS-1:0] occupied_rows;
     logic fit_found;
     logic [ROW_WIDTH-1:0] fit_base;
-    logic [ROW_WIDTH:0] rows_needed;
+    logic [ROW_COUNT_WIDTH-1:0] rows_needed;
     logic invalidate_found;
     logic [WAVE_SLOT_WIDTH-1:0] invalidate_wave_slot;
     logic [WAVE_SLOT_WIDTH-1:0] invalidate_rr_q;
@@ -89,7 +90,7 @@ module cgx1_resident_wave_vgpr_allocator #(
             end
         end
 
-        rows_needed = ROW_WIDTH'({2'b00, reserve_register_count[8:3]}
+        rows_needed = ROW_COUNT_WIDTH'({2'b00, reserve_register_count[8:3]}
             + {7'b0000000, (|reserve_register_count[2:0])});
         fit_found = 1'b0;
         fit_base = '0;

@@ -12,7 +12,7 @@
         },
         {
           "path": "source/testing/release_test_check_failure_probe.cpp",
-          "needle": "false && \"intentional Release/NDEBUG failure probe\""
+          "needle": "argc == 0 && \"intentional Release/NDEBUG failure probe\""
         },
         {
           "path": "scripts/prove_release_test_check_failure.py",

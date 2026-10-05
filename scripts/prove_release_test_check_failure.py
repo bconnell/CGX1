@@ -50,7 +50,7 @@ def main() -> int:
             ["ctest", "--test-dir", str(build), "-C", "Release", "--output-on-failure", "-R", "^cgx1_test_check_failure_probe$"], root
         )
         print(test.stdout, end="")
-        expected = "CGX1_TEST_CHECK failed: false && \"intentional Release/NDEBUG failure probe\""
+        expected = "CGX1_TEST_CHECK failed: argc == 0 && \"intentional Release/NDEBUG failure probe\""
         if test.returncode == 0 or expected not in test.stdout:
             print("Release/NDEBUG failure probe did not produce the expected failing CTest diagnostic.", file=sys.stderr)
             return 1

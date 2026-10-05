@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_matrix_architecture.hpp"
 
 #include <array>
-#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -35,63 +35,63 @@ void CheckFragmentCoverage(MatrixOpcode opcode)
             const MatrixCoordinate a = InputAElementCoordinate(opcode, lane, element);
             const MatrixCoordinate b = InputBElementCoordinate(opcode, lane, element);
 
-            assert(a.row < shape.m);
-            assert(a.column < shape.k);
-            assert(b.row < shape.k);
-            assert(b.column < shape.n);
+            CGX1_TEST_CHECK(a.row < shape.m);
+            CGX1_TEST_CHECK(a.column < shape.k);
+            CGX1_TEST_CHECK(b.row < shape.k);
+            CGX1_TEST_CHECK(b.column < shape.n);
 
             const std::uint32_t aIndex =
                 static_cast<std::uint32_t>(a.row) * shape.k + a.column;
             const std::uint32_t bIndex =
                 static_cast<std::uint32_t>(b.row) * shape.n + b.column;
 
-            assert(!seenA[aIndex]);
-            assert(!seenB[bIndex]);
+            CGX1_TEST_CHECK(!seenA[aIndex]);
+            CGX1_TEST_CHECK(!seenB[bIndex]);
             seenA[aIndex] = true;
             seenB[bIndex] = true;
             ++aCount;
             ++bCount;
 
             const PackedElementLocation packed = InputPackedLocation(opcode, element);
-            assert(packed.registerOffset < kMatrixSourceRegistersPerLane);
-            assert(packed.bitOffset < 32U);
+            CGX1_TEST_CHECK(packed.registerOffset < kMatrixSourceRegistersPerLane);
+            CGX1_TEST_CHECK(packed.bitOffset < 32U);
         }
 
         for (std::uint32_t element = 0U; element < kMatrixAccumulatorRegistersPerLane; ++element)
         {
             const MatrixCoordinate d = OutputElementCoordinate(lane, element);
-            assert(d.row < shape.m);
-            assert(d.column < shape.n);
+            CGX1_TEST_CHECK(d.row < shape.m);
+            CGX1_TEST_CHECK(d.column < shape.n);
 
             const std::uint32_t dIndex =
                 static_cast<std::uint32_t>(d.row) * shape.n + d.column;
-            assert(!seenD[dIndex]);
+            CGX1_TEST_CHECK(!seenD[dIndex]);
             seenD[dIndex] = true;
             ++dCount;
         }
     }
 
-    assert(aCount == static_cast<std::uint32_t>(shape.m) * shape.k);
-    assert(bCount == static_cast<std::uint32_t>(shape.k) * shape.n);
-    assert(dCount == static_cast<std::uint32_t>(shape.m) * shape.n);
+    CGX1_TEST_CHECK(aCount == static_cast<std::uint32_t>(shape.m) * shape.k);
+    CGX1_TEST_CHECK(bCount == static_cast<std::uint32_t>(shape.k) * shape.n);
+    CGX1_TEST_CHECK(dCount == static_cast<std::uint32_t>(shape.m) * shape.n);
 
     for (std::uint32_t row = 0U; row < shape.m; ++row)
     {
         for (std::uint32_t k = 0U; k < shape.k; ++k)
         {
-            assert(seenA[row * shape.k + k]);
+            CGX1_TEST_CHECK(seenA[row * shape.k + k]);
         }
     }
     for (std::uint32_t k = 0U; k < shape.k; ++k)
     {
         for (std::uint32_t column = 0U; column < shape.n; ++column)
         {
-            assert(seenB[k * shape.n + column]);
+            CGX1_TEST_CHECK(seenB[k * shape.n + column]);
         }
     }
     for (bool value : seenD)
     {
-        assert(value);
+        CGX1_TEST_CHECK(value);
     }
 }
 
@@ -147,11 +147,11 @@ int main()
     for (MatrixOpcode opcode : allOpcodes)
     {
         const MatrixShape shape = ShapeForOpcode(opcode);
-        assert(shape.m == 16U);
-        assert(shape.n == 16U);
-        assert(shape.k == (IsEightBitOpcode(opcode) ? 32U : 16U));
-        assert(shape.inputBits == (IsEightBitOpcode(opcode) ? 8U : 16U));
-        assert(IsSupportedProfile(ProfileForOpcode(opcode)));
+        CGX1_TEST_CHECK(shape.m == 16U);
+        CGX1_TEST_CHECK(shape.n == 16U);
+        CGX1_TEST_CHECK(shape.k == (IsEightBitOpcode(opcode) ? 32U : 16U));
+        CGX1_TEST_CHECK(shape.inputBits == (IsEightBitOpcode(opcode) ? 8U : 16U));
+        CGX1_TEST_CHECK(IsSupportedProfile(ProfileForOpcode(opcode)));
         CheckFragmentCoverage(opcode);
     }
 
@@ -271,22 +271,22 @@ int main()
     static_assert(DenseOperationsPerEngineCycle(MatrixOpcode::Fp16Fp32) == 512U);
     static_assert(DenseOperationsPerEngineCycle(MatrixOpcode::Int8Int32) == 1024U);
 
-    assert(std::abs(DenseDeviceTeraOperations(MatrixOpcode::Fp16Fp32, 2.80) - 1146.88) < 0.001);
-    assert(std::abs(DenseDeviceTeraOperations(MatrixOpcode::Fp16Fp32, 2.65) - 1085.44) < 0.001);
-    assert(std::abs(DenseDeviceTeraOperations(MatrixOpcode::E4M3E4M3Fp32, 2.80) - 2293.76) < 0.001);
-    assert(std::abs(DenseDeviceTeraOperations(MatrixOpcode::Int8Int32, 2.65) - 2170.88) < 0.001);
+    CGX1_TEST_CHECK(std::abs(DenseDeviceTeraOperations(MatrixOpcode::Fp16Fp32, 2.80) - 1146.88) < 0.001);
+    CGX1_TEST_CHECK(std::abs(DenseDeviceTeraOperations(MatrixOpcode::Fp16Fp32, 2.65) - 1085.44) < 0.001);
+    CGX1_TEST_CHECK(std::abs(DenseDeviceTeraOperations(MatrixOpcode::E4M3E4M3Fp32, 2.80) - 2293.76) < 0.001);
+    CGX1_TEST_CHECK(std::abs(DenseDeviceTeraOperations(MatrixOpcode::Int8Int32, 2.65) - 2170.88) < 0.001);
 
     std::array<float, kFp16Bf16TileK> f16A{};
     std::array<float, kFp16Bf16TileK> f16B{};
     f16A.fill(1.0F);
     f16B.fill(1.0F);
-    assert(ReferencePhysicalFp16Bf16Cell(f16A, f16B, 2.0F) == 18.0F);
+    CGX1_TEST_CHECK(ReferencePhysicalFp16Bf16Cell(f16A, f16B, 2.0F) == 18.0F);
 
     std::array<float, kFp8Int8TileK> fp8A{};
     std::array<float, kFp8Int8TileK> fp8B{};
     fp8A.fill(1.0F);
     fp8B.fill(1.0F);
-    assert(ReferencePhysicalFp8Cell(fp8A, fp8B, 2.0F) == 34.0F);
+    CGX1_TEST_CHECK(ReferencePhysicalFp8Cell(fp8A, fp8B, 2.0F) == 34.0F);
 
     std::array<std::int8_t, kFp8Int8TileK> int8A{};
     std::array<std::int8_t, kFp8Int8TileK> int8B{};
@@ -301,7 +301,7 @@ int main()
     {
         expected = ReferenceInt8Mac(127, 127, expected);
     }
-    assert(int8Result == expected);
+    CGX1_TEST_CHECK(int8Result == expected);
 
     bool rejectedClock = false;
     try
@@ -312,7 +312,7 @@ int main()
     {
         rejectedClock = true;
     }
-    assert(rejectedClock);
+    CGX1_TEST_CHECK(rejectedClock);
 
     bool rejectedCoordinate = false;
     try
@@ -323,7 +323,7 @@ int main()
     {
         rejectedCoordinate = true;
     }
-    assert(rejectedCoordinate);
+    CGX1_TEST_CHECK(rejectedCoordinate);
 
     return 0;
 }

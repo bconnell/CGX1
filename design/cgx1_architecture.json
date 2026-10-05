@@ -1,5 +1,5 @@
 {
-  "schema_version": 21,
+  "schema_version": 22,
   "name": "CGX 1",
   "status": "engineering architecture target",
   "design_engineer": {
@@ -142,7 +142,7 @@
     ],
     "paired_wave64_target": true,
     "ordinary_vector_rtl": {
-      "status": "resident-wave INT32 vector execution and shared pooled-VGPR access RTL implemented; local RTL validation and hosted RTL CI passed for exact revision 68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+      "status": "Resident INT32 vector execution and shared pooled-VGPR access RTL are implemented; the complete ordinary vector instruction issue path and physical implementation remain open.",
       "implemented": true,
       "lane_count": 32,
       "element_bits": 32,
@@ -184,7 +184,7 @@
       "power_validated": false
     },
     "mixed_matrix_vector_frontend_rtl": {
-      "status": "resident signed INT8 matrix and resident INT32 vector execution composed over the unified pooled VGPR subsystem; local RTL validation and hosted RTL CI passed for exact revision 68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+      "status": "The mixed matrix/vector frontend shares pooled VGPR authority and enforces per-wave hazards; a complete compute-unit scheduler and base-ISA memory execution remain open.",
       "implemented": true,
       "matrix_profile": "signed INT8 x signed INT8 -> signed INT32",
       "vector_profile": "wave32 INT32 register-register candidate operations",
@@ -206,7 +206,7 @@
       "power_validated": false
     },
     "workgroup_residency_barrier_rtl": {
-      "status": "complete-workgroup reference and RTL frontend integrate whole-workgroup admission, barriers, the actual pooled VGPR allocator, shared/local regions, and the decoded per-wave LSU; local RTL validation and hosted RTL CI passed for exact revision 68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+      "status": "Complete-workgroup admission, barrier membership, pooled VGPR ownership, shared/local regions, and the decoded per-wave LSU are integrated in the workgroup frontend; full runtime/device integration and physical evidence remain open.",
       "reference_model_implemented": true,
       "rtl_implemented": true,
       "complete_workgroup_atomic_admission": true,
@@ -256,21 +256,18 @@
       "full_runtime_memory_queue_dispatch_fault_and_completion_integration": false,
       "wave_save_restore_or_swapping_implemented": false,
       "mandatory_compute_preemption_boundary": "workgroup",
-      "local_reference_and_rtl_simulation_passed": true,
       "simulation_exercised": true,
       "timing_closure_validated": false,
       "area_validated": false,
       "power_validated": false
     },
     "shared_local_memory_reference": {
-      "status": "C++ workgroup scheduler and RTL workgroup frontend integrate finite shared-memory regions and per-wave memory waits; banked local load/store access is integrated, while base-ISA memory decode and a physical global-memory backend remain open; local RTL validation and hosted RTL CI passed for exact revision 68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+      "status": "The C++ workgroup scheduler and RTL frontend implement workgroup-owned shared/local regions and per-wave memory waits. Base-ISA memory decode and a physical global-memory backend remain open; local and hosted run evidence is recorded by candidate in the validation evidence ledger.",
       "reference_model_implemented": true,
       "reference_workgroup_admission_integrated": true,
       "reference_memory_wait_issue_gated": true,
       "rtl_component_implemented": true,
       "rtl_testbench_implemented": true,
-      "local_reference_tests_passed": true,
-      "local_rtl_simulation_passed": true,
       "wave_size": 32,
       "dword_load_store": true,
       "workgroup_scoped_regions": true,
@@ -306,6 +303,26 @@
       "timing_closure_validated": false,
       "area_validated": false,
       "power_validated": false
+    },
+    "register_state_authority": {
+      "vector": {
+        "logical_registers_per_wave": 256,
+        "storage_implemented": true,
+        "cu_capacity_accounting": true,
+        "implementation_scope": "C++ pooled VGPR storage and RTL storage model; physical macro selection remains open"
+      },
+      "scalar": {
+        "logical_registers_per_wave": 128,
+        "storage_implemented": false,
+        "cu_capacity_accounting": true,
+        "class": "capacity_accounting_only"
+      },
+      "predicate": {
+        "logical_registers_per_wave": 16,
+        "storage_implemented": false,
+        "cu_capacity_accounting": true,
+        "class": "capacity_accounting_only"
+      }
     }
   },
   "graphics_pipeline": {
@@ -446,16 +463,14 @@
       "registered_active_state_falls_back_to_p0": true,
       "rtl_testbench_implemented": true,
       "simulation_exercised": true,
-      "hosted_rtl_ci_run": "37145496015",
-      "hosted_windows_ci_run": "37145498188",
-      "validated_revision": "68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
       "tile_state_status_producer_implemented": false,
       "physical_isolation_timing_validated": false,
       "synthesis_validated": false,
       "timing_closure_validated": false,
       "area_validated": false,
       "power_validated": false,
-      "physical_implementation_validated": false
+      "physical_implementation_validated": false,
+      "evidence_record": "design/cgx1_validation_evidence.json"
     },
     "core_voltage_target_range_v": {
       "min": 0.55,
@@ -840,7 +855,7 @@
       "power_validated": false
     },
     "pooled_vgpr_rtl": {
-      "status": "pooled resident-wave VGPR lifecycle, storage, matrix preflight, and resident INT8 plus ordinary-vector integration RTL implemented; local RTL validation and hosted RTL CI passed for exact revision 68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+      "status": "Pooled resident-wave VGPR lifecycle, storage, matrix preflight, and resident execution RTL are implemented; the full resident INT8 plus ordinary-vector composition remains compile-only in the bounded Icarus gate. Revision-specific run evidence is maintained in the validation evidence ledger.",
       "implemented": true,
       "exact_register_count_enforced": true,
       "physical_row_register_granularity": 8,
@@ -866,7 +881,64 @@
       "physical_macro_selected": false,
       "timing_closure_validated": false,
       "area_validated": false,
-      "power_validated": false
+      "power_validated": false,
+      "resident_int8_vector_composition_simulation_exercised": false,
+      "resident_int8_vector_composition_validation": "compile_only",
+      "resident_int8_vector_composition_testbench": "rtl:cgx1_matrix_int8_pooled_resident_engine_tb"
     }
+  },
+  "simulation_evidence": {
+    "execution_model.ordinary_vector_rtl.simulation_exercised": [
+      "rtl:cgx1_vector_int32_pipeline_tb",
+      "rtl:cgx1_vector_resident_wave_scheduler_tb"
+    ],
+    "execution_model.mixed_matrix_vector_frontend_rtl.simulation_exercised": [
+      "rtl:cgx1_compute_int8_vector_execution_frontend_tb"
+    ],
+    "execution_model.workgroup_residency_barrier_rtl.simulation_exercised": [
+      "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+    ],
+    "execution_model.shared_local_memory_reference.simulation_exercised": [
+      "rtl:cgx1_compute_workgroup_lsu_tb",
+      "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+    ],
+    "power_management.rtl_eligibility_manager.simulation_exercised": [
+      "rtl:cgx1_top_tb"
+    ],
+    "matrix_engine.pipeline_control_rtl.simulation_exercised": [
+      "rtl:cgx1_matrix_pipeline_control_tb"
+    ],
+    "matrix_engine.pipeline_control_rtl.resident_wave_identity_simulation_exercised": [
+      "rtl:cgx1_matrix_int8_resident_engine_tb"
+    ],
+    "matrix_engine.staging_storage.result_cycle0_bypass_simulation_exercised": [
+      "rtl:cgx1_matrix_int8_path_tb"
+    ],
+    "matrix_engine.wave_vgpr_scoreboard.simulation_exercised": [
+      "rtl:cgx1_matrix_wave_scoreboard_tb"
+    ],
+    "matrix_engine.wave_vgpr_scoreboard.resident_wave_router_simulation_exercised": [
+      "rtl:cgx1_matrix_resident_wave_scoreboard_export_tb"
+    ],
+    "matrix_engine.arithmetic_rtl.simulation_exercised": [
+      "rtl:cgx1_matrix_int8_execution_tb"
+    ],
+    "matrix_engine.int8_path_integration.simulation_exercised": [
+      "rtl:cgx1_matrix_int8_path_tb"
+    ],
+    "matrix_engine.int8_engine_shell.simulation_exercised": [
+      "rtl:cgx1_matrix_int8_engine_shell_tb"
+    ],
+    "matrix_engine.vgpr_storage_rtl.simulation_exercised": [
+      "rtl:cgx1_resident_wave_vgpr_file_tb"
+    ],
+    "matrix_engine.int8_resident_engine.simulation_exercised": [
+      "rtl:cgx1_matrix_int8_resident_engine_tb"
+    ],
+    "matrix_engine.pooled_vgpr_rtl.simulation_exercised": [
+      "rtl:cgx1_pooled_vgpr_storage_tb",
+      "rtl:cgx1_pooled_vgpr_execution_subsystem_tb",
+      "rtl:cgx1_matrix_pooled_vgpr_frontend_tb"
+    ]
   }
 }

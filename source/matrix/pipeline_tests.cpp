@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_matrix_pipeline.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <stdexcept>
 
@@ -94,7 +94,7 @@ int main()
                                 && dRegister < oldD + kMatrixAccumulatorRegistersPerLane);
                     }
 
-                    assert(MatrixDependsOnPendingDestination(
+                    CGX1_TEST_CHECK(MatrixDependsOnPendingDestination(
                         static_cast<std::uint8_t>(newD),
                         static_cast<std::uint8_t>(newA),
                         static_cast<std::uint8_t>(newB),
@@ -123,43 +123,43 @@ int main()
             switch (read.fragment)
             {
                 case MatrixCaptureFragment::A:
-                    assert(read.registerOffset < seenA.size());
-                    assert(!seenA[read.registerOffset]);
+                    CGX1_TEST_CHECK(read.registerOffset < seenA.size());
+                    CGX1_TEST_CHECK(!seenA[read.registerOffset]);
                     seenA[read.registerOffset] = true;
-                    assert(read.architecturalRegister
+                    CGX1_TEST_CHECK(read.architecturalRegister
                         == static_cast<std::uint8_t>(aBase + read.registerOffset));
                     break;
                 case MatrixCaptureFragment::B:
-                    assert(read.registerOffset < seenB.size());
-                    assert(!seenB[read.registerOffset]);
+                    CGX1_TEST_CHECK(read.registerOffset < seenB.size());
+                    CGX1_TEST_CHECK(!seenB[read.registerOffset]);
                     seenB[read.registerOffset] = true;
-                    assert(read.architecturalRegister
+                    CGX1_TEST_CHECK(read.architecturalRegister
                         == static_cast<std::uint8_t>(bBase + read.registerOffset));
                     break;
                 case MatrixCaptureFragment::Accumulator:
-                    assert(read.registerOffset < seenC.size());
-                    assert(!seenC[read.registerOffset]);
+                    CGX1_TEST_CHECK(read.registerOffset < seenC.size());
+                    CGX1_TEST_CHECK(!seenC[read.registerOffset]);
                     seenC[read.registerOffset] = true;
-                    assert(read.architecturalRegister
+                    CGX1_TEST_CHECK(read.architecturalRegister
                         == static_cast<std::uint8_t>(dBase + read.registerOffset));
                     break;
             }
         }
     }
 
-    for (bool value : seenA) { assert(value); }
-    for (bool value : seenB) { assert(value); }
-    for (bool value : seenC) { assert(value); }
+    for (bool value : seenA) { CGX1_TEST_CHECK(value); }
+    for (bool value : seenB) { CGX1_TEST_CHECK(value); }
+    for (bool value : seenC) { CGX1_TEST_CHECK(value); }
 
     for (std::uint32_t cycle = 0U; cycle < kMatrixWritebackCycles; ++cycle)
     {
-        assert(MatrixWritebackRegister(cycle, dBase)
+        CGX1_TEST_CHECK(MatrixWritebackRegister(cycle, dBase)
             == static_cast<std::uint8_t>(dBase + cycle));
     }
 
     for (std::uint32_t i = 0U; i < 32U; ++i)
     {
-        assert(MatrixIssueCycle(i) == i * 16U);
+        CGX1_TEST_CHECK(MatrixIssueCycle(i) == i * 16U);
     }
 
     static_assert(MatrixSteadyStatePortBudgetHolds(1U));
@@ -169,9 +169,9 @@ int main()
     for (std::uint32_t cycle = 0U; cycle < 160U; ++cycle)
     {
         const MatrixPortDemand demand = MatrixCombinedPortDemand(cycle, 10U);
-        assert(demand.waveReads <= 2U);
-        assert(demand.waveWrites <= 1U);
-        assert(!(demand.waveReads != 0U && demand.waveWrites != 0U));
+        CGX1_TEST_CHECK(demand.waveReads <= 2U);
+        CGX1_TEST_CHECK(demand.waveWrites <= 1U);
+        CGX1_TEST_CHECK(!(demand.waveReads != 0U && demand.waveWrites != 0U));
     }
 
     // A and B may alias. One physical read may be broadcast as an implementation
@@ -180,7 +180,7 @@ int main()
     {
         const MatrixCaptureCycle aliased =
             MatrixCaptureSchedule(cycle, 64U, 64U, 32U);
-        assert(aliased.read0.architecturalRegister
+        CGX1_TEST_CHECK(aliased.read0.architecturalRegister
             == aliased.read1.architecturalRegister);
     }
 
@@ -193,7 +193,7 @@ int main()
     {
         rejectedCaptureCycle = true;
     }
-    assert(rejectedCaptureCycle);
+    CGX1_TEST_CHECK(rejectedCaptureCycle);
 
     bool rejectedLayout = false;
     try
@@ -204,7 +204,7 @@ int main()
     {
         rejectedLayout = true;
     }
-    assert(rejectedLayout);
+    CGX1_TEST_CHECK(rejectedLayout);
 
     bool rejectedWriteback = false;
     try
@@ -215,7 +215,7 @@ int main()
     {
         rejectedWriteback = true;
     }
-    assert(rejectedWriteback);
+    CGX1_TEST_CHECK(rejectedWriteback);
 
     return 0;
 }

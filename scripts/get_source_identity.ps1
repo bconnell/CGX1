@@ -8,15 +8,25 @@ $paths = @(& $git -C $repoRoot ls-files --cached --others --exclude-standard)
 if ($LASTEXITCODE -ne 0) { throw "Unable to enumerate source files." }
 $normalized = @($paths | ForEach-Object { ([string]$_).Trim().Replace("\", "/") } | Sort-Object -Unique)
 $builder = New-Object System.Text.StringBuilder
-foreach ($relativePath in $normalized) {
-    if ([string]::IsNullOrWhiteSpace($relativePath)) { continue }
-    $absolutePath = Join-Path $repoRoot ($relativePath.Replace("/", "\"))
-    if (-not (Test-Path -LiteralPath $absolutePath -PathType Leaf)) { throw "Source file disappeared during hashing: $relativePath" }
-    $hash = (Get-FileHash -LiteralPath $absolutePath -Algorithm SHA256).Hash.ToLowerInvariant()
-    [void]$builder.Append($relativePath)
-    [void]$builder.Append("`0")
-    [void]$builder.Append($hash)
-    [void]$builder.Append("`0")
+$fileSha = [Security.Cryptography.SHA256]::Create()
+try {
+    foreach ($relativePath in $normalized) {
+        if ([string]::IsNullOrWhiteSpace($relativePath)) { continue }
+        $absolutePath = Join-Path $repoRoot ($relativePath.Replace("/", "\"))
+        if (-not (Test-Path -LiteralPath $absolutePath -PathType Leaf)) { throw "Source file disappeared during hashing: $relativePath" }
+        $stream = [IO.File]::OpenRead($absolutePath)
+        try {
+            $hash = ([BitConverter]::ToString($fileSha.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+        } finally {
+            $stream.Dispose()
+        }
+        [void]$builder.Append($relativePath)
+        [void]$builder.Append("`0")
+        [void]$builder.Append($hash)
+        [void]$builder.Append("`0")
+    }
+} finally {
+    $fileSha.Dispose()
 }
 $sha = [Security.Cryptography.SHA256]::Create()
 try {

@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "records": [
+    {
+      "id": "release-ndebug-expectations-vacuous",
+      "origin": "Identified by the 2026-10-04 gate-hardening addendum.",
+      "failure_mode": "C/C++ runtime assert expressions disappear under NDEBUG, allowing Release CTest to pass without checking expected results.",
+      "regressions": [
+        {
+          "path": "scripts/tests/test_release_test_checks.py",
+          "needle": "test_scanner_rejects_runtime_assert_condition"
+        },
+        {
+          "path": "source/testing/release_test_check_failure_probe.cpp",
+          "needle": "false && \"intentional Release/NDEBUG failure probe\""
+        },
+        {
+          "path": "scripts/prove_release_test_check_failure.py",
+          "needle": "Confirmed: Release/NDEBUG CTest observes the intentional always-on check failure."
+        }
+      ],
+      "gates": [
+        {
+          "path": "scripts/check_release_test_checks.py",
+          "needle": "CGX1_TEST_CHECK"
+        },
+        {
+          "path": "scripts/validate_windows.ps1",
+          "needle": "Prove Release test expectations remain active"
+        }
+      ]
+    },
+    {
+      "id": "hosted-validation-sha-misattribution",
+      "origin": "Identified during exact-candidate evidence hardening.",
+      "failure_mode": "A recorded workflow result can be attributed to a candidate whose exact head SHA or conclusion does not match.",
+      "regressions": [
+        {
+          "path": "scripts/tests/test_validation_evidence.py",
+          "needle": "test_hosted_runs_must_match_the_recorded_candidate"
+        },
+        {
+          "path": "scripts/tests/test_validation_evidence.py",
+          "needle": "test_live_run_result_must_match_the_evidence_ledger"
+        }
+      ],
+      "gates": [
+        {
+          "path": "scripts/validate_evidence.py",
+          "needle": "validate_live_workflow_runs"
+        }
+      ]
+    },
+    {
+      "id": "rtl-compile-only-top-overstated-as-simulated",
+      "origin": "Identified by the validation gate-hardening addendum and current RTL inventory audit.",
+      "failure_mode": "A compile-only composition can be reported as simulated even though no bounded vvp command executed it.",
+      "regressions": [
+        {
+          "path": "scripts/tests/test_rtl_inventory.py",
+          "needle": "test_compile_only_composition_cannot_be_claimed_simulated"
+        },
+        {
+          "path": "design/cgx1_rtl_validation_inventory.json",
+          "needle": "intentionally compile-only"
+        }
+      ],
+      "gates": [
+        {
+          "path": "scripts/validate_rtl_inventory.py",
+          "needle": "important composed-top obligations were removed or changed"
+        }
+      ]
+    },
+    {
+      "id": "completeness-branch-divergence-and-unpublished-distance",
+      "origin": "Identified by the current branch-management correction.",
+      "failure_mode": "A long-running local commit chain can drift behind or diverge from the canonical remote completeness branch before publication.",
+      "regressions": [
+        {
+          "path": "scripts/tests/test_branch_state.py",
+          "needle": "test_unexplained_remote_advance_fails_publication_preflight"
+        },
+        {
+          "path": "scripts/tests/test_branch_state.py",
+          "needle": "test_large_unpublished_distance_fails_closed"
+        }
+      ],
+      "gates": [
+        {
+          "path": "scripts/check_branch_state.py",
+          "needle": "publication_preflight_errors"
+        }
+      ]
+    },
+    {
+      "id": "first-party-rtl-module-not-covered-by-executable-inventory",
+      "origin": "Found while implementing the required source-complete RTL inventory.",
+      "failure_mode": "A first-party RTL module can remain absent from every compile or simulation gate without being noticed.",
+      "regressions": [
+        {
+          "path": "scripts/tests/test_rtl_inventory.py",
+          "needle": "test_inventory_must_cover_every_production_module_source"
+        },
+        {
+          "path": "source/rtl/tests/cgx1_matrix_vector_issue_arbiter_tb.sv",
+          "needle": "issue arbiter case=%0d"
+        }
+      ],
+      "gates": [
+        {
+          "path": "scripts/validate_rtl_inventory.py",
+          "needle": "first-party RTL module is not compiled by any inventory entry"
+        }
+      ]
+    },
+    {
+      "id": "randomized-failure-without-replay-context",
+      "origin": "Identified by the current validation-gate addendum.",
+      "failure_mode": "A randomized scheduling or barrier failure can lack the fixed seed and iteration/state needed to replay it.",
+      "regressions": [
+        {
+          "path": "source/testing/cgx1_test_context.hpp",
+          "needle": "WriteRandomTestFailureContext"
+        },
+        {
+          "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+          "needle": "randomized barrier residency failure seed=%08x iteration=%0d state=%08x"
+        }
+      ],
+      "gates": [
+        {
+          "path": "scripts/validate_rtl_inventory.py",
+          "needle": "compiler timeout/captured-log wrapper is missing or unbounded"
+        }
+      ]
+    }
+  ]
+}

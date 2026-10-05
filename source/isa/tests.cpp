@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_isa.hpp"
 #include "cgx1_control_stream.hpp"
 #include "cgx1_vector_semantics.hpp"
 #include "cgx1_vector_stream.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <initializer_list>
 #include <iostream>
@@ -501,7 +501,7 @@ int main()
     {
         rejectedInvalidOpcode = true;
     }
-    assert(rejectedInvalidOpcode);
+    CGX1_TEST_CHECK(rejectedInvalidOpcode);
 
     bool rejectedUndefinedClass = false;
     try
@@ -518,7 +518,7 @@ int main()
     {
         rejectedUndefinedClass = true;
     }
-    assert(rejectedUndefinedClass);
+    CGX1_TEST_CHECK(rejectedUndefinedClass);
 
     TestVectorOpcodeResults();
     TestVectorOpcodesUseEachLaneOperands();

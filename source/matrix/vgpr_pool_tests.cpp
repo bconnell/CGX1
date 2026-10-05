@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
 
+#include "cgx1_test_context.hpp"
 #include "cgx1_matrix_vgpr_pool.hpp"
 
 #include <array>
@@ -19,7 +20,9 @@ using namespace cgx1::matrix;
         if (!(expression)) \
         { \
             std::cerr << "[fail] " << #expression \
-                      << " at line " << __LINE__ << '\n'; \
+                      << " at line " << __LINE__; \
+            ::cgx1::testing::WriteRandomTestFailureContext(std::cerr); \
+            std::cerr << '\n'; \
             return 1; \
         } \
     } while (false)
@@ -124,11 +127,17 @@ int main()
     ResidentWaveVgprPool pool(32U, 8U);
     PooledVgprStorage storage(32U);
 
-    CHECK(pool.Reserve(0U, 72U));
+    {
+        auto&& check_action_reserve_130_1 = (pool.Reserve(0U, 72U));
+        CHECK(check_action_reserve_130_1);
+    }
     CHECK(
         pool.Allocation(0U).state
         == VgprAllocationState::Reserved);
-    CHECK(!pool.Activate(0U));
+    {
+        auto&& check_action_activate_134_2 = (pool.Activate(0U));
+        CHECK(!check_action_activate_134_2);
+    }
 
     CHECK(Throws(
         [&] {
@@ -141,8 +150,14 @@ int main()
         pool,
         0U);
 
-    CHECK(pool.Activate(0U));
-    CHECK(!pool.Reserve(0U, 8U));
+    {
+        auto&& check_action_activate_147_3 = (pool.Activate(0U));
+        CHECK(check_action_activate_147_3);
+    }
+    {
+        auto&& check_action_reserve_148_4 = (pool.Reserve(0U, 8U));
+        CHECK(!check_action_reserve_148_4);
+    }
 
     CHECK(pool.MatrixFragmentsFit(
         0U,
@@ -169,11 +184,17 @@ int main()
         CHECK(address.row == reg / 8U);
     }
 
-    CHECK(pool.Reserve(3U, 8U));
+    {
+        auto&& check_action_reserve_175_5 = (pool.Reserve(3U, 8U));
+        CHECK(check_action_reserve_175_5);
+    }
     storage.InvalidateReservedAllocation(
         pool,
         3U);
-    CHECK(pool.Activate(3U));
+    {
+        auto&& check_action_activate_179_6 = (pool.Activate(3U));
+        CHECK(check_action_activate_179_6);
+    }
 
     const auto wave0Register0 =
         pool.Translate(0U, 0U);
@@ -334,7 +355,10 @@ int main()
 
     pool.Release(0U);
 
-    CHECK(pool.Reserve(1U, 8U));
+    {
+        auto&& check_action_reserve_340_7 = (pool.Reserve(1U, 8U));
+        CHECK(check_action_reserve_340_7);
+    }
 
     CHECK(
         pool.Allocation(1U).physicalRowBase
@@ -344,7 +368,10 @@ int main()
         pool,
         1U);
 
-    CHECK(pool.Activate(1U));
+    {
+        auto&& check_action_activate_350_8 = (pool.Activate(1U));
+        CHECK(check_action_activate_350_8);
+    }
 
     CHECK(Throws(
         [&] {
@@ -383,13 +410,19 @@ int main()
 
     pool.Release(1U);
 
-    CHECK(pool.Reserve(2U, 8U));
+    {
+        auto&& check_action_reserve_389_9 = (pool.Reserve(2U, 8U));
+        CHECK(check_action_reserve_389_9);
+    }
 
     storage.InvalidateReservedAllocation(
         pool,
         2U);
 
-    CHECK(pool.Activate(2U));
+    {
+        auto&& check_action_activate_395_10 = (pool.Activate(2U));
+        CHECK(check_action_activate_395_10);
+    }
 
     storage.Write(
         pool,
@@ -404,7 +437,8 @@ int main()
             2U,
             0U));
 
-    std::mt19937 random(0xC6A12026U);
+    constexpr std::uint32_t seed = 0xC6A12026U;
+    std::mt19937 random(seed);
 
     ResidentWaveVgprPool stressPool(
         64U,
@@ -419,6 +453,8 @@ int main()
          step < 20000U;
          ++step)
     {
+        ::cgx1::testing::SetRandomTestFailureContext(
+            "ResidentVgprPoolRandomizedStress", seed, step);
         const std::uint32_t slot =
             random() % 16U;
 
@@ -439,9 +475,12 @@ int main()
                         stressPool,
                         slot);
 
-                CHECK(
-                    stressPool.Activate(
+                {
+                    auto&& check_action_activate_448_11 = (stressPool.Activate(
                         slot));
+                    CHECK(
+                    check_action_activate_448_11);
+                }
 
                 ++generations[slot];
             }
@@ -500,18 +539,32 @@ int main()
         <= stressPool.PhysicalRows());
     }
 
-    CHECK(pool.Reserve(0U, 8U));
+    ::cgx1::testing::ClearRandomTestFailureContext();
+
+    {
+        auto&& check_action_reserve_511_12 = (pool.Reserve(0U, 8U));
+        CHECK(check_action_reserve_511_12);
+    }
     storage.InvalidateReservedAllocation(pool, 0U);
-    CHECK(pool.Activate(0U));
+    {
+        auto&& check_action_activate_513_13 = (pool.Activate(0U));
+        CHECK(check_action_activate_513_13);
+    }
     storage.Write(pool, 0U, 0U, Pattern(0xBADU));
     CHECK(storage.IsInitialized(pool, 0U, 0U));
     storage.Reset();
     pool.Reset();
     CHECK(pool.Allocation(0U).state == VgprAllocationState::Free);
     CHECK(pool.OccupiedRows() == 0U);
-    CHECK(pool.Reserve(0U, 8U));
+    {
+        auto&& check_action_reserve_520_14 = (pool.Reserve(0U, 8U));
+        CHECK(check_action_reserve_520_14);
+    }
     storage.InvalidateReservedAllocation(pool, 0U);
-    CHECK(pool.Activate(0U));
+    {
+        auto&& check_action_activate_522_15 = (pool.Activate(0U));
+        CHECK(check_action_activate_522_15);
+    }
     CHECK(!storage.IsInitialized(pool, 0U, 0U));
     pool.Release(0U);
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_matrix_int8_execution.hpp"
 
-#include <cassert>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
@@ -24,7 +24,7 @@ cgx1::matrix::MatrixResultSet Run(
                 state,
                 operands,
                 cycle);
-        assert(state.active
+        CGX1_TEST_CHECK(state.active
             == (cycle != cgx1::matrix::kMatrixExecutionCycles - 1U));
     }
 
@@ -85,7 +85,7 @@ int main()
     {
         for (std::uint32_t column = 0U; column < kMatrixTileN; ++column)
         {
-            assert(MatrixResultInt32Element(
+            CGX1_TEST_CHECK(MatrixResultInt32Element(
                 onesResult, row, column) == 32);
         }
     }
@@ -127,7 +127,7 @@ int main()
     {
         for (std::uint32_t column = 0U; column < kMatrixTileN; ++column)
         {
-            assert(MatrixResultInt32Element(
+            CGX1_TEST_CHECK(MatrixResultInt32Element(
                 patternedResult, row, column)
                 == ScalarExpected(patterned, row, column));
         }
@@ -171,7 +171,7 @@ int main()
     {
         for (std::uint32_t column = 0U; column < kMatrixTileN; ++column)
         {
-            assert(std::bit_cast<std::uint32_t>(
+            CGX1_TEST_CHECK(std::bit_cast<std::uint32_t>(
                 MatrixResultInt32Element(
                     overflowResult, row, column))
                 == overflowExpected);
@@ -188,7 +188,7 @@ int main()
     {
         rejectedStart = true;
     }
-    assert(rejectedStart);
+    CGX1_TEST_CHECK(rejectedStart);
 
     MatrixInt8ExecutionState order{};
     (void)ExecuteMatrixInt8Cycle(order, patterned, 0U);
@@ -201,7 +201,7 @@ int main()
     {
         rejectedOrder = true;
     }
-    assert(rejectedOrder);
+    CGX1_TEST_CHECK(rejectedOrder);
 
     return 0;
 }

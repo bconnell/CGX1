@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "coverage_level": "selected high-risk lifecycle/state pairs; not an exhaustive Cartesian product",
+  "required_pairs": [
+    {
+      "event": "fault",
+      "overlap_state": "sibling_barrier_wait"
+    },
+    {
+      "event": "kill",
+      "overlap_state": "global_request_backpressure"
+    },
+    {
+      "event": "kill",
+      "overlap_state": "accepted_global_request_waiting_for_response"
+    },
+    {
+      "event": "kill",
+      "overlap_state": "late_global_response_after_termination"
+    },
+    {
+      "event": "abort",
+      "overlap_state": "global_request_backpressure"
+    },
+    {
+      "event": "barrier_arrival",
+      "overlap_state": "sibling_global_memory_wait"
+    },
+    {
+      "event": "fault",
+      "overlap_state": "memory_fault_backpressure"
+    },
+    {
+      "event": "reset",
+      "overlap_state": "barrier_plus_active_execution"
+    },
+    {
+      "event": "reset",
+      "overlap_state": "partial_workgroup_reservation"
+    },
+    {
+      "event": "workgroup_release",
+      "overlap_state": "reallocated_local_memory_region"
+    },
+    {
+      "event": "barrier_release",
+      "overlap_state": "delayed_global_load_response"
+    }
+  ],
+  "cases": [
+    {
+      "id": "fault-with-sibling-barrier-wait",
+      "event": "fault",
+      "overlap_state": "sibling_barrier_wait",
+      "ownership_invariant": "surviving_waves_remain_resident_until_barrier_recomputes",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "fault during sibling barrier wait lost state or released too early"
+      }
+    },
+    {
+      "id": "kill-with-global-request-backpressure",
+      "event": "kill",
+      "overlap_state": "global_request_backpressure",
+      "ownership_invariant": "accepted_request_identity_remains_stable_until_handshake",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "killed stalled global request was not held stable through handshake"
+      }
+    },
+    {
+      "id": "kill-after-global-acceptance",
+      "event": "kill",
+      "overlap_state": "accepted_global_request_waiting_for_response",
+      "ownership_invariant": "vgpr_release_waits_for_response_and_no_stale_writeback",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "killed accepted global request did not hold VGPR release until response"
+      }
+    },
+    {
+      "id": "discard-killed-global-response",
+      "event": "kill",
+      "overlap_state": "late_global_response_after_termination",
+      "ownership_invariant": "late_response_cannot_write_back_to_terminated_wave",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "killed global response was not discarded without VGPR writeback"
+      }
+    },
+    {
+      "id": "abort-with-global-request-backpressure",
+      "event": "abort",
+      "overlap_state": "global_request_backpressure",
+      "ownership_invariant": "abort_does_not_withdraw_presented_valid_request",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "abort under global backpressure withdrew an already-presented request"
+      }
+    },
+    {
+      "id": "barrier-with-sibling-memory-wait",
+      "event": "barrier_arrival",
+      "overlap_state": "sibling_global_memory_wait",
+      "ownership_invariant": "surviving_memory_waiter_remains_in_barrier_membership",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "barrier membership changed while a surviving sibling waited on memory"
+      }
+    },
+    {
+      "id": "fault-with-memory-fault-backpressure",
+      "event": "fault",
+      "overlap_state": "memory_fault_backpressure",
+      "ownership_invariant": "faulted_wave_stops_issue_and_retains_identity_until_fault_acceptance",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "fault-pending memory wave issued vector work under fault backpressure"
+      }
+    },
+    {
+      "id": "reset-with-active-barrier-and-execution",
+      "event": "reset",
+      "overlap_state": "barrier_plus_active_execution",
+      "ownership_invariant": "reset_clears_barrier_execution_allocator_and_ownership_together",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "reset failed to clear active execution, allocator, and barrier ownership together"
+      }
+    },
+    {
+      "id": "reset-during-partial-admission",
+      "event": "reset",
+      "overlap_state": "partial_workgroup_reservation",
+      "ownership_invariant": "reset_rolls_back_partial_reservation_without_scheduler_visibility",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "reset during partial admission left allocator or barrier ownership"
+      }
+    },
+    {
+      "id": "release-and-reuse-local-memory-region",
+      "event": "workgroup_release",
+      "overlap_state": "reallocated_local_memory_region",
+      "ownership_invariant": "new_workgroup_owns_reused_region_without_stale_access",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "reused local-memory region did not preserve the new workgroup's access"
+      }
+    },
+    {
+      "id": "delayed-load-response-releases-barrier",
+      "event": "barrier_release",
+      "overlap_state": "delayed_global_load_response",
+      "ownership_invariant": "load_writeback_precedes_whole_workgroup_barrier_release",
+      "test_id": "rtl:cgx1_compute_workgroup_execution_frontend_tb",
+      "test_ref": {
+        "path": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+        "needle": "memory-delayed barrier did not release the whole surviving workgroup"
+      }
+    }
+  ]
+}

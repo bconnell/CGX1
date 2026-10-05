@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_matrix_banking.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 
 int main()
@@ -19,17 +19,17 @@ int main()
     for (std::uint32_t reg = 0U; reg < 256U; ++reg)
     {
         const auto r = static_cast<std::uint8_t>(reg);
-        assert(MatrixRegisterBank(r) == reg % 8U);
-        assert(MatrixRegisterBankRow(r) == reg / 8U);
+        CGX1_TEST_CHECK(MatrixRegisterBank(r) == reg % 8U);
+        CGX1_TEST_CHECK(MatrixRegisterBankRow(r) == reg / 8U);
     }
 
     // Canonical non-aliased placement uses opposite 4-register halves
     // of the eight bank classes.
     for (std::uint32_t offset = 0U; offset < 4U; ++offset)
     {
-        assert(MatrixRegisterBank(static_cast<std::uint8_t>(64U + offset))
+        CGX1_TEST_CHECK(MatrixRegisterBank(static_cast<std::uint8_t>(64U + offset))
             == offset);
-        assert(MatrixRegisterBank(static_cast<std::uint8_t>(68U + offset))
+        CGX1_TEST_CHECK(MatrixRegisterBank(static_cast<std::uint8_t>(68U + offset))
             == offset + 4U);
     }
 
@@ -39,7 +39,7 @@ int main()
     {
         const auto r0 = static_cast<std::uint8_t>(32U + pair * 2U);
         const auto r1 = static_cast<std::uint8_t>(r0 + 1U);
-        assert(MatrixRegisterBank(r0) != MatrixRegisterBank(r1));
+        CGX1_TEST_CHECK(MatrixRegisterBank(r0) != MatrixRegisterBank(r1));
     }
 
     std::uint32_t validLayouts = 0U;
@@ -59,8 +59,8 @@ int main()
                 }
 
                 ++validLayouts;
-                assert(MatrixBankClassPlacementMatchesContract(ab, bb));
-                assert(MatrixRegisterLayoutBankCompatible(db, ab, bb));
+                CGX1_TEST_CHECK(MatrixBankClassPlacementMatchesContract(ab, bb));
+                CGX1_TEST_CHECK(MatrixRegisterLayoutBankCompatible(db, ab, bb));
 
                 for (std::uint32_t cycle = 0U;
                      cycle < kMatrixRegisterCaptureCycles;
@@ -72,12 +72,12 @@ int main()
                     if (schedule.read0.architecturalRegister
                         == schedule.read1.architecturalRegister)
                     {
-                        assert(cycle < 4U);
-                        assert(ab == bb);
+                        CGX1_TEST_CHECK(cycle < 4U);
+                        CGX1_TEST_CHECK(ab == bb);
                     }
                     else
                     {
-                        assert(MatrixRegisterBank(
+                        CGX1_TEST_CHECK(MatrixRegisterBank(
                                    schedule.read0.architecturalRegister)
                             != MatrixRegisterBank(
                                    schedule.read1.architecturalRegister));
@@ -87,7 +87,7 @@ int main()
         }
     }
 
-    assert(validLayouts > 0U);
+    CGX1_TEST_CHECK(validLayouts > 0U);
 
     // A source base in bank class 4 is deliberately rejected even though
     // it is 4-register aligned. This prevents a general two-read bank conflict

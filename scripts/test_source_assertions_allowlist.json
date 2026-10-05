@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "files": [
+    {
+      "path": "source/firmware/cgx1_power.c",
+      "reason": "Production firmware implementation compiled into the firmware test executable; it is not a test expectation source."
+    }
+  ]
+}

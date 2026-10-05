@@ -4,9 +4,9 @@
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
+#include "cgx1_test_check.h"
 #include "cgx1_power_management.hpp"
 
-#include <cassert>
 #include <limits>
 
 int main()
@@ -38,27 +38,27 @@ int main()
     static_assert(BoardStateAllowsTileState(BoardPowerState::P2SlotMax, TileOperatingState::Nominal));
     static_assert(!BoardStateAllowsTileState(BoardPowerState::P2SlotMax, TileOperatingState::Boost));
 
-    assert(CanAuthorizeBudget(BudgetRequest{BoardPowerState::P4DockFull, 130.0, {57.5, 57.5, 57.5, 57.5}}));
-    assert(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P4DockFull, 130.1, {57.5, 57.5, 57.5, 57.5}}));
-    assert(CanAuthorizeBudget(BudgetRequest{BoardPowerState::P1SlotEco, 25.0, {20.0, 0.0, 0.0, 0.0}}));
-    assert(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P1SlotEco, 25.0, {20.1, 0.0, 0.0, 0.0}}));
-    assert(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P2SlotMax, -1.0, {0.0, 0.0, 0.0, 0.0}}));
-    assert(!CanAuthorizeBudget(BudgetRequest{static_cast<BoardPowerState>(99), 0.0, {0.0, 0.0, 0.0, 0.0}}));
-    assert(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P2SlotMax, 0.0, {std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0, 0.0}}));
-    assert(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P2SlotMax, 0.0, {std::numeric_limits<double>::infinity(), 0.0, 0.0, 0.0}}));
-    assert(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P2SlotMax, 0.0, {-0.1, 0.0, 0.0, 0.0}}));
+    CGX1_TEST_CHECK(CanAuthorizeBudget(BudgetRequest{BoardPowerState::P4DockFull, 130.0, {57.5, 57.5, 57.5, 57.5}}));
+    CGX1_TEST_CHECK(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P4DockFull, 130.1, {57.5, 57.5, 57.5, 57.5}}));
+    CGX1_TEST_CHECK(CanAuthorizeBudget(BudgetRequest{BoardPowerState::P1SlotEco, 25.0, {20.0, 0.0, 0.0, 0.0}}));
+    CGX1_TEST_CHECK(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P1SlotEco, 25.0, {20.1, 0.0, 0.0, 0.0}}));
+    CGX1_TEST_CHECK(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P2SlotMax, -1.0, {0.0, 0.0, 0.0, 0.0}}));
+    CGX1_TEST_CHECK(!CanAuthorizeBudget(BudgetRequest{static_cast<BoardPowerState>(99), 0.0, {0.0, 0.0, 0.0, 0.0}}));
+    CGX1_TEST_CHECK(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P2SlotMax, 0.0, {std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0, 0.0}}));
+    CGX1_TEST_CHECK(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P2SlotMax, 0.0, {std::numeric_limits<double>::infinity(), 0.0, 0.0, 0.0}}));
+    CGX1_TEST_CHECK(!CanAuthorizeBudget(BudgetRequest{BoardPowerState::P2SlotMax, 0.0, {-0.1, 0.0, 0.0, 0.0}}));
 
-    assert(CanAuthorizePlan(PowerPlan{
+    CGX1_TEST_CHECK(CanAuthorizePlan(PowerPlan{
         BoardPowerState::P4DockFull,
         130.0,
         {TileOperatingState::Boost, TileOperatingState::Boost, TileOperatingState::Boost, TileOperatingState::Boost},
         {57.5, 57.5, 57.5, 57.5}}));
-    assert(!CanAuthorizePlan(PowerPlan{
+    CGX1_TEST_CHECK(!CanAuthorizePlan(PowerPlan{
         BoardPowerState::P2SlotMax,
         10.0,
         {TileOperatingState::Boost, TileOperatingState::Off, TileOperatingState::Off, TileOperatingState::Off},
         {10.0, 0.0, 0.0, 0.0}}));
-    assert(!CanAuthorizePlan(PowerPlan{
+    CGX1_TEST_CHECK(!CanAuthorizePlan(PowerPlan{
         BoardPowerState::P4DockFull,
         0.0,
         {static_cast<TileOperatingState>(99), TileOperatingState::Off, TileOperatingState::Off, TileOperatingState::Off},
@@ -67,54 +67,54 @@ int main()
     const TransitionContext readyUp{true, false, false, true, true, true, true, false};
     const TransitionContext readyDown{true, false, false, true, true, true, false, true};
 
-    assert(CanOrderlyTransition(TileOperatingState::Idle, TileOperatingState::Eco, readyUp));
-    assert(CanOrderlyTransition(TileOperatingState::Eco, TileOperatingState::Nominal, readyUp));
-    assert(CanOrderlyTransition(TileOperatingState::Nominal, TileOperatingState::Boost, readyUp));
-    assert(CanOrderlyTransition(TileOperatingState::Boost, TileOperatingState::Nominal, readyDown));
-    assert(CanOrderlyTransition(TileOperatingState::Nominal, TileOperatingState::Eco, readyDown));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Idle, TileOperatingState::Eco, readyUp));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Eco, TileOperatingState::Nominal, readyUp));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Nominal, TileOperatingState::Boost, readyUp));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Boost, TileOperatingState::Nominal, readyDown));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Nominal, TileOperatingState::Eco, readyDown));
 
     TransitionContext noVoltage = readyUp;
     noVoltage.voltageReadyForHigherPerformance = false;
-    assert(!CanOrderlyTransition(TileOperatingState::Eco, TileOperatingState::Nominal, noVoltage));
+    CGX1_TEST_CHECK(!CanOrderlyTransition(TileOperatingState::Eco, TileOperatingState::Nominal, noVoltage));
 
     TransitionContext clockTooHigh = readyDown;
     clockTooHigh.clockAtOrBelowLowerTarget = false;
-    assert(!CanOrderlyTransition(TileOperatingState::Nominal, TileOperatingState::Eco, clockTooHigh));
+    CGX1_TEST_CHECK(!CanOrderlyTransition(TileOperatingState::Nominal, TileOperatingState::Eco, clockTooHigh));
 
     TransitionContext dirty = readyDown;
     dirty.dirtyCoherentState = true;
-    assert(!CanOrderlyTransition(TileOperatingState::Eco, TileOperatingState::Idle, dirty));
+    CGX1_TEST_CHECK(!CanOrderlyTransition(TileOperatingState::Eco, TileOperatingState::Idle, dirty));
 
     TransitionContext notDrained = readyDown;
     notDrained.schedulerDrained = false;
-    assert(!CanOrderlyTransition(TileOperatingState::Eco, TileOperatingState::Idle, notDrained));
+    CGX1_TEST_CHECK(!CanOrderlyTransition(TileOperatingState::Eco, TileOperatingState::Idle, notDrained));
 
     TransitionContext idleToRetention{
         true, false, true, true, false, true, false, true
     };
-    assert(CanOrderlyTransition(TileOperatingState::Idle, TileOperatingState::Retention, idleToRetention));
-    assert(CanOrderlyTransition(TileOperatingState::Retention, TileOperatingState::Off, idleToRetention));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Idle, TileOperatingState::Retention, idleToRetention));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Retention, TileOperatingState::Off, idleToRetention));
 
     TransitionContext offToRetention{
         true, false, true, true, false, false, false, true
     };
-    assert(CanOrderlyTransition(TileOperatingState::Off, TileOperatingState::Retention, offToRetention));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Off, TileOperatingState::Retention, offToRetention));
 
     TransitionContext retentionToIdle{
         true, false, false, true, true, true, false, true
     };
-    assert(CanOrderlyTransition(TileOperatingState::Retention, TileOperatingState::Idle, retentionToIdle));
+    CGX1_TEST_CHECK(CanOrderlyTransition(TileOperatingState::Retention, TileOperatingState::Idle, retentionToIdle));
 
     TransitionContext noCoherence = retentionToIdle;
     noCoherence.coherenceReady = false;
-    assert(!CanOrderlyTransition(TileOperatingState::Retention, TileOperatingState::Idle, noCoherence));
+    CGX1_TEST_CHECK(!CanOrderlyTransition(TileOperatingState::Retention, TileOperatingState::Idle, noCoherence));
 
     TransitionContext idleNoCoherence = readyUp;
     idleNoCoherence.coherenceReady = false;
-    assert(!CanOrderlyTransition(TileOperatingState::Idle, TileOperatingState::Eco, idleNoCoherence));
+    CGX1_TEST_CHECK(!CanOrderlyTransition(TileOperatingState::Idle, TileOperatingState::Eco, idleNoCoherence));
 
-    assert(!CanOrderlyTransition(static_cast<TileOperatingState>(99), TileOperatingState::Idle, readyUp));
-    assert(!CanOrderlyTransition(TileOperatingState::Idle, static_cast<TileOperatingState>(99), readyUp));
+    CGX1_TEST_CHECK(!CanOrderlyTransition(static_cast<TileOperatingState>(99), TileOperatingState::Idle, readyUp));
+    CGX1_TEST_CHECK(!CanOrderlyTransition(TileOperatingState::Idle, static_cast<TileOperatingState>(99), readyUp));
 
     for (int current = static_cast<int>(TileOperatingState::Off); current <= static_cast<int>(TileOperatingState::Boost); ++current)
     {
@@ -123,7 +123,7 @@ int main()
             const int distance = current > requested ? current - requested : requested - current;
             if (distance > 1)
             {
-                assert(!CanOrderlyTransition(
+                CGX1_TEST_CHECK(!CanOrderlyTransition(
                     static_cast<TileOperatingState>(current),
                     static_cast<TileOperatingState>(requested),
                     readyUp));
@@ -131,16 +131,16 @@ int main()
         }
     }
 
-    assert(EmergencyIsolationRequired(true, false, false, false, true, true));
-    assert(EmergencyIsolationRequired(false, true, false, false, true, true));
-    assert(EmergencyIsolationRequired(false, false, true, false, false, true));
-    assert(EmergencyIsolationRequired(false, false, true, false, true, false));
-    assert(EmergencyIsolationRequired(false, false, false, true, false, true));
-    assert(EmergencyIsolationRequired(false, false, false, true, true, false));
-    assert(EmergencyIsolationRequired(false, false, true, true, false, true));
-    assert(!EmergencyIsolationRequired(false, false, true, false, true, true));
-    assert(!EmergencyIsolationRequired(false, false, false, true, true, true));
-    assert(!EmergencyIsolationRequired(false, false, false, false, false, false));
+    CGX1_TEST_CHECK(EmergencyIsolationRequired(true, false, false, false, true, true));
+    CGX1_TEST_CHECK(EmergencyIsolationRequired(false, true, false, false, true, true));
+    CGX1_TEST_CHECK(EmergencyIsolationRequired(false, false, true, false, false, true));
+    CGX1_TEST_CHECK(EmergencyIsolationRequired(false, false, true, false, true, false));
+    CGX1_TEST_CHECK(EmergencyIsolationRequired(false, false, false, true, false, true));
+    CGX1_TEST_CHECK(EmergencyIsolationRequired(false, false, false, true, true, false));
+    CGX1_TEST_CHECK(EmergencyIsolationRequired(false, false, true, true, false, true));
+    CGX1_TEST_CHECK(!EmergencyIsolationRequired(false, false, true, false, true, true));
+    CGX1_TEST_CHECK(!EmergencyIsolationRequired(false, false, false, true, true, true));
+    CGX1_TEST_CHECK(!EmergencyIsolationRequired(false, false, false, false, false, false));
 
     constexpr HysteresisConfig hysteresis{3U, 5U};
     static_assert(HysteresisConfigValid(hysteresis));

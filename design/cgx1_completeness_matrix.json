@@ -1,13 +1,13 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "purpose": "Track concrete CGX1 evidence by subsystem and maturity level without percentage estimates.",
-  "status_values": {
-    "not_started": "No inspectable implementation or validation exists at this level.",
-    "specified": "A repository contract or target exists at this level.",
-    "implemented": "A reference, RTL, or software artifact exists at this level.",
-    "validated": "The artifact passed its applicable executable validation at this level.",
-    "partial": "Some behavior exists, but the complete subsystem boundary is not present at this level."
-  },
+  "status_values": [
+    "not_started",
+    "specified",
+    "implemented",
+    "validated",
+    "partial"
+  ],
   "evidence_columns": [
     "contract",
     "reference_model",
@@ -25,23 +25,6 @@
     "physical_implementation",
     "silicon_measurement"
   ],
-  "validated_candidate": {
-    "commit": "68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
-    "hosted_rtl_ci_run": "37145496015",
-    "hosted_windows_ci_run": "37145498188",
-    "local_rtl_command": "bash scripts/validate_rtl.sh",
-    "local_cpp_command": "ctest --test-dir build --output-on-failure"
-  },
-  "local_working_tree_candidate": {
-    "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
-    "source_fingerprint_sha256": "3eaa25716644c6828e439dcb29119726c35d11f7824d4aa96f17a4bb7e8e72b4",
-    "fingerprint_scope": "SHA-256 over UTF-8 records relative/path:lowercase-SHA256(file-content), sorted by ordinal path and separated by LF without a terminal LF, for all files changed from base_commit (tracked and untracked), excluding this matrix file.",
-    "local_build": "cmake --build build -j2 passed under Ubuntu WSL after adding the provisional fetched Control branch reference; all 26 CTest targets passed",
-    "local_cpp": "ctest --test-dir build --output-on-failure passed all 26 targets under Ubuntu WSL, including Control termination of active divergent lanes and deferred-lane resumption plus forward/backward branch offsets, final-PC boundary arithmetic, misaligned/out-of-range target faults, unsupported-opcode nonmutation, and fetch-fault nonmutation",
-    "local_rtl": "Under Ubuntu WSL with Icarus Verilog 12.0, bash -n scripts/validate_rtl.sh and the full bash scripts/validate_rtl.sh gate passed. The standalone fetched-Control dispatcher check covers signed forward/backward targets, final-PC arithmetic, accepted-event-only consumption, raw-handler pass-through, external-event priority, round-robin progress, and reset; the integrated frontend branches to the fetched target, faults an out-of-range target through normal wave/workgroup retirement, and releases resources after termination. CMake build and CTest (26/26) also passed under WSL.",
-    "windows_validation": "The Windows wrapper passed public-repository hygiene and its negative controls, repository integrity and its negative control, design consistency and its negative controls, and local Markdown links. It stopped at C/C++ configure because cmake.exe is not available from Windows PATH; WSL CMake build/CTest (26/26) and the full RTL gate passed. Native Windows CMake build/CTest were not run.",
-    "hosted_ci": "not run for this local candidate"
-  },
   "next_dependency_candidate": "provisional_control_call_return_instructions",
   "subsystems": [
     {
@@ -51,8 +34,8 @@
         "reference_model": "validated",
         "executable_tests": "validated",
         "rtl": "implemented",
-        "rtl_simulation": "validated",
-        "subsystem_integration": "validated",
+        "rtl_simulation": "partial",
+        "subsystem_integration": "partial",
         "cu_integration": "partial",
         "gpu_integration": "not_started",
         "software_toolchain_integration": "not_started",
@@ -63,7 +46,25 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Signed INT8 matrix and candidate INT32 vector operations use the pooled VGPR authority. Floating matrix formats, a full per-wave instruction-issue controller, synthesis, and physical evidence remain open."
+      "limits": "Signed INT8 matrix and candidate INT32 vector operations use the pooled VGPR authority. Floating matrix formats, a full per-wave instruction-issue controller, synthesis, and physical evidence remain open. The resident INT8 plus ordinary-vector pooled composition testbench is compile-only in the bounded Icarus gate; component and narrower frontend simulations do not establish that whole composition as simulated.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_matrix_int8_execution_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_matrix_vgpr_pool_checks",
+          "ctest:cgx1_matrix_vgpr_pool_resident_checks",
+          "ctest:cgx1_ordinary_shared_execution_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_matrix_int8_resident_engine_tb",
+          "rtl:cgx1_compute_int8_vector_execution_frontend_tb",
+          "rtl:cgx1_matrix_int8_pooled_resident_engine_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_matrix_int8_pooled_resident_engine_tb"
+        ]
+      }
     },
     {
       "id": "workgroup_residency_barriers",
@@ -84,7 +85,22 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A CU-local decoded dispatcher and bounded command lifecycle now connect provisional ring/parser ingress to the authoritative frontend through quiescent retirement in local RTL simulation. Global queue arbitration, public ABI, graphics/runtime toolchain integration, and GPU integration remain open."
+      "limits": "Complete workgroups reserve actual pooled VGPR and local-memory resources and preserve barrier membership. A CU-local decoded dispatcher and bounded command lifecycle now connect provisional ring/parser ingress to the authoritative frontend through quiescent retirement in local RTL simulation. Global queue arbitration, public ABI, graphics/runtime toolchain integration, and GPU integration remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_workgroup_scheduler_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_workgroup_scheduler_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_workgroup_residency_barrier_tb",
+          "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+        ]
+      }
     },
     {
       "id": "shared_local_lsu_memory_waits",
@@ -105,7 +121,24 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Decoded per-wave requests, local-region access, a global ready/valid boundary, writeback, faults, cancellation, barriers, and memory-quiescent release are integrated. The command lifecycle integration bench holds cancellation completion and resource release until a delayed global response drains. The queue path is locally integrated through one CU frontend but is not wired to cgx1_top; ISA memory decode, global queues, caches, MMU, fabric, and physical memory remain open."
+      "limits": "Decoded per-wave requests, local-region access, a global ready/valid boundary, writeback, faults, cancellation, barriers, and memory-quiescent release are integrated. The command lifecycle integration bench holds cancellation completion and resource release until a delayed global response drains. The queue path is locally integrated through one CU frontend but is not wired to cgx1_top; ISA memory decode, global queues, caches, MMU, fabric, and physical memory remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_shared_local_memory_checks",
+          "ctest:cgx1_workgroup_scheduler_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_shared_local_memory_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_cu_shared_local_memory_tb",
+          "rtl:cgx1_compute_workgroup_lsu_tb",
+          "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+        ]
+      }
     },
     {
       "id": "tile_power_eligibility",
@@ -126,7 +159,21 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "The P1/P2 fixed-count concern is resolved at the RTL eligibility-authority boundary: cgx1_tile_power_manager is wired to cgx1_top.tile_enable, derives its cap from the stricter active/requested board state and per-tile operating/readiness status, and cgx1_top_tb validates arbitrary eligible subsets plus emergency masking/isolation requests. Global scheduling consumption of the mask, tile-state sequencing, orderly drain, physical isolation or gating, hysteresis timing, calibrated budgets, and physical power evidence remain open."
+      "limits": "The P1/P2 fixed-count concern is resolved at the RTL eligibility-authority boundary: cgx1_tile_power_manager is wired to cgx1_top.tile_enable, derives its cap from the stricter active/requested board state and per-tile operating/readiness status, and cgx1_top_tb validates arbitrary eligible subsets plus emergency masking/isolation requests. Global scheduling consumption of the mask, tile-state sequencing, orderly drain, physical isolation or gating, hysteresis timing, calibrated budgets, and physical power evidence remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_power_management_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_power_management_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_top_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_top_tb"
+        ]
+      }
     },
     {
       "id": "control_flow_divergence",
@@ -147,7 +194,22 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Post-decode control supports a 57-bit aligned per-wave PC, live/active lane masks, branch joins, calls/returns with active-frame depth protection, structured loops with call-depth unwind, lane termination, and bounded-stack faults. The executable ISA stream reference and optional workgroup fetch path implement provisional Control class 0x3/opcode 0x0 active-lane termination and opcode 0x1 unconditional branch with a signed 24-bit byte displacement from PC+4. Branches target all active lanes; misaligned or out-of-range targets use the existing invalid-PC fault path. Fetched words remain buffered until event acceptance, and terminal waves use normal barrier/resource retirement. Other Control opcode formats, extension lengths, compiler lowering, complete per-wave instruction issue, runtime dispatch, and physical evidence remain open."
+      "limits": "Post-decode control supports a 57-bit aligned per-wave PC, live/active lane masks, branch joins, calls/returns with active-frame depth protection, structured loops with call-depth unwind, lane termination, and bounded-stack faults. The executable ISA stream reference and optional workgroup fetch path implement provisional Control class 0x3/opcode 0x0 active-lane termination and opcode 0x1 unconditional branch with a signed 24-bit byte displacement from PC+4. Branches target all active lanes; misaligned or out-of-range targets use the existing invalid-PC fault path. Fetched words remain buffered until event acceptance, and terminal waves use normal barrier/resource retirement. Other Control opcode formats, extension lengths, compiler lowering, complete per-wave instruction issue, runtime dispatch, and physical evidence remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_control_flow_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_control_flow_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_wave_control_flow_tb",
+          "rtl:cgx1_provisional_control_instruction_dispatch_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_provisional_control_instruction_dispatch_tb"
+        ]
+      }
     },
     {
       "id": "vector_instruction_semantics",
@@ -168,7 +230,19 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "The executable reference decodes current 32-bit base words and executes the provisional INT32 vector opcodes 0x0-0x7 with 32-lane masking, wraparound, shift semantics, aliasing, and illegal-op rejection. The existing RTL ALU/vector pipeline and optional workgroup instruction-fetch path simulate the same provisional vector subset through accepted PC advancement. Non-vector semantics, compiler lowering, and frozen public opcode assignments remain open."
+      "limits": "The executable reference decodes current 32-bit base words and executes the provisional INT32 vector opcodes 0x0-0x7 with 32-lane masking, wraparound, shift semantics, aliasing, and illegal-op rejection. The existing RTL ALU/vector pipeline and optional workgroup instruction-fetch path simulate the same provisional vector subset through accepted PC advancement. Non-vector semantics, compiler lowering, and frozen public opcode assignments remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_isa_encoding_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_isa_encoding_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_vector_int32_alu_tb",
+          "rtl:cgx1_vector_int32_pipeline_tb"
+        ]
+      }
     },
     {
       "id": "vector_instruction_stream_reference",
@@ -189,7 +263,15 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "A bounded C++ reference fetches one 32-bit base word from an immutable span at a 57-bit aligned PC and delegates only to the provisional vector subset. It advances PC by four only after successful execution and leaves PC/registers unchanged on fetch faults, unsupported classes, or illegal vector opcodes. This remains an immediate software step and does not model the separate asynchronous RTL request/response lifecycle. Other instruction classes, frozen opcode assignments, compiler/runtime integration, and physical evidence remain open."
+      "limits": "A bounded C++ reference fetches one 32-bit base word from an immutable span at a 57-bit aligned PC and delegates only to the provisional vector subset. It advances PC by four only after successful execution and leaves PC/registers unchanged on fetch faults, unsupported classes, or illegal vector opcodes. This remains an immediate software step and does not model the separate asynchronous RTL request/response lifecycle. Other instruction classes, frozen opcode assignments, compiler/runtime integration, and physical evidence remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_isa_encoding_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_isa_encoding_checks"
+        ]
+      }
     },
     {
       "id": "rtl_vector_instruction_word_decode",
@@ -210,7 +292,21 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "The combinational per-wave decoder maps raw 32-bit Vector-class base words to the existing request fields and exposes generic class/opcode/destination/source fields plus the original word for non-vector handlers. Its RTL bench integrates with resident vector scheduling and INT32 execution; the optional fetch unit supplies captured words through the authoritative workgroup frontend PC and retains identity through response, kill/fault, and quiescent release. Class-specific non-vector execution, extension words, frozen opcode assignments, top-level GPU instruction stream, and physical evidence remain open."
+      "limits": "The combinational per-wave decoder maps raw 32-bit Vector-class base words to the existing request fields and exposes generic class/opcode/destination/source fields plus the original word for non-vector handlers. Its RTL bench integrates with resident vector scheduling and INT32 execution; the optional fetch unit supplies captured words through the authoritative workgroup frontend PC and retains identity through response, kill/fault, and quiescent release. Class-specific non-vector execution, extension words, frozen opcode assignments, top-level GPU instruction stream, and physical evidence remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_isa_encoding_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_isa_encoding_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_vector_instruction_word_decoder_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+        ]
+      }
     },
     {
       "id": "instruction_fetch_cu_pc_integration",
@@ -231,7 +327,22 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "The optional compute workgroup frontend fetches through an abstract single-request ready/valid boundary, permits one operation per resident wave with concurrent multi-wave waits, matches full workgroup/wave/epoch/tag/PC response identity, retains fetched words through accepted events, integrates provisional vector decode and Control class 0x3/opcodes 0x0 termination and 0x1 unconditional branch with control-flow-owned 57-bit PCs, exposes generic base fields and identity for other external handlers, advances accepted raw-class words using external sequential-PC metadata, drains stale responses after kill/abort, reports fetch faults through wave termination, and blocks release until quiescent. Fetch is disabled by default. Other class-specific decode/semantics, extension words, execute translation, instruction cache/physical memory, top-level GPU integration, hosted CI for this candidate, synthesis, timing, area, power, and silicon remain unverified."
+      "limits": "The optional compute workgroup frontend fetches through an abstract single-request ready/valid boundary, permits one operation per resident wave with concurrent multi-wave waits, matches full workgroup/wave/epoch/tag/PC response identity, retains fetched words through accepted events, integrates provisional vector decode and Control class 0x3/opcodes 0x0 termination and 0x1 unconditional branch with control-flow-owned 57-bit PCs, exposes generic base fields and identity for other external handlers, advances accepted raw-class words using external sequential-PC metadata, drains stale responses after kill/abort, reports fetch faults through wave termination, and blocks release until quiescent. Fetch is disabled by default. Other class-specific decode/semantics, extension words, execute translation, instruction cache/physical memory, top-level GPU integration, hosted CI for this candidate, synthesis, timing, area, power, and silicon remain unverified.",
+      "evidence_refs": {
+        "executable_tests": [
+          "ctest:cgx1_isa_encoding_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_instruction_fetch_unit_tb",
+          "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+        ],
+        "cu_integration": [
+          "rtl:cgx1_compute_workgroup_execution_frontend_tb"
+        ]
+      }
     },
     {
       "id": "complete_cu_scheduler_dispatch",
@@ -252,7 +363,25 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "One CU has an executable and RTL decoded-compute workgroup dispatcher with bounded per-context FIFO storage, weighted priority service with aging, tile-eligibility and queue-fault gating, retryable versus terminal admission results, and integration with the authoritative workgroup frontend. The dispatcher arbitrates workgroups; it does not own per-wave instruction issue or queue-context allocation. A bounded C++ command-packet reference now feeds it. RTL packet processing, the I/O-die global queue manager, public ABI freeze, graphics dispatch, multi-CU/tile placement, compiler/runtime submission and completion, calibrated performance, synthesis, and physical evidence remain open."
+      "limits": "One CU has an executable and RTL decoded-compute workgroup dispatcher with bounded per-context FIFO storage, weighted priority service with aging, tile-eligibility and queue-fault gating, retryable versus terminal admission results, and integration with the authoritative workgroup frontend. The dispatcher arbitrates workgroups; it does not own per-wave instruction issue or queue-context allocation. A bounded C++ command-packet reference now feeds it. RTL packet processing, the I/O-die global queue manager, public ABI freeze, graphics dispatch, multi-CU/tile placement, compiler/runtime submission and completion, calibrated performance, synthesis, and physical evidence remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_cu_dispatch_scheduler_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_cu_dispatch_scheduler_checks"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_compute_workgroup_dispatch_scheduler_tb",
+          "rtl:cgx1_compute_workgroup_dispatch_integration_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_compute_workgroup_dispatch_integration_tb"
+        ],
+        "cu_integration": [
+          "rtl:cgx1_compute_workgroup_dispatch_integration_tb"
+        ]
+      }
     },
     {
       "id": "cache_global_memory_virtual_memory",
@@ -273,7 +402,8 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Architecture targets exist; the global LSU boundary remains abstract and there is no cache, translation, or physical memory backend."
+      "limits": "Architecture targets exist; the global LSU boundary remains abstract and there is no cache, translation, or physical memory backend.",
+      "evidence_refs": {}
     },
     {
       "id": "multi_cu_multi_tile_fabric",
@@ -294,7 +424,8 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Multi-CU placement, tile-to-fabric traffic, coherence, and contention are architecture targets without an integrated executable model or RTL path."
+      "limits": "Multi-CU placement, tile-to-fabric traffic, coherence, and contention are architecture targets without an integrated executable model or RTL path.",
+      "evidence_refs": {}
     },
     {
       "id": "graphics_texture_compression",
@@ -315,7 +446,8 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Graphics, texture, and compression contracts exist, but no shared-machine graphics execution path is implemented."
+      "limits": "Graphics, texture, and compression contracts exist, but no shared-machine graphics execution path is implemented.",
+      "evidence_refs": {}
     },
     {
       "id": "command_queue_runtime_toolchain",
@@ -336,7 +468,34 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet and reports terminal admission or quiescent completion. RTL locally composes parameterized per-context rings, parser, CU dispatcher, bounded lifecycle ownership, final workgroup-retirement event, reset/cancellation, drain, unregister, and incarnation-safe reuse through the real CU workgroup frontend. The one-CU simulation covers delayed global-memory response before resource retirement and whole-device reset with owned state; the command path is not wired into cgx1_top. Global queue arbitration, frozen ABI, graphics/runtime/compiler integration, multi-CU placement, SRAM implementation, and physical evidence remain open."
+      "limits": "A bounded C++ reference parses a provisional little-endian workgroup-dispatch packet and reports terminal admission or quiescent completion. RTL locally composes parameterized per-context rings, parser, CU dispatcher, bounded lifecycle ownership, final workgroup-retirement event, reset/cancellation, drain, unregister, and incarnation-safe reuse through the real CU workgroup frontend. The one-CU simulation covers delayed global-memory response before resource retirement and whole-device reset with owned state; the command path is not wired into cgx1_top. Global queue arbitration, frozen ABI, graphics/runtime/compiler integration, multi-CU placement, SRAM implementation, and physical evidence remain open.",
+      "evidence_refs": {
+        "reference_model": [
+          "ctest:cgx1_command_queue_runtime_checks"
+        ],
+        "executable_tests": [
+          "ctest:cgx1_command_queue_runtime_checks"
+        ],
+        "rtl": [
+          "rtl-source:source/rtl/cgx1_compute_workgroup_command_packet_parser.sv",
+          "rtl-source:source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv",
+          "rtl-source:source/rtl/cgx1_compute_workgroup_command_lifecycle.sv",
+          "rtl-source:source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv"
+        ],
+        "rtl_simulation": [
+          "rtl:cgx1_compute_workgroup_command_packet_parser_tb",
+          "rtl:cgx1_compute_workgroup_command_runtime_tb",
+          "rtl:cgx1_compute_workgroup_command_queue_frontend_tb",
+          "rtl:cgx1_compute_workgroup_command_lifecycle_integration_tb"
+        ],
+        "subsystem_integration": [
+          "rtl:cgx1_compute_workgroup_command_lifecycle_integration_tb"
+        ],
+        "cu_integration": [
+          "rtl:cgx1_compute_workgroup_dispatch_integration_tb",
+          "rtl:cgx1_compute_workgroup_command_lifecycle_integration_tb"
+        ]
+      }
     },
     {
       "id": "physical_implementation",
@@ -357,7 +516,16 @@
         "physical_implementation": "not_started",
         "silicon_measurement": "not_started"
       },
-      "limits": "Some logical RTL exists, but no synthesis, timing, area, power, floorplan, placement, routing, or silicon evidence is present."
+      "limits": "Some logical RTL exists, but no synthesis, timing, area, power, floorplan, placement, routing, or silicon evidence is present.",
+      "evidence_refs": {}
     }
-  ]
+  ],
+  "evidence_ledger": "design/cgx1_validation_evidence.json",
+  "status_descriptions": {
+    "not_started": "No inspectable implementation or validation exists at this level.",
+    "specified": "A repository contract or target exists at this level.",
+    "implemented": "A reference, RTL, or software artifact exists at this level.",
+    "validated": "The artifact passed its applicable executable validation at this level.",
+    "partial": "Some behavior exists, but the complete subsystem boundary is not present at this level."
+  }
 }

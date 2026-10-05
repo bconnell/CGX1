@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_context.hpp"
+
 #include <array>
 #include <bit>
 #include <cstdint>
 #include <iostream>
 #include <random>
 
-#define CHECK(x) do { if (!(x)) { std::cerr << "[fail] " #x " line " << __LINE__ << '\n'; return 1; } } while (false)
+#define CHECK(x) do { if (!(x)) { std::cerr << "[fail] " #x " line " << __LINE__; ::cgx1::testing::WriteRandomTestFailureContext(std::cerr); std::cerr << '\n'; return 1; } } while (false)
 
 enum class Op : std::uint8_t { Add, Sub, And, Or, Xor, Shl, Lsr, Asr };
 
@@ -150,7 +152,8 @@ int main()
     CHECK(Alu(Op::Asr, 0x80000000U, 1U) == 0xC0000000U);
     CHECK(Alu(Op::Shl, 1U, 33U) == 2U);
 
-    std::mt19937 random(0x51A6E5U);
+    constexpr std::uint32_t seed = 0x51A6E5U;
+    std::mt19937 random(seed);
 
     for (std::uint32_t iteration = 0U; iteration < 100000U; ++iteration)
     {
@@ -161,8 +164,12 @@ int main()
         const auto op =
             static_cast<Op>(random() % 8U);
 
+        ::cgx1::testing::SetRandomTestFailureContext(
+            "VectorAluRandomized", seed, iteration,
+            (static_cast<std::uint64_t>(a) << 32U) | b);
         CHECK(Alu(op, a, b) == Expected(op, a, b));
     }
+    ::cgx1::testing::ClearRandomTestFailureContext();
 
     const auto directed =
         CheckHazard(true, 32U, 64U, 68U, 32U, 10U, 64U, true, true);
@@ -175,6 +182,11 @@ int main()
         const bool sameWave = (random() & 1U) != 0U;
         const bool sourceLive = (random() & 1U) != 0U;
         const bool destinationLive = (random() & 1U) != 0U;
+        ::cgx1::testing::SetRandomTestFailureContext(
+            "VectorHazardRandomized", seed, iteration,
+            (static_cast<std::uint64_t>(sameWave) << 2U)
+                | (static_cast<std::uint64_t>(sourceLive) << 1U)
+                | static_cast<std::uint64_t>(destinationLive));
 
         const auto hazard = CheckHazard(
             sameWave,
@@ -194,6 +206,7 @@ int main()
         if (!sourceLive)
             CHECK(!hazard.war);
     }
+    ::cgx1::testing::ClearRandomTestFailureContext();
 
     Scheduler scheduler{};
     std::array<bool, 8> valid{};
@@ -221,6 +234,13 @@ int main()
         const bool serviceWindow = (random() & 1U) != 0U;
         const bool vectorValid = (random() & 1U) != 0U;
         const bool vectorReady = (random() & 1U) != 0U;
+        ::cgx1::testing::SetRandomTestFailureContext(
+            "VectorIssueArbitrationRandomized", seed, iteration,
+            (static_cast<std::uint64_t>(matrixValid) << 4U)
+                | (static_cast<std::uint64_t>(matrixReady) << 3U)
+                | (static_cast<std::uint64_t>(serviceWindow) << 2U)
+                | (static_cast<std::uint64_t>(vectorValid) << 1U)
+                | static_cast<std::uint64_t>(vectorReady));
 
         const auto result = ArbitrateIssue(
             matrixValid,
@@ -236,6 +256,7 @@ int main()
         else if (vectorValid && vectorReady)
             CHECK(!result.matrixAccept && result.vectorAccept);
     }
+    ::cgx1::testing::ClearRandomTestFailureContext();
 
     std::cout
         << "[pass] vector execution, hazard, issue-arbitration, "

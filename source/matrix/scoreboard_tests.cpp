@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_matrix_scoreboard.hpp"
 
-#include <cassert>
 #include <cstdint>
 #include <stdexcept>
 
@@ -14,8 +14,8 @@ int main()
     static_assert(kMatrixIssueIntervalCycles > kMatrixRegisterCaptureCycles);
 
     MatrixWaveScoreboardState state{};
-    assert(!MatrixMaskAny(state.sourcePending));
-    assert(!MatrixMaskAny(state.destinationPending));
+    CGX1_TEST_CHECK(!MatrixMaskAny(state.sourcePending));
+    CGX1_TEST_CHECK(!MatrixMaskAny(state.destinationPending));
 
     ReserveMatrixWaveScoreboard(state, 32U, 64U, 68U);
 
@@ -23,8 +23,8 @@ int main()
     {
         const bool expectedSource = reg >= 64U && reg < 72U;
         const bool expectedDestination = reg >= 32U && reg < 40U;
-        assert(state.sourcePending[reg] == expectedSource);
-        assert(state.destinationPending[reg] == expectedDestination);
+        CGX1_TEST_CHECK(state.sourcePending[reg] == expectedSource);
+        CGX1_TEST_CHECK(state.destinationPending[reg] == expectedDestination);
 
         MatrixOrdinaryIssueRequest read{};
         read.readMask[reg] = true;
@@ -35,10 +35,10 @@ int main()
                 read,
                 false,
                 false);
-        assert(readStatus.rawHazard == expectedDestination);
-        assert(!readStatus.wawHazard);
-        assert(!readStatus.warHazard);
-        assert(readStatus.Ready() == !expectedDestination);
+        CGX1_TEST_CHECK(readStatus.rawHazard == expectedDestination);
+        CGX1_TEST_CHECK(!readStatus.wawHazard);
+        CGX1_TEST_CHECK(!readStatus.warHazard);
+        CGX1_TEST_CHECK(readStatus.Ready() == !expectedDestination);
 
         MatrixOrdinaryIssueRequest write{};
         write.writeMask[reg] = true;
@@ -49,10 +49,10 @@ int main()
                 write,
                 false,
                 false);
-        assert(!writeStatus.rawHazard);
-        assert(writeStatus.wawHazard == expectedDestination);
-        assert(writeStatus.warHazard == expectedSource);
-        assert(writeStatus.Ready()
+        CGX1_TEST_CHECK(!writeStatus.rawHazard);
+        CGX1_TEST_CHECK(writeStatus.wawHazard == expectedDestination);
+        CGX1_TEST_CHECK(writeStatus.warHazard == expectedSource);
+        CGX1_TEST_CHECK(writeStatus.Ready()
             == !(expectedDestination || expectedSource));
     }
 
@@ -65,9 +65,9 @@ int main()
             unrelatedRead,
             true,
             false);
-    assert(status.readPortConflict);
-    assert(!status.writePortConflict);
-    assert(!status.Ready());
+    CGX1_TEST_CHECK(status.readPortConflict);
+    CGX1_TEST_CHECK(!status.writePortConflict);
+    CGX1_TEST_CHECK(!status.Ready());
 
     MatrixOrdinaryIssueRequest unrelatedWrite{};
     unrelatedWrite.writeMask[80U] = true;
@@ -77,20 +77,20 @@ int main()
         unrelatedWrite,
         true,
         false);
-    assert(!status.readPortConflict);
-    assert(!status.writePortConflict);
-    assert(status.Ready());
+    CGX1_TEST_CHECK(!status.readPortConflict);
+    CGX1_TEST_CHECK(!status.writePortConflict);
+    CGX1_TEST_CHECK(status.Ready());
 
     status = EvaluateOrdinaryIssueAgainstMatrix(
         state,
         unrelatedWrite,
         false,
         true);
-    assert(status.writePortConflict);
-    assert(!status.Ready());
+    CGX1_TEST_CHECK(status.writePortConflict);
+    CGX1_TEST_CHECK(!status.Ready());
 
     ReleaseMatrixWaveSources(state, 64U, 68U);
-    assert(!MatrixMaskAny(state.sourcePending));
+    CGX1_TEST_CHECK(!MatrixMaskAny(state.sourcePending));
 
     MatrixOrdinaryIssueRequest sourceWriteAfterRelease{};
     sourceWriteAfterRelease.writeMask[64U] = true;
@@ -100,7 +100,7 @@ int main()
         sourceWriteAfterRelease,
         false,
         false);
-    assert(status.Ready());
+    CGX1_TEST_CHECK(status.Ready());
 
     // Keep the first destination pending while a second independent matrix
     // operation reserves a different destination.
@@ -110,7 +110,7 @@ int main()
         const bool expectedDestination =
             (reg >= 32U && reg < 40U)
             || (reg >= 48U && reg < 56U);
-        assert(state.destinationPending[reg] == expectedDestination);
+        CGX1_TEST_CHECK(state.destinationPending[reg] == expectedDestination);
     }
 
     ReleaseMatrixWaveSources(state, 80U, 84U);
@@ -124,7 +124,7 @@ int main()
     {
         rejectedRaw = true;
     }
-    assert(rejectedRaw);
+    CGX1_TEST_CHECK(rejectedRaw);
 
     bool rejectedWaw = false;
     try
@@ -135,27 +135,27 @@ int main()
     {
         rejectedWaw = true;
     }
-    assert(rejectedWaw);
+    CGX1_TEST_CHECK(rejectedWaw);
 
     CompleteMatrixWaveDestination(state, 32U);
     for (std::uint32_t reg = 32U; reg < 40U; ++reg)
     {
-        assert(!state.destinationPending[reg]);
+        CGX1_TEST_CHECK(!state.destinationPending[reg]);
     }
     for (std::uint32_t reg = 48U; reg < 56U; ++reg)
     {
-        assert(state.destinationPending[reg]);
+        CGX1_TEST_CHECK(state.destinationPending[reg]);
     }
 
     CompleteMatrixWaveDestination(state, 48U);
-    assert(!MatrixMaskAny(state.destinationPending));
+    CGX1_TEST_CHECK(!MatrixMaskAny(state.destinationPending));
 
     // Exact A/B aliasing reserves only the same four logical source registers.
     ReserveMatrixWaveScoreboard(state, 32U, 64U, 64U);
     for (std::uint32_t reg = 0U; reg < kMatrixScoreboardRegisterCount; ++reg)
     {
         const bool expectedSource = reg >= 64U && reg < 68U;
-        assert(state.sourcePending[reg] == expectedSource);
+        CGX1_TEST_CHECK(state.sourcePending[reg] == expectedSource);
     }
     ReleaseMatrixWaveSources(state, 64U, 64U);
     CompleteMatrixWaveDestination(state, 32U);
@@ -169,7 +169,7 @@ int main()
     {
         rejectedRange = true;
     }
-    assert(rejectedRange);
+    CGX1_TEST_CHECK(rejectedRange);
 
     return 0;
 }

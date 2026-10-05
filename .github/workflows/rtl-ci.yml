@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+      - codex/cgx1-completeness
+  pull_request:
+    branches:
+      - main
+      - codex/cgx1-completeness
   workflow_dispatch:
 
 permissions:
@@ -16,16 +21,18 @@ concurrency:
 jobs:
   simulate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 45
 
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Install Icarus Verilog
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends iverilog
 
-      - name: Run RTL validation
-        run: ./scripts/validate_rtl.sh
+      - name: Validate the exact clean candidate, including RTL
+        run: python3 scripts/validate_clean_candidate.py

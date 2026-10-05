@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "pattern": "warning: Some design elements have no explicit time unit and/or",
+      "reason": "Several existing RTL modules do not declare a timescale. RTL testbenches define timing units explicitly; Verilator and synthesis checks are separate evidence, and no timing claim is derived from this simulation."
+    },
+    {
+      "pattern": "warning: System task \\(\\$fatal\\) cannot be synthesized in an always_(?:comb|ff) process",
+      "reason": "Simulation-only invariant checks intentionally use $fatal under `ifndef SYNTHESIS. They are excluded from synthesis; synthesis smoke validates the synthesizable branch separately."
+    },
+    {
+      "pattern": "sorry: constant selects in always_\\* processes are not currently supported",
+      "reason": "Icarus conservatively includes all bits in the inferred sensitivity set for constant selects in always_* processes. This is an elaboration/sensitivity limitation, not a simulation result promotion."
+    },
+    {
+      "pattern": "sorry: Case unique/unique0 qualities are ignored",
+      "reason": "Icarus ignores unique-case runtime qualities. Directed tests exercise legal encodings; the RTL lint/synthesis lane provides an independent parser/elaboration check."
+    },
+    {
+      "pattern": "warning: @\\* is sensitive to all [0-9]+ words in array '[^']+'",
+      "reason": "Icarus includes every unpacked array element in an @* sensitivity list. This reports conservative simulation sensitivity and does not change the combinational function."
+    }
+  ]
+}

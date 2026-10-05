@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_matrix_result_staging.hpp"
 
-#include <cassert>
 #include <cstdint>
 #include <stdexcept>
 
@@ -39,14 +39,14 @@ int main()
     static_assert(kMatrixWritebackCycles == kMatrixAccumulatorRegistersPerLane);
 
     MatrixResultStagingState state{};
-    assert(!state.valid);
-    assert(state.generation == 0U);
+    CGX1_TEST_CHECK(!state.valid);
+    CGX1_TEST_CHECK(state.generation == 0U);
 
     const MatrixResultSet first = MakeResultSet(0x100U);
     LoadMatrixResult(state, first);
-    assert(state.valid);
-    assert(state.generation == 1U);
-    assert(state.expectedWritebackCycle == 0U);
+    CGX1_TEST_CHECK(state.valid);
+    CGX1_TEST_CHECK(state.generation == 1U);
+    CGX1_TEST_CHECK(state.expectedWritebackCycle == 0U);
 
     bool rejectedOccupiedLoad = false;
     try
@@ -57,22 +57,22 @@ int main()
     {
         rejectedOccupiedLoad = true;
     }
-    assert(rejectedOccupiedLoad);
+    CGX1_TEST_CHECK(rejectedOccupiedLoad);
 
     for (std::uint32_t cycle = 0U; cycle < kMatrixWritebackCycles; ++cycle)
     {
         const MatrixWaveRegister wave =
             ConsumeMatrixResultWritebackCycle(state, cycle);
-        assert(wave == first[cycle]);
-        assert(state.valid == (cycle != kMatrixWritebackCycles - 1U));
+        CGX1_TEST_CHECK(wave == first[cycle]);
+        CGX1_TEST_CHECK(state.valid == (cycle != kMatrixWritebackCycles - 1U));
     }
 
-    assert(!state.valid);
-    assert(state.expectedWritebackCycle == 0U);
+    CGX1_TEST_CHECK(!state.valid);
+    CGX1_TEST_CHECK(state.expectedWritebackCycle == 0U);
 
     const MatrixResultSet second = MakeResultSet(0x200U);
     LoadMatrixResult(state, second);
-    assert(state.generation == 2U);
+    CGX1_TEST_CHECK(state.generation == 2U);
 
     bool rejectedOutOfOrder = false;
     try
@@ -83,14 +83,15 @@ int main()
     {
         rejectedOutOfOrder = true;
     }
-    assert(rejectedOutOfOrder);
+    CGX1_TEST_CHECK(rejectedOutOfOrder);
 
     for (std::uint32_t cycle = 0U; cycle < kMatrixWritebackCycles; ++cycle)
     {
-        assert(ConsumeMatrixResultWritebackCycle(state, cycle)
-            == second[cycle]);
+        const MatrixWaveRegister consumed =
+            ConsumeMatrixResultWritebackCycle(state, cycle);
+        CGX1_TEST_CHECK(consumed == second[cycle]);
     }
-    assert(!state.valid);
+    CGX1_TEST_CHECK(!state.valid);
 
     bool rejectedEmpty = false;
     try
@@ -101,26 +102,26 @@ int main()
     {
         rejectedEmpty = true;
     }
-    assert(rejectedEmpty);
+    CGX1_TEST_CHECK(rejectedEmpty);
 
     MatrixResultStagingState bypassState{};
     const MatrixResultSet bypass = MakeResultSet(0x400U);
-    assert(LoadAndConsumeMatrixResultCycleZero(
-        bypassState,
-        bypass) == bypass[0]);
-    assert(bypassState.valid);
-    assert(bypassState.expectedWritebackCycle == 1U);
-    assert(bypassState.generation == 1U);
+    const MatrixWaveRegister bypassCycleZero =
+        LoadAndConsumeMatrixResultCycleZero(bypassState, bypass);
+    CGX1_TEST_CHECK(bypassCycleZero == bypass[0]);
+    CGX1_TEST_CHECK(bypassState.valid);
+    CGX1_TEST_CHECK(bypassState.expectedWritebackCycle == 1U);
+    CGX1_TEST_CHECK(bypassState.generation == 1U);
 
     for (std::uint32_t cycle = 1U;
          cycle < kMatrixWritebackCycles;
          ++cycle)
     {
-        assert(ConsumeMatrixResultWritebackCycle(
-            bypassState,
-            cycle) == bypass[cycle]);
+        const MatrixWaveRegister consumed =
+            ConsumeMatrixResultWritebackCycle(bypassState, cycle);
+        CGX1_TEST_CHECK(consumed == bypass[cycle]);
     }
-    assert(!bypassState.valid);
+    CGX1_TEST_CHECK(!bypassState.valid);
 
     bool rejectedBypassOverwrite = false;
     MatrixResultStagingState occupiedBypass{};
@@ -135,7 +136,7 @@ int main()
     {
         rejectedBypassOverwrite = true;
     }
-    assert(rejectedBypassOverwrite);
+    CGX1_TEST_CHECK(rejectedBypassOverwrite);
 
     MatrixResultStagingState rangeState{};
     LoadMatrixResult(rangeState, MakeResultSet(0x300U));
@@ -150,7 +151,7 @@ int main()
     {
         rejectedRange = true;
     }
-    assert(rejectedRange);
+    CGX1_TEST_CHECK(rejectedRange);
 
     return 0;
 }

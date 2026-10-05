@@ -8,6 +8,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     localparam integer SLOT_WIDTH = 2;
     localparam integer COUNT_WIDTH = 3;
     localparam integer VA_WIDTH = 57;
+    localparam logic [31:0] RANDOM_SEED = 32'hC6C1_2026;
     localparam integer WAVE_ADDRESS_WIDTH = 32 * VA_WIDTH;
     localparam logic [4:0] FAIL_SHARED_MEMORY_FRAGMENTED = 5'd16;
     logic clk = 0, reset_n = 0;
@@ -159,6 +160,8 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     logic [COUNT_WIDTH-1:0] resident_wave_count;
     logic [31:0] scalar_state_units_used, shared_local_bytes_used, other_workgroup_state_units_used;
     integer timeout, iteration, lane, physical_row, bank, register_number, base_row;
+    logic [31:0] randomized_state;
+    logic randomized_sequence_active;
     integer map_before;
     logic [63:0] tag0;
     logic [31:0] epoch0;
@@ -270,15 +273,30 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         @(negedge clk); barrier_arrive_workgroup_id = id;
         barrier_arrive_local_wave_mask = local_mask; barrier_arrive_valid = 1;
         #1;
-        if (!barrier_arrive_ready || !barrier_arrive_accepted)
+        if (!barrier_arrive_ready || !barrier_arrive_accepted) begin
+            if (randomized_sequence_active)
+                $fatal(1, "random barrier arrival rejected seed=%08x iteration=%0d state=%08x",
+                    RANDOM_SEED, expected_generation, randomized_state);
             $fatal(1, "workgroup barrier arrival was not accepted");
+        end
         @(posedge clk); #1;
-        if (barrier_release_valid !== expected_release)
+        if (barrier_release_valid !== expected_release) begin
+            if (randomized_sequence_active)
+                $fatal(1, "random barrier release mismatch seed=%08x iteration=%0d state=%08x id=%0d mask=%b expected=%b actual=%b gen=%0d expected_gen=%0d",
+                    RANDOM_SEED, expected_generation, randomized_state, id, local_mask,
+                    expected_release, barrier_release_valid, barrier_release_generation,
+                    expected_generation);
             $fatal(1, "workgroup barrier release mismatch id=%0d mask=%b expected=%b actual=%b gen=%0d expected_gen=%0d",
                 id, local_mask, expected_release, barrier_release_valid,
                 barrier_release_generation, expected_generation);
-        if (expected_release && barrier_release_generation != expected_generation)
+        end
+        if (expected_release && barrier_release_generation != expected_generation) begin
+            if (randomized_sequence_active)
+                $fatal(1, "random barrier generation mismatch seed=%08x iteration=%0d state=%08x actual=%0d expected=%0d",
+                    RANDOM_SEED, expected_generation, randomized_state,
+                    barrier_release_generation, expected_generation);
             $fatal(1, "workgroup barrier generation mismatch");
+        end
         @(negedge clk); barrier_arrive_valid = 0;
     end
     endtask
@@ -440,6 +458,8 @@ module cgx1_compute_workgroup_execution_frontend_tb;
     endtask
 
     initial begin
+        randomized_state = RANDOM_SEED;
+        randomized_sequence_active = 1'b0;
         dispatch_valid = 0; dispatch_workgroup_id = 0; dispatch_wave_count = 0;
         dispatch_vgpr_register_counts_flat = 0; dispatch_scalar_state_units_per_wave = 1;
         dispatch_shared_local_bytes = 0; dispatch_other_workgroup_state_units = 0;
@@ -803,8 +823,14 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         // Long randomized arrival order sequence. Every admitted wave is resident,
         // and each generation completes even though the arrival order varies.
         dispatch(8'd50, 3, 16, 16, 16, 0, 0);
+        randomized_state = RANDOM_SEED;
+        randomized_sequence_active = 1'b1;
+        $display("Randomized barrier test seed=%08x iterations=1700", RANDOM_SEED);
         for (iteration = 0; iteration < 1700; iteration = iteration + 1) begin
-            case ($urandom_range(0, 5))
+            randomized_state = randomized_state ^ (randomized_state << 13);
+            randomized_state = randomized_state ^ (randomized_state >> 17);
+            randomized_state = randomized_state ^ (randomized_state << 5);
+            case (randomized_state % 6)
                 0: begin arrive(8'd50, 4'b0001, 1'b0, iteration); arrive(8'd50, 4'b0010, 1'b0, iteration); arrive(8'd50, 4'b0100, 1'b1, iteration); end
                 1: begin arrive(8'd50, 4'b0001, 1'b0, iteration); arrive(8'd50, 4'b0100, 1'b0, iteration); arrive(8'd50, 4'b0010, 1'b1, iteration); end
                 2: begin arrive(8'd50, 4'b0010, 1'b0, iteration); arrive(8'd50, 4'b0001, 1'b0, iteration); arrive(8'd50, 4'b0100, 1'b1, iteration); end
@@ -814,8 +840,10 @@ module cgx1_compute_workgroup_execution_frontend_tb;
             endcase
             if (resident_wave_count != 3 || allocation_active_bitmap[2:0] != 3'b111
                 || issuable_wave_mask != 3'b111 || live_wave_mask != 3'b111)
-                $fatal(1, "randomized barrier generation %0d lost complete residency", iteration);
+                $fatal(1, "randomized barrier residency failure seed=%08x iteration=%0d state=%08x active=%b live=%b",
+                    RANDOM_SEED, iteration, randomized_state, allocation_active_bitmap, live_wave_mask);
         end
+        randomized_sequence_active = 1'b0;
         abort_group(8'd50);
 
         // A shared region must not retire before the pooled allocator accepts

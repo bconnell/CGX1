@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_context.hpp"
 #include "shared_local_memory.hpp"
 
 #include <array>
@@ -24,7 +25,12 @@ using cgx1::memory::SubmitStatus;
 void Check(bool condition, std::string_view message)
 {
     if (!condition)
+    {
+        std::cerr << "[fail] " << message;
+        ::cgx1::testing::WriteRandomTestFailureContext(std::cerr);
+        std::cerr << '\n';
         throw std::runtime_error(std::string(message));
+    }
 }
 
 MemoryRequest Request(
@@ -303,6 +309,8 @@ void TestRandomizedBankedTransactions()
     std::uint32_t completions = 0U;
     for (std::uint32_t cycle = 0U; cycle < 5000U; ++cycle)
     {
+        ::cgx1::testing::SetRandomTestFailureContext(
+            "TestRandomizedBankedTransactions", seed, cycle);
         for (std::uint32_t attempt = 0U; attempt < 4U; ++attempt)
         {
             const auto group = std::uint64_t{1U} + (random() % 4U);
@@ -321,6 +329,10 @@ void TestRandomizedBankedTransactions()
             }
             const auto kind = (random() & 1U) == 0U
                 ? AccessKind::Load : AccessKind::Store;
+            ::cgx1::testing::SetRandomTestFailureContext(
+                "TestRandomizedBankedTransactions", seed, cycle,
+                (group << 32U) | (static_cast<std::uint64_t>(wave) << 8U)
+                    | (kind == AccessKind::Store ? 1U : 0U));
             const auto status = memory.Submit(Request(
                 group, wave, tag++, kind, mask, addresses, data)).status;
             Check(status == SubmitStatus::Accepted || status == SubmitStatus::WaveBusy,
@@ -345,6 +357,7 @@ void TestRandomizedBankedTransactions()
         "randomized memory requests did not drain");
     for (std::uint64_t group = 1U; group <= 4U; ++group)
         Check(memory.ReleaseWorkgroup(group), "randomized quiescent release failed");
+    ::cgx1::testing::ClearRandomTestFailureContext();
 }
 } // namespace
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
 module cgx1_vector_int32_alu_tb;
- logic[2:0]opcode;logic[1023:0]source0_data,source1_data,result_data;logic[31:0]lane_mask;logic illegal_opcode;integer lane;
+ logic[3:0]opcode;logic[1023:0]source0_data,source1_data,result_data;logic[31:0]lane_mask;logic illegal_opcode;integer lane;
  cgx1_vector_int32_alu dut(.*);
  task automatic fill(input logic[31:0]a,input logic[31:0]b);begin for(lane=0;lane<32;lane=lane+1)begin source0_data[(lane*32)+:32]=a+lane;source1_data[(lane*32)+:32]=b;end end endtask
  initial begin

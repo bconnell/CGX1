@@ -1,0 +1,1389 @@
+{
+  "schema_version": 1,
+  "compiler_timeout_policy_seconds": {
+    "default": 180,
+    "complex": 300
+  },
+  "warning_policy": "captured bounded compiler output classified by design/cgx1_rtl_warning_allowlist.json",
+  "invocations": [
+    {
+      "top": "cgx1_top_tb",
+      "artifact": "build/rtl/cgx1_top_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_top_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_tile_power_manager.sv",
+        "source/rtl/cgx1_top.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_vector_issue_arbiter_tb",
+      "artifact": "build/rtl/cgx1_matrix_vector_issue_arbiter_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_vector_issue_arbiter_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_vector_issue_arbiter.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_pipeline_control_tb",
+      "artifact": "build/rtl/cgx1_matrix_pipeline_control_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_pipeline_control_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_pipeline_control.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_operand_staging_tb",
+      "artifact": "build/rtl/cgx1_matrix_operand_staging_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_operand_staging_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_operand_staging.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_wave_scoreboard_tb",
+      "artifact": "build/rtl/cgx1_matrix_wave_scoreboard_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_wave_scoreboard_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_result_staging_tb",
+      "artifact": "build/rtl/cgx1_matrix_result_staging_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_result_staging_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_result_staging.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_int8_execution_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_execution_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_int8_execution_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_int8_execution.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_int8_path_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_path_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_int8_path_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_operand_staging.sv",
+        "source/rtl/cgx1_matrix_int8_execution.sv",
+        "source/rtl/cgx1_matrix_result_staging.sv",
+        "source/rtl/cgx1_matrix_int8_path.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_int8_engine_shell_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_int8_engine_shell_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_operand_staging.sv",
+        "source/rtl/cgx1_matrix_int8_execution.sv",
+        "source/rtl/cgx1_matrix_result_staging.sv",
+        "source/rtl/cgx1_matrix_int8_path.sv",
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_int8_engine_shell.sv"
+      ]
+    },
+    {
+      "top": "cgx1_resident_wave_vgpr_file_tb",
+      "artifact": "build/rtl/cgx1_resident_wave_vgpr_file_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_resident_wave_vgpr_file_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 300,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_resident_wave_vgpr_file.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_resident_wave_arbiter_tb",
+      "artifact": "build/rtl/cgx1_matrix_resident_wave_arbiter_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_resident_wave_arbiter_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 5,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_resident_wave_arbiter.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_int8_resident_engine_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_int8_resident_engine_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_operand_staging.sv",
+        "source/rtl/cgx1_matrix_int8_execution.sv",
+        "source/rtl/cgx1_matrix_result_staging.sv",
+        "source/rtl/cgx1_matrix_int8_path.sv",
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_arbiter.sv",
+        "source/rtl/cgx1_matrix_int8_resident_engine.sv"
+      ]
+    },
+    {
+      "top": "cgx1_pooled_vgpr_restore_mapper_tb",
+      "artifact": "build/rtl/cgx1_pooled_vgpr_restore_mapper_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_pooled_vgpr_restore_mapper_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_vgpr_preflight_tb",
+      "artifact": "build/rtl/cgx1_matrix_vgpr_preflight_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_vgpr_preflight_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv"
+      ]
+    },
+    {
+      "top": "cgx1_resident_wave_vgpr_allocator_tb",
+      "artifact": "build/rtl/cgx1_resident_wave_vgpr_allocator_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_resident_wave_vgpr_allocator_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_resident_wave_vgpr_allocator.sv"
+      ]
+    },
+    {
+      "top": "cgx1_pooled_vgpr_storage_tb",
+      "artifact": "build/rtl/cgx1_pooled_vgpr_storage_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_pooled_vgpr_storage_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_pooled_vgpr_storage.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_pooled_vgpr_frontend_tb",
+      "artifact": "build/rtl/cgx1_matrix_pooled_vgpr_frontend_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_pooled_vgpr_frontend_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+        "source/rtl/cgx1_matrix_pooled_vgpr_frontend.sv"
+      ]
+    },
+    {
+      "top": "cgx1_pooled_vgpr_matrix_subsystem_tb",
+      "artifact": "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_pooled_vgpr_matrix_subsystem_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+        "source/rtl/cgx1_matrix_request_preflight_array.sv",
+        "source/rtl/cgx1_resident_wave_vgpr_allocator.sv",
+        "source/rtl/cgx1_pooled_vgpr_storage.sv",
+        "source/rtl/cgx1_pooled_vgpr_matrix_subsystem.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_int8_pooled_resident_engine_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_int8_pooled_resident_engine_tb.sv",
+      "mode": "compile_only",
+      "compile_timeout_seconds": 300,
+      "simulation_timeout_seconds": null,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_operand_staging.sv",
+        "source/rtl/cgx1_matrix_int8_execution.sv",
+        "source/rtl/cgx1_matrix_result_staging.sv",
+        "source/rtl/cgx1_matrix_int8_path.sv",
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_arbiter.sv",
+        "source/rtl/cgx1_matrix_int8_resident_engine.sv",
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+        "source/rtl/cgx1_matrix_request_preflight_array.sv",
+        "source/rtl/cgx1_resident_wave_vgpr_allocator.sv",
+        "source/rtl/cgx1_pooled_vgpr_storage.sv",
+        "source/rtl/cgx1_pooled_vgpr_matrix_subsystem.sv",
+        "source/rtl/cgx1_matrix_int8_pooled_resident_engine.sv"
+      ],
+      "reason": "The pooled resident INT8 plus ordinary-vector composition is intentionally compile-only; the complete mixed composition has not yet been bounded and simulated."
+    },
+    {
+      "top": "cgx1_ordinary_shared_control_tb",
+      "artifact": "build/rtl/cgx1_ordinary_shared_control_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_ordinary_shared_control_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv",
+        "source/rtl/cgx1_pooled_vgpr_release_guard.sv",
+        "source/rtl/cgx1_matrix_mixed_workload_admission.sv"
+      ]
+    },
+    {
+      "top": "cgx1_ordinary_read_sequencer_tb",
+      "artifact": "build/rtl/cgx1_ordinary_read_sequencer_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_ordinary_read_sequencer_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv"
+      ]
+    },
+    {
+      "top": "cgx1_vector_int32_alu_tb",
+      "artifact": "build/rtl/cgx1_vector_int32_alu_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_vector_int32_alu_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_vector_int32_alu.sv"
+      ]
+    },
+    {
+      "top": "cgx1_vector_int32_pipeline_tb",
+      "artifact": "build/rtl/cgx1_vector_int32_pipeline_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_vector_int32_pipeline_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_vector_int32_alu.sv",
+        "source/rtl/cgx1_vector_int32_pipeline.sv"
+      ]
+    },
+    {
+      "top": "cgx1_instruction_fetch_unit_tb",
+      "artifact": "build/rtl/cgx1_instruction_fetch_unit_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_instruction_fetch_unit_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_instruction_fetch_unit.sv"
+      ]
+    },
+    {
+      "top": "cgx1_vector_instruction_word_decoder_tb",
+      "artifact": "build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_vector_instruction_word_decoder_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_vector_instruction_word_decoder.sv",
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_execution_frontend.sv",
+        "source/rtl/cgx1_vector_int32_alu.sv",
+        "source/rtl/cgx1_vector_int32_pipeline.sv"
+      ]
+    },
+    {
+      "top": "cgx1_provisional_control_instruction_dispatch_tb",
+      "artifact": "build/rtl/cgx1_provisional_control_instruction_dispatch_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_provisional_control_instruction_dispatch_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_provisional_control_instruction_dispatch.sv"
+      ]
+    },
+    {
+      "top": "cgx1_vector_resident_wave_scheduler_tb",
+      "artifact": "build/rtl/cgx1_vector_resident_wave_scheduler_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_vector_resident_wave_scheduler_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv"
+      ]
+    },
+    {
+      "top": "cgx1_vector_resident_wave_scheduler_invalid_param_tb",
+      "artifact": "build/rtl/cgx1_vector_resident_wave_scheduler_invalid_param_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_vector_resident_wave_scheduler_invalid_param_tb.sv",
+      "mode": "simulation_expected_failure",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 5,
+      "production_sources": [
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv"
+      ]
+    },
+    {
+      "top": "cgx1_pooled_vgpr_execution_subsystem_tb",
+      "artifact": "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_pooled_vgpr_execution_subsystem_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 300,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+        "source/rtl/cgx1_matrix_request_preflight_array.sv",
+        "source/rtl/cgx1_resident_wave_vgpr_allocator.sv",
+        "source/rtl/cgx1_pooled_vgpr_storage.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv",
+        "source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv",
+        "source/rtl/cgx1_pooled_vgpr_release_guard.sv",
+        "source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_int8_vector_execution_frontend_tb",
+      "artifact": "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_int8_vector_execution_frontend_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 300,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_operand_staging.sv",
+        "source/rtl/cgx1_matrix_int8_execution.sv",
+        "source/rtl/cgx1_matrix_result_staging.sv",
+        "source/rtl/cgx1_matrix_int8_path.sv",
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_arbiter.sv",
+        "source/rtl/cgx1_matrix_int8_resident_engine.sv",
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+        "source/rtl/cgx1_matrix_request_preflight_array.sv",
+        "source/rtl/cgx1_resident_wave_vgpr_allocator.sv",
+        "source/rtl/cgx1_pooled_vgpr_storage.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv",
+        "source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv",
+        "source/rtl/cgx1_pooled_vgpr_release_guard.sv",
+        "source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv",
+        "source/rtl/cgx1_vector_int32_alu.sv",
+        "source/rtl/cgx1_vector_int32_pipeline.sv",
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_execution_frontend.sv",
+        "source/rtl/cgx1_matrix_vector_hazard_guard.sv",
+        "source/rtl/cgx1_matrix_vector_hazard_array.sv",
+        "source/rtl/cgx1_vector_matrix_dependency_ready_array.sv",
+        "source/rtl/cgx1_resident_vector_dependency_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv",
+        "source/rtl/cgx1_compute_mixed_service_policy.sv",
+        "source/rtl/cgx1_compute_int8_vector_execution_frontend.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_resident_wave_scoreboard_export_tb",
+      "artifact": "build/rtl/cgx1_matrix_resident_wave_scoreboard_export_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_resident_wave_scoreboard_export_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv"
+      ]
+    },
+    {
+      "top": "cgx1_resident_vector_dependency_scheduler_tb",
+      "artifact": "build/rtl/cgx1_resident_vector_dependency_scheduler_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_resident_vector_dependency_scheduler_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv",
+        "source/rtl/cgx1_vector_matrix_dependency_ready_array.sv",
+        "source/rtl/cgx1_resident_vector_dependency_scheduler.sv"
+      ]
+    },
+    {
+      "top": "cgx1_resident_vector_matrix_dependency_frontend_tb",
+      "artifact": "build/rtl/cgx1_resident_vector_matrix_dependency_frontend_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_resident_vector_matrix_dependency_frontend_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv",
+        "source/rtl/cgx1_vector_matrix_dependency_ready_array.sv",
+        "source/rtl/cgx1_resident_vector_dependency_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv"
+      ]
+    },
+    {
+      "top": "cgx1_matrix_mixed_workload_admission_cadence_tb",
+      "artifact": "build/rtl/cgx1_matrix_mixed_workload_admission_cadence_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_matrix_mixed_workload_admission_cadence_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_matrix_mixed_workload_admission.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_mixed_service_policy_tb",
+      "artifact": "build/rtl/cgx1_compute_mixed_service_policy_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_mixed_service_policy_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_compute_mixed_service_policy.sv"
+      ]
+    },
+    {
+      "top": "cgx1_workgroup_residency_barrier_tb",
+      "artifact": "build/rtl/cgx1_workgroup_residency_barrier_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_workgroup_residency_barrier_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_workgroup_residency_barrier.sv",
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv"
+      ]
+    },
+    {
+      "top": "cgx1_wave_control_flow_tb",
+      "artifact": "build/rtl/cgx1_wave_control_flow_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_wave_control_flow_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_wave_control_flow.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_dispatch_scheduler_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_dispatch_scheduler_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_dispatch_scheduler_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_command_packet_parser_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_packet_parser_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_command_packet_parser_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 45,
+      "production_sources": [
+        "source/rtl/cgx1_compute_workgroup_command_packet_parser.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_command_packet_parser_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_packet_parser_pc48_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_command_packet_parser_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 45,
+      "production_sources": [
+        "source/rtl/cgx1_compute_workgroup_command_packet_parser.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_command_runtime_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_runtime_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_command_runtime_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 45,
+      "production_sources": [
+        "source/rtl/cgx1_compute_workgroup_command_packet_parser.sv",
+        "source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_command_queue_frontend_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_queue_frontend_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_command_queue_frontend_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 60,
+      "production_sources": [
+        "source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv",
+        "source/rtl/cgx1_compute_workgroup_command_packet_parser.sv",
+        "source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_command_lifecycle_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_lifecycle_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_command_lifecycle_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_compute_workgroup_command_lifecycle.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_command_lifecycle_integration_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_command_lifecycle_integration_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 300,
+      "simulation_timeout_seconds": 60,
+      "production_sources": [
+        "source/rtl/cgx1_workgroup_residency_barrier.sv",
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_operand_staging.sv",
+        "source/rtl/cgx1_matrix_int8_execution.sv",
+        "source/rtl/cgx1_matrix_result_staging.sv",
+        "source/rtl/cgx1_matrix_int8_path.sv",
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_arbiter.sv",
+        "source/rtl/cgx1_matrix_int8_resident_engine.sv",
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+        "source/rtl/cgx1_matrix_request_preflight_array.sv",
+        "source/rtl/cgx1_resident_wave_vgpr_allocator.sv",
+        "source/rtl/cgx1_pooled_vgpr_storage.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv",
+        "source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv",
+        "source/rtl/cgx1_pooled_vgpr_release_guard.sv",
+        "source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv",
+        "source/rtl/cgx1_vector_int32_alu.sv",
+        "source/rtl/cgx1_vector_int32_pipeline.sv",
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_execution_frontend.sv",
+        "source/rtl/cgx1_matrix_vector_hazard_guard.sv",
+        "source/rtl/cgx1_matrix_vector_hazard_array.sv",
+        "source/rtl/cgx1_vector_matrix_dependency_ready_array.sv",
+        "source/rtl/cgx1_resident_vector_dependency_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv",
+        "source/rtl/cgx1_compute_mixed_service_policy.sv",
+        "source/rtl/cgx1_compute_int8_vector_execution_frontend.sv",
+        "source/rtl/cgx1_cu_shared_local_memory.sv",
+        "source/rtl/cgx1_compute_workgroup_lsu.sv",
+        "source/rtl/cgx1_wave_control_flow.sv",
+        "source/rtl/cgx1_instruction_fetch_unit.sv",
+        "source/rtl/cgx1_vector_instruction_word_decoder.sv",
+        "source/rtl/cgx1_provisional_control_instruction_dispatch.sv",
+        "source/rtl/cgx1_compute_workgroup_execution_frontend.sv",
+        "source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv",
+        "source/rtl/cgx1_compute_workgroup_command_packet_parser.sv",
+        "source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv",
+        "source/rtl/cgx1_compute_workgroup_command_lifecycle.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_dispatch_integration_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_dispatch_integration_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 300,
+      "simulation_timeout_seconds": 45,
+      "production_sources": [
+        "source/rtl/cgx1_workgroup_residency_barrier.sv",
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_operand_staging.sv",
+        "source/rtl/cgx1_matrix_int8_execution.sv",
+        "source/rtl/cgx1_matrix_result_staging.sv",
+        "source/rtl/cgx1_matrix_int8_path.sv",
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_arbiter.sv",
+        "source/rtl/cgx1_matrix_int8_resident_engine.sv",
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+        "source/rtl/cgx1_matrix_request_preflight_array.sv",
+        "source/rtl/cgx1_resident_wave_vgpr_allocator.sv",
+        "source/rtl/cgx1_pooled_vgpr_storage.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv",
+        "source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv",
+        "source/rtl/cgx1_pooled_vgpr_release_guard.sv",
+        "source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv",
+        "source/rtl/cgx1_vector_int32_alu.sv",
+        "source/rtl/cgx1_vector_int32_pipeline.sv",
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_execution_frontend.sv",
+        "source/rtl/cgx1_matrix_vector_hazard_guard.sv",
+        "source/rtl/cgx1_matrix_vector_hazard_array.sv",
+        "source/rtl/cgx1_vector_matrix_dependency_ready_array.sv",
+        "source/rtl/cgx1_resident_vector_dependency_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv",
+        "source/rtl/cgx1_compute_mixed_service_policy.sv",
+        "source/rtl/cgx1_compute_int8_vector_execution_frontend.sv",
+        "source/rtl/cgx1_cu_shared_local_memory.sv",
+        "source/rtl/cgx1_compute_workgroup_lsu.sv",
+        "source/rtl/cgx1_wave_control_flow.sv",
+        "source/rtl/cgx1_instruction_fetch_unit.sv",
+        "source/rtl/cgx1_vector_instruction_word_decoder.sv",
+        "source/rtl/cgx1_provisional_control_instruction_dispatch.sv",
+        "source/rtl/cgx1_compute_workgroup_execution_frontend.sv",
+        "source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_execution_frontend_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_execution_frontend_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 300,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_workgroup_residency_barrier.sv",
+        "source/rtl/cgx1_matrix_pipeline_control.sv",
+        "source/rtl/cgx1_matrix_operand_staging.sv",
+        "source/rtl/cgx1_matrix_int8_execution.sv",
+        "source/rtl/cgx1_matrix_result_staging.sv",
+        "source/rtl/cgx1_matrix_int8_path.sv",
+        "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv",
+        "source/rtl/cgx1_matrix_resident_wave_arbiter.sv",
+        "source/rtl/cgx1_matrix_int8_resident_engine.sv",
+        "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+        "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv",
+        "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+        "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+        "source/rtl/cgx1_matrix_request_preflight_array.sv",
+        "source/rtl/cgx1_resident_wave_vgpr_allocator.sv",
+        "source/rtl/cgx1_pooled_vgpr_storage.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv",
+        "source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv",
+        "source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv",
+        "source/rtl/cgx1_pooled_vgpr_release_guard.sv",
+        "source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv",
+        "source/rtl/cgx1_vector_int32_alu.sv",
+        "source/rtl/cgx1_vector_int32_pipeline.sv",
+        "source/rtl/cgx1_vector_resident_wave_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_execution_frontend.sv",
+        "source/rtl/cgx1_matrix_vector_hazard_guard.sv",
+        "source/rtl/cgx1_matrix_vector_hazard_array.sv",
+        "source/rtl/cgx1_vector_matrix_dependency_ready_array.sv",
+        "source/rtl/cgx1_resident_vector_dependency_scheduler.sv",
+        "source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv",
+        "source/rtl/cgx1_compute_mixed_service_policy.sv",
+        "source/rtl/cgx1_compute_int8_vector_execution_frontend.sv",
+        "source/rtl/cgx1_cu_shared_local_memory.sv",
+        "source/rtl/cgx1_compute_workgroup_lsu.sv",
+        "source/rtl/cgx1_wave_control_flow.sv",
+        "source/rtl/cgx1_instruction_fetch_unit.sv",
+        "source/rtl/cgx1_vector_instruction_word_decoder.sv",
+        "source/rtl/cgx1_provisional_control_instruction_dispatch.sv",
+        "source/rtl/cgx1_compute_workgroup_execution_frontend.sv"
+      ]
+    },
+    {
+      "top": "cgx1_cu_shared_local_memory_tb",
+      "artifact": "build/rtl/cgx1_cu_shared_local_memory_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_cu_shared_local_memory_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_cu_shared_local_memory.sv"
+      ]
+    },
+    {
+      "top": "cgx1_compute_workgroup_lsu_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_lsu_tb.vvp",
+      "testbench": "source/rtl/tests/cgx1_compute_workgroup_lsu_tb.sv",
+      "mode": "simulated",
+      "compile_timeout_seconds": 180,
+      "simulation_timeout_seconds": 30,
+      "production_sources": [
+        "source/rtl/cgx1_cu_shared_local_memory.sv",
+        "source/rtl/cgx1_compute_workgroup_lsu.sv"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "module": "cgx1_compute_int8_vector_execution_frontend",
+      "path": "source/rtl/cgx1_compute_int8_vector_execution_frontend.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_compute_mixed_service_policy",
+      "path": "source/rtl/cgx1_compute_mixed_service_policy.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_mixed_service_policy_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_compute_workgroup_command_lifecycle",
+      "path": "source/rtl/cgx1_compute_workgroup_command_lifecycle.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_compute_workgroup_command_packet_parser",
+      "path": "source/rtl/cgx1_compute_workgroup_command_packet_parser.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_packet_parser_pc48_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_packet_parser_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_queue_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_runtime_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_compute_workgroup_command_queue_frontend",
+      "path": "source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_queue_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_compute_workgroup_dispatch_scheduler",
+      "path": "source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_queue_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_runtime_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_scheduler_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_compute_workgroup_execution_frontend",
+      "path": "source/rtl/cgx1_compute_workgroup_execution_frontend.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_compute_workgroup_lsu",
+      "path": "source/rtl/cgx1_compute_workgroup_lsu.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_lsu_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_cu_shared_local_memory",
+      "path": "source/rtl/cgx1_cu_shared_local_memory.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_lsu_tb.vvp",
+        "build/rtl/cgx1_cu_shared_local_memory_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_instruction_fetch_unit",
+      "path": "source/rtl/cgx1_instruction_fetch_unit.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_instruction_fetch_unit_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_int8_engine_shell",
+      "path": "source/rtl/cgx1_matrix_int8_engine_shell.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_int8_execution",
+      "path": "source/rtl/cgx1_matrix_int8_execution.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_execution_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_path_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_int8_path",
+      "path": "source/rtl/cgx1_matrix_int8_path.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_path_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_int8_pooled_resident_engine",
+      "path": "source/rtl/cgx1_matrix_int8_pooled_resident_engine.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_int8_resident_engine",
+      "path": "source/rtl/cgx1_matrix_int8_resident_engine.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_mixed_workload_admission",
+      "path": "source/rtl/cgx1_matrix_mixed_workload_admission.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_matrix_mixed_workload_admission_cadence_tb.vvp",
+        "build/rtl/cgx1_ordinary_shared_control_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_operand_staging",
+      "path": "source/rtl/cgx1_matrix_operand_staging.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_path_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_operand_staging_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_pipeline_control",
+      "path": "source/rtl/cgx1_matrix_pipeline_control.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_path_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_pipeline_control_tb.vvp",
+        "build/rtl/cgx1_matrix_wave_scoreboard_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_pooled_vgpr_frontend",
+      "path": "source/rtl/cgx1_matrix_pooled_vgpr_frontend.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_matrix_pooled_vgpr_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_request_preflight_array",
+      "path": "source/rtl/cgx1_matrix_request_preflight_array.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_resident_wave_arbiter",
+      "path": "source/rtl/cgx1_matrix_resident_wave_arbiter.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_resident_wave_arbiter_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_resident_wave_scoreboard",
+      "path": "source/rtl/cgx1_matrix_resident_wave_scoreboard.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_resident_wave_scoreboard_export_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_result_staging",
+      "path": "source/rtl/cgx1_matrix_result_staging.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_path_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_result_staging_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_vector_hazard_array",
+      "path": "source/rtl/cgx1_matrix_vector_hazard_array.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_vector_hazard_guard",
+      "path": "source/rtl/cgx1_matrix_vector_hazard_guard.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_vector_issue_arbiter",
+      "path": "source/rtl/cgx1_matrix_vector_issue_arbiter.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_matrix_vector_issue_arbiter_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_vgpr_allocation_guard",
+      "path": "source/rtl/cgx1_matrix_vgpr_allocation_guard.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_pooled_vgpr_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_vgpr_preflight_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp",
+        "build/rtl/cgx1_resident_wave_vgpr_allocator_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_vgpr_preflight",
+      "path": "source/rtl/cgx1_matrix_vgpr_preflight.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_pooled_vgpr_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_vgpr_preflight_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_matrix_wave_scoreboard",
+      "path": "source/rtl/cgx1_matrix_wave_scoreboard.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_resident_wave_scoreboard_export_tb.vvp",
+        "build/rtl/cgx1_matrix_wave_scoreboard_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_execution_subsystem",
+      "path": "source/rtl/cgx1_pooled_vgpr_execution_subsystem.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_mapper",
+      "path": "source/rtl/cgx1_pooled_vgpr_mapper.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_matrix_pooled_vgpr_frontend_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp",
+        "build/rtl/cgx1_resident_wave_vgpr_allocator_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_matrix_subsystem",
+      "path": "source/rtl/cgx1_pooled_vgpr_matrix_subsystem.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_ordinary_frontend",
+      "path": "source/rtl/cgx1_pooled_vgpr_ordinary_frontend.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_ordinary_read_sequencer",
+      "path": "source/rtl/cgx1_pooled_vgpr_ordinary_read_sequencer.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_ordinary_read_sequencer_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_release_guard",
+      "path": "source/rtl/cgx1_pooled_vgpr_release_guard.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_ordinary_shared_control_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_restore_mapper",
+      "path": "source/rtl/cgx1_pooled_vgpr_restore_mapper.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_restore_mapper_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_shared_port_arbiter",
+      "path": "source/rtl/cgx1_pooled_vgpr_shared_port_arbiter.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_ordinary_shared_control_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_pooled_vgpr_storage",
+      "path": "source/rtl/cgx1_pooled_vgpr_storage.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_storage_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_provisional_control_instruction_dispatch",
+      "path": "source/rtl/cgx1_provisional_control_instruction_dispatch.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_provisional_control_instruction_dispatch_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_resident_vector_dependency_scheduler",
+      "path": "source/rtl/cgx1_resident_vector_dependency_scheduler.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_resident_vector_dependency_scheduler_tb.vvp",
+        "build/rtl/cgx1_resident_vector_matrix_dependency_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_resident_vector_execution_frontend",
+      "path": "source/rtl/cgx1_resident_vector_execution_frontend.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_resident_vector_matrix_dependency_frontend",
+      "path": "source/rtl/cgx1_resident_vector_matrix_dependency_frontend.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_resident_vector_matrix_dependency_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_resident_wave_vgpr_allocator",
+      "path": "source/rtl/cgx1_resident_wave_vgpr_allocator.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+        "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp",
+        "build/rtl/cgx1_resident_wave_vgpr_allocator_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_resident_wave_vgpr_file",
+      "path": "source/rtl/cgx1_resident_wave_vgpr_file.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_resident_wave_vgpr_file_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_tile_power_manager",
+      "path": "source/rtl/cgx1_tile_power_manager.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_top_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_top",
+      "path": "source/rtl/cgx1_top.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_top_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_vector_instruction_word_decoder",
+      "path": "source/rtl/cgx1_vector_instruction_word_decoder.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_vector_int32_alu",
+      "path": "source/rtl/cgx1_vector_int32_alu.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp",
+        "build/rtl/cgx1_vector_int32_alu_tb.vvp",
+        "build/rtl/cgx1_vector_int32_pipeline_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_vector_int32_pipeline",
+      "path": "source/rtl/cgx1_vector_int32_pipeline.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp",
+        "build/rtl/cgx1_vector_int32_pipeline_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_vector_matrix_dependency_ready_array",
+      "path": "source/rtl/cgx1_vector_matrix_dependency_ready_array.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_resident_vector_dependency_scheduler_tb.vvp",
+        "build/rtl/cgx1_resident_vector_matrix_dependency_frontend_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_vector_resident_wave_scheduler",
+      "path": "source/rtl/cgx1_vector_resident_wave_scheduler.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_resident_vector_dependency_scheduler_tb.vvp",
+        "build/rtl/cgx1_resident_vector_matrix_dependency_frontend_tb.vvp",
+        "build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp",
+        "build/rtl/cgx1_vector_resident_wave_scheduler_invalid_param_tb.vvp",
+        "build/rtl/cgx1_vector_resident_wave_scheduler_tb.vvp",
+        "build/rtl/cgx1_workgroup_residency_barrier_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_wave_control_flow",
+      "path": "source/rtl/cgx1_wave_control_flow.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_wave_control_flow_tb.vvp"
+      ]
+    },
+    {
+      "module": "cgx1_workgroup_residency_barrier",
+      "path": "source/rtl/cgx1_workgroup_residency_barrier.sv",
+      "validated_by_artifacts": [
+        "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+        "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+        "build/rtl/cgx1_workgroup_residency_barrier_tb.vvp"
+      ]
+    }
+  ],
+  "important_composed_tops": [
+    {
+      "top": "cgx1_top_tb",
+      "required_mode": "simulated"
+    },
+    {
+      "top": "cgx1_compute_workgroup_execution_frontend_tb",
+      "required_mode": "simulated"
+    },
+    {
+      "top": "cgx1_compute_workgroup_lsu_tb",
+      "required_mode": "simulated"
+    },
+    {
+      "top": "cgx1_matrix_int8_pooled_resident_engine_tb",
+      "required_mode": "compile_only"
+    }
+  ]
+}

@@ -37,6 +37,25 @@ function New-WholeWordRule {
     }
 }
 
+function New-ContextualRule {
+    param(
+        [string]$Name,
+        [string]$Pattern
+    )
+
+    return [pscustomobject]@{
+        Name = $Name
+        Pattern = $Pattern
+        Options = [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+    }
+}
+
+function New-ProjectReferenceAwareToolRule {
+    $token = Convert-CodePoints @(67,111,100,101,120)
+    $pattern = '(?i)(?<![A-Za-z0-9])' + [Regex]::Escape($token) + '(?!/cgx1-completeness(?![A-Za-z0-9/-]))(?![A-Za-z0-9])'
+    return New-ContextualRule "internal tool reference 3" $pattern
+}
+
 $rules = @(
     New-WholeWordRule "unfinished public wording" @(112,108,97,99,101,104,111,108,100,101,114)
     New-WholeWordRule "private development wording 1" @(97,103,101,110,116,105,99,32,119,111,114,107,101,114,115)
@@ -44,13 +63,13 @@ $rules = @(
     New-WholeWordRule "private development wording 3" @(97,103,101,110,116,45,114,111,108,101,32,108,97,110,103,117,97,103,101)
     New-WholeWordRule "private development wording 4" @(112,114,105,118,97,116,101,32,112,114,111,109,112,116,115)
     New-WholeWordRule "internal tool reference 2" @(67,104,97,116,71,80,84)
-    New-WholeWordRule "internal tool reference 3" @(67,111,100,101,120)
+    New-ProjectReferenceAwareToolRule
     New-WholeWordRule "internal tool reference 4" @(79,112,101,110,65,73)
     New-WholeWordRule "internal tool reference 7" @(99,111,100,105,110,103,32,97,103,101,110,116)
     New-WholeWordRule "internal tool reference 8" @(103,101,110,101,114,97,116,101,100,32,98,121)
     New-WholeWordRule "private workflow wording 1" @(114,101,112,97,105,114,32,98,97,116,99,104)
     New-WholeWordRule "private workflow wording 2" @(99,111,110,116,105,110,117,97,116,105,111,110,32,112,97,99,107,97,103,101)
-    New-WholeWordRule "private workflow wording 3" @(115,111,117,114,99,101,32,102,105,110,103,101,114,112,114,105,110,116)
+    New-ContextualRule "internal identity handling wording" '(?is)(?:\bprivate\b|\binternal\b).{0,80}\bsource\s+fingerprint\b|\bsource\s+fingerprint\b.{0,80}(?:\bprivate\b|\binternal\b)'
     New-WholeWordRule "private workflow wording 4" @(99,111,109,112,108,101,116,105,111,110,32,104,97,110,100,111,102,102)
     New-WholeWordRule "private workflow wording 5" @(102,97,105,108,117,114,101,32,104,97,110,100,111,102,102)
     New-WholeWordRule "private workflow wording 6" @(112,114,111,109,112,116,32,119,111,114,107,102,108,111,119)

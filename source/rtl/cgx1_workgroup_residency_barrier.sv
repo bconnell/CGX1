@@ -171,15 +171,17 @@ module cgx1_workgroup_residency_barrier #(
             terminate_group_index = $unsigned(slot_group_q[terminate_wave_slot]);
         end
 
-        for (local_index = 0; local_index < $unsigned(commit_wave_count); local_index = local_index + 1) begin
-            mapped_slot = $unsigned(commit_wave_slot_map_flat[(local_index*WAVE_SLOT_WIDTH) +: WAVE_SLOT_WIDTH]);
-            if (mapped_slot >= RESIDENT_WAVE_SLOTS) begin
-                commit_slots_valid = 1'b0;
-            end else begin
-                if (commit_slots_seen[mapped_slot] || slot_owned_q[mapped_slot]) begin
+        for (local_index = 0; local_index < RESIDENT_WAVE_SLOTS; local_index = local_index + 1) begin
+            if (local_index < $unsigned(commit_wave_count)) begin
+                mapped_slot = $unsigned(commit_wave_slot_map_flat[(local_index*WAVE_SLOT_WIDTH) +: WAVE_SLOT_WIDTH]);
+                if (mapped_slot >= RESIDENT_WAVE_SLOTS) begin
                     commit_slots_valid = 1'b0;
                 end else begin
-                    commit_slots_seen[mapped_slot] = 1'b1;
+                    if (commit_slots_seen[mapped_slot] || slot_owned_q[mapped_slot]) begin
+                        commit_slots_valid = 1'b0;
+                    end else begin
+                        commit_slots_seen[mapped_slot] = 1'b1;
+                    end
                 end
             end
         end

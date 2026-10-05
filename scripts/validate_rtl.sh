@@ -4,6 +4,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+python3 scripts/validate_rtl_inventory.py
+python3 scripts/validate_hardening_ledgers.py
+python3 scripts/validate_randomized_tests.py
+
 if ! command -v iverilog >/dev/null 2>&1; then
     echo "iverilog is required for RTL validation." >&2
     exit 1
@@ -14,10 +18,59 @@ if ! command -v vvp >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "==> Icarus Verilog version"
-iverilog -V
+if ! command -v timeout >/dev/null 2>&1; then
+    echo "GNU timeout is required to bound RTL compiler and simulation runs." >&2
+    exit 1
+fi
 
-mkdir -p build/rtl
+iverilog_bin="$(command -v iverilog)"
+echo "==> Icarus Verilog version"
+timeout 10s "$iverilog_bin" -V
+
+mkdir -p build/rtl/logs
+: > build/rtl/compiler-warnings.log
+compile_timeout_seconds="${CGX1_IVERILOG_TIMEOUT_SECONDS:-180}"
+complex_compile_timeout_seconds="${CGX1_COMPLEX_IVERILOG_TIMEOUT_SECONDS:-300}"
+compile_sequence=0
+iverilog() {
+    local compile_log
+    local compile_status=0
+    local selected_timeout="$compile_timeout_seconds"
+    local selected_top="unknown"
+    local expect_top=0
+    local source_count=0
+    local argument
+    for argument in "$@"; do
+        if (( expect_top )); then
+            selected_top="$argument"
+            expect_top=0
+        elif [[ "$argument" == "-s" ]]; then
+            expect_top=1
+        elif [[ "$argument" == *.sv ]]; then
+            source_count=$((source_count + 1))
+        fi
+    done
+    if [[ "$selected_top" == "cgx1_resident_wave_vgpr_file_tb" \
+        || "$selected_top" == *integration_tb \
+        || "$selected_top" == *execution_frontend_tb \
+        || "$source_count" -ge 12 ]]; then
+        selected_timeout="$complex_compile_timeout_seconds"
+    fi
+    compile_sequence=$((compile_sequence + 1))
+    compile_log="build/rtl/logs/iverilog-${compile_sequence}.log"
+    printf '[compile] top=%s timeout=%ss source_files=%s\n' "$selected_top" "$selected_timeout" "$source_count"
+    if timeout --signal=TERM --kill-after=5s "${selected_timeout}s" "$iverilog_bin" "$@" >"$compile_log" 2>&1; then
+        compile_status=0
+    else
+        compile_status=$?
+    fi
+    cat "$compile_log"
+    grep -Ei '\b(warning|sorry)\b' "$compile_log" >> build/rtl/compiler-warnings.log || true
+    if (( compile_status != 0 )); then
+        printf '[fail] bounded Icarus invocation failed with exit %s; log=%s\n' "$compile_status" "$compile_log" >&2
+        return "$compile_status"
+    fi
+}
 
 echo "==> Compile top-level per-tile power eligibility RTL"
 iverilog -g2012 -Wall -s cgx1_top_tb -o build/rtl/cgx1_top_tb.vvp \
@@ -26,6 +79,14 @@ iverilog -g2012 -Wall -s cgx1_top_tb -o build/rtl/cgx1_top_tb.vvp \
     source/rtl/tests/cgx1_top_tb.sv
 echo "==> Run top-level per-tile power eligibility RTL"
 timeout 30s vvp build/rtl/cgx1_top_tb.vvp
+
+echo "==> Compile matrix/vector issue arbitration RTL"
+iverilog -g2012 -Wall -s cgx1_matrix_vector_issue_arbiter_tb \
+    -o build/rtl/cgx1_matrix_vector_issue_arbiter_tb.vvp \
+    source/rtl/cgx1_matrix_vector_issue_arbiter.sv \
+    source/rtl/tests/cgx1_matrix_vector_issue_arbiter_tb.sv
+echo "==> Run matrix/vector issue arbitration RTL"
+timeout 30s vvp build/rtl/cgx1_matrix_vector_issue_arbiter_tb.vvp
 
 echo "==> Compile matrix pipeline control RTL"
 iverilog     -g2012     -Wall     -s cgx1_matrix_pipeline_control_tb     -o build/rtl/cgx1_matrix_pipeline_control_tb.vvp     source/rtl/cgx1_matrix_pipeline_control.sv     source/rtl/tests/cgx1_matrix_pipeline_control_tb.sv
@@ -680,5 +741,7 @@ iverilog -g2012 -Wall -s cgx1_compute_workgroup_lsu_tb \
     source/rtl/tests/cgx1_compute_workgroup_lsu_tb.sv
 echo "==> Run per-wave workgroup LSU RTL"
 timeout 30s vvp build/rtl/cgx1_compute_workgroup_lsu_tb.vvp
+
+python3 scripts/validate_rtl_warnings.py --log build/rtl/compiler-warnings.log
 
 echo "[pass] CGX 1 RTL validation completed."

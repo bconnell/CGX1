@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_matrix_int8_execution.hpp"
 
-#include <cassert>
 #include <cstdint>
 
 int main()
@@ -63,10 +63,10 @@ int main()
                 cycle,
                 read0,
                 read1);
-        assert(committed
+        CGX1_TEST_CHECK(committed
             == (cycle == kMatrixRegisterCaptureCycles - 1U));
     }
-    assert(operands.activeValid);
+    CGX1_TEST_CHECK(operands.activeValid);
 
     MatrixInt8ExecutionState execution{};
     MatrixResultSet result{};
@@ -81,17 +81,19 @@ int main()
     }
 
     MatrixResultStagingState output{};
-    assert(LoadAndConsumeMatrixResultCycleZero(output, result)
-        == result[0]);
+    const MatrixWaveRegister cycleZero =
+        LoadAndConsumeMatrixResultCycleZero(output, result);
+    CGX1_TEST_CHECK(cycleZero == result[0]);
 
     for (std::uint32_t cycle = 1U;
          cycle < kMatrixWritebackCycles;
          ++cycle)
     {
-        assert(ConsumeMatrixResultWritebackCycle(output, cycle)
-            == result[cycle]);
+        const MatrixWaveRegister consumed =
+            ConsumeMatrixResultWritebackCycle(output, cycle);
+        CGX1_TEST_CHECK(consumed == result[cycle]);
     }
-    assert(!output.valid);
+    CGX1_TEST_CHECK(!output.valid);
 
     for (std::uint32_t row = 0U; row < kMatrixTileM; ++row)
     {
@@ -99,7 +101,7 @@ int main()
         {
             const std::int32_t expected =
                 static_cast<std::int32_t>(row * 100U + column + 32U);
-            assert(MatrixResultInt32Element(
+            CGX1_TEST_CHECK(MatrixResultInt32Element(
                 result,
                 row,
                 column) == expected);

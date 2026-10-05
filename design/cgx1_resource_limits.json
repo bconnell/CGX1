@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "limits": [
+    {
+      "id": "native-wave-lanes",
+      "classification": "frozen_architecture",
+      "value": "32 lanes",
+      "rationale": "The current architecture and executable model agree on a 32-lane native wave.",
+      "source": {"path": "source/model/model.hpp", "needle": "kNativeWaveSize = 32"},
+      "test_refs": [
+        {"path": "source/model/tests.cpp", "needle": "static_assert(kNativeWaveSize == 32)", "kind": "exact"}
+      ]
+    },
+    {
+      "id": "compute-tile-count",
+      "classification": "physical_resource_candidate",
+      "value": "4 tiles",
+      "rationale": "This is the current power-model tile count; eligibility policy remains provisional.",
+      "source": {"path": "source/power/cgx1_power_management.hpp", "needle": "kComputeTileCount = 4U"},
+      "test_refs": [
+        {"path": "source/power/tests.cpp", "needle": "static_assert(kComputeTileCount == 4U)", "kind": "exact"}
+      ]
+    },
+    {
+      "id": "gpu-virtual-address-limit",
+      "classification": "representation_bound",
+      "value": "2^57 bytes",
+      "rationale": "Addresses are represented in a 57-bit virtual-address space; the upper bound is exclusive.",
+      "source": {"path": "source/control/cgx1_wave_control.hpp", "needle": "kGpuVirtualAddressLimit = std::uint64_t{1} << 57U"},
+      "requires_over_boundary": true,
+      "test_refs": [
+        {"path": "source/isa/tests.cpp", "needle": "address_limit - 4U", "kind": "exact"},
+        {"path": "source/isa/tests.cpp", "needle": "std::array<std::uint64_t, 2U>{2U, address_limit}", "kind": "over"}
+      ]
+    },
+    {
+      "id": "hardware-queue-context-id",
+      "classification": "representation_bound",
+      "value": "64 context IDs",
+      "rationale": "The six-bit context ID represents values 0 through 63; 64 is rejected.",
+      "source": {"path": "source/model/cu_dispatch_scheduler.hpp", "needle": "kHardwareQueueContextCount = 64U"},
+      "requires_over_boundary": true,
+      "test_refs": [
+        {"path": "source/model/cu_dispatch_scheduler_tests.cpp", "needle": "Queue(63U)", "kind": "exact"},
+        {"path": "source/model/cu_dispatch_scheduler_tests.cpp", "needle": "Queue(64U)", "kind": "over"}
+      ]
+    },
+    {
+      "id": "minimum-dispatch-packet-size",
+      "classification": "malformed_input_guard",
+      "value": "52 bytes",
+      "rationale": "A dispatch packet must contain the fixed header and at least one wave descriptor.",
+      "source": {"path": "source/model/command_queue_runtime.hpp", "needle": "kMinimumWorkgroupDispatchPacketBytes ="},
+      "requires_over_boundary": true,
+      "test_refs": [
+        {"path": "source/model/command_queue_runtime_tests.cpp", "needle": "ProcessorConfig(52U, 1U)", "kind": "exact"},
+        {"path": "source/model/command_queue_runtime_tests.cpp", "needle": "ProcessorConfig(51U, 1U)", "kind": "below"}
+      ]
+    },
+    {
+      "id": "command-ring-bytes-per-context",
+      "classification": "safety_overflow_bound",
+      "value": "65536 bytes",
+      "rationale": "This caps per-context ring allocation and keeps aggregate accounting bounded.",
+      "source": {"path": "source/model/command_queue_runtime.hpp", "needle": "kMaximumCommandRingBytesPerContext = 65536U"},
+      "requires_over_boundary": true,
+      "test_refs": [
+        {"path": "source/model/command_queue_runtime_tests.cpp", "needle": "ProcessorConfig(kMaximumCommandRingBytesPerContext", "kind": "exact"},
+        {"path": "source/model/command_queue_runtime_tests.cpp", "needle": "ProcessorConfig(65537U, 1U)", "kind": "over"}
+      ]
+    },
+    {
+      "id": "tracked-command-workgroups",
+      "classification": "parameterized_implementation",
+      "value": "1024 workgroups",
+      "rationale": "The runtime exposes this finite completion-tracking capacity as a configurable implementation limit.",
+      "source": {"path": "source/model/command_queue_runtime.hpp", "needle": "kMaximumTrackedCommandWorkgroups = 1024U"},
+      "requires_over_boundary": true,
+      "test_refs": [
+        {"path": "source/model/command_queue_runtime_tests.cpp", "needle": "kMaximumTrackedCommandWorkgroups));", "kind": "exact"},
+        {"path": "source/model/command_queue_runtime_tests.cpp", "needle": "kMaximumTrackedCommandWorkgroups + 1U", "kind": "over"}
+      ]
+    },
+    {
+      "id": "shared-memory-test-capacity",
+      "classification": "test_only_configuration",
+      "value": "1024 bytes in this admission boundary test",
+      "rationale": "This small configuration is a test fixture; it does not define a product shared-memory capacity.",
+      "source": {"path": "source/model/workgroup_scheduler_tests.cpp", "needle": "Limits(4U, 32U, 32U, 1024U)"},
+      "requires_over_boundary": true,
+      "test_refs": [
+        {"path": "source/model/workgroup_scheduler_tests.cpp", "needle": "Demand(3U, 1U, 16U, 1U, 1024U)", "kind": "exact"},
+        {"path": "source/model/workgroup_scheduler_tests.cpp", "needle": "Demand(4U, 1U, 16U, 1U, 1U)", "kind": "over"}
+      ]
+    },
+    {
+      "id": "rtl-dispatch-pending-entry-default",
+      "classification": "parameterized_implementation",
+      "value": "16 entries by default",
+      "rationale": "The scheduler parameter is an implementation queue depth, not an architectural dispatch limit; current simulation uses a smaller configured instance.",
+      "source": {"path": "source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv", "needle": "parameter integer MAX_PENDING_ENTRIES = 16"},
+      "test_refs": [
+        {"path": "source/rtl/tests/cgx1_compute_workgroup_dispatch_scheduler_tb.sv", "needle": ".MAX_PENDING_ENTRIES(8)", "kind": "parameter_smoke"}
+      ]
+    },
+    {
+      "id": "rtl-command-parser-test-cap",
+      "classification": "test_only_configuration",
+      "value": "128 bytes in parser test instance",
+      "rationale": "The RTL parser's default is parameterized; this bounded test instance checks malformed oversize framing and does not promote 128 bytes to architecture.",
+      "source": {"path": "source/rtl/tests/cgx1_compute_workgroup_command_packet_parser_tb.sv", "needle": "localparam integer PACKET_BYTES = 128"},
+      "test_refs": [
+        {"path": "source/rtl/tests/cgx1_compute_workgroup_command_packet_parser_tb.sv", "needle": ".MAX_PACKET_BYTES(PACKET_BYTES)", "kind": "parameter_smoke"},
+        {"path": "source/rtl/tests/cgx1_compute_workgroup_command_packet_parser_tb.sv", "needle": "132 bytes, greater than this parser's 128-byte bound", "kind": "over"}
+      ]
+    },
+    {
+      "id": "architecture-preferred-vram-page",
+      "classification": "physical_resource_candidate",
+      "value": "65536 bytes",
+      "rationale": "This is a preferred page-size candidate in the architecture data, not a physical-memory timing or allocation guarantee.",
+      "source": {"path": "design/cgx1_architecture.json", "needle": "\"preferred_vram_page_bytes\": 65536"},
+      "test_refs": [
+        {"path": "source/model/tests.cpp", "needle": "static_assert(kPreferredVramPageBytes == 65536)", "kind": "exact"}
+      ]
+    }
+  ]
+}

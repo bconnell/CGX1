@@ -34,6 +34,8 @@ compile_commands.json
 *.cache
 *.bak
 *.orig
+__pycache__/
+*.py[cod]
 
 # Local environment, credentials, and signing material
 .env

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "validation_platform": {
+    "local_required_acceleration": "CPU only; no discrete GPU, CUDA, or physical hardware requirement for software/RTL validation.",
+    "hosted_minimum_runners": [
+      "windows-2022",
+      "ubuntu-24.04"
+    ],
+    "maximum_local_cmake_parallel_jobs": 2,
+    "minimum_free_bytes_before_full_validation": 2147483648
+  },
+  "budgets": {
+    "clean_debug_release_wall_seconds": 900,
+    "rtl_iverilog_default_compile_timeout_seconds": 180,
+    "rtl_iverilog_complex_compile_timeout_seconds": 300,
+    "rtl_vvp_per_simulation_timeout_seconds": 60,
+    "verilator_per_top_timeout_seconds": 90,
+    "yosys_per_check_timeout_seconds": 90,
+    "hosted_workflow_timeout_minutes": 30,
+    "hosted_tool_install_timeout_seconds": 300
+  },
+  "provenance_capture": [
+    "exact local HEAD and working-tree source fingerprint",
+    "CMake, C/C++ compiler IDs and versions",
+    "Icarus Verilog version",
+    "configuration and CTest results",
+    "per-stage elapsed seconds and temporary build-tree bytes",
+    "free space before and after validation"
+  ],
+  "scope_limits": [
+    "software and RTL simulation do not establish timing, area, power, HBM, MMU, physical memory, or silicon behavior",
+    "the pooled resident INT8 plus ordinary-vector RTL composition remains compile-only until bounded simulation is added"
+  ]
+}

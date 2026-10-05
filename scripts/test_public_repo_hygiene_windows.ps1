@@ -13,10 +13,30 @@ function Convert-CodePoints {
 $cases = @(
     [pscustomobject]@{ Name = "private-development"; RuleName = "private development wording 4"; Text = Convert-CodePoints @(112, 114, 105, 118, 97, 116, 101, 32, 112, 114, 111, 109, 112, 116, 115) }
     [pscustomobject]@{ Name = "tool-reference"; RuleName = "internal tool reference 2"; Text = Convert-CodePoints @(67, 104, 97, 116, 71, 80, 84) }
+    [pscustomobject]@{ Name = "internal-tool-reference"; RuleName = "internal tool reference 3"; Text = Convert-CodePoints @(67, 111, 100, 101, 120) }
     [pscustomobject]@{ Name = "promotional-style"; RuleName = "promotional wording 1"; Text = Convert-CodePoints @(103, 97, 109, 101, 45, 99, 104, 97, 110, 103, 105, 110, 103) }
     [pscustomobject]@{ Name = "personal-host"; RuleName = "personal host wording 2"; Text = Convert-CodePoints @(83, 117, 101, 118, 101, 114, 121) }
     [pscustomobject]@{ Name = "sandbox-path"; RuleName = "local sandbox path"; Text = Convert-CodePoints @(47, 109, 110, 116, 47, 100, 97, 116, 97, 47, 116, 101, 115, 116, 46, 116, 120, 116) }
+    [pscustomobject]@{ Name = "private-source-identity"; RuleName = "internal identity handling wording"; Text = ((Convert-CodePoints @(112, 114, 105, 118, 97, 116, 101, 32, 119, 111, 114, 107, 102, 108, 111, 119)) + " " + (Convert-CodePoints @(115, 111, 117, 114, 99, 101, 32, 102, 105, 110, 103, 101, 114, 112, 114, 105, 110, 116))) }
 )
+
+$positivePath = Join-Path $repoRoot (".cgx-hygiene-probe-$PID-positive-source-identity.md")
+if (Test-Path -LiteralPath $positivePath) { throw "Positive probe path already exists: $positivePath" }
+try {
+    $technicalPhrase = Convert-CodePoints @(115, 111, 117, 114, 99, 101, 32, 102, 105, 110, 103, 101, 114, 112, 114, 105, 110, 116)
+    $branchName = Convert-CodePoints @(99, 111, 100, 101, 120, 47, 99, 103, 120, 49, 45, 99, 111, 109, 112, 108, 101, 116, 101, 110, 101, 115, 115)
+    [IO.File]::WriteAllText($positivePath, "Branch $branchName carries a $technicalPhrase for repository content.")
+    Invoke-CgxCommand `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $hygieneScript) `
+        -WorkingDirectory $repoRoot `
+        -Label "Accept legitimate repository identity terminology"
+}
+finally {
+    if (Test-Path -LiteralPath $positivePath -PathType Leaf) {
+        Remove-Item -LiteralPath $positivePath -Force
+    }
+}
 
 $paths = @()
 try {

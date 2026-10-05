@@ -178,6 +178,32 @@ try {
     }
 
     $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.ordinary_vector_rtl.mixed_workload_policy_frozen = $true
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted a prematurely frozen mixed matrix/vector workload policy." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "mixed matrix/vector workload policy must remain provisional") {
+        throw "Mixed workload policy negative control did not report the expected invariant."
+    }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $architecture.execution_model.ordinary_vector_rtl.internal_opcode_encoding_frozen = $true
+    $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
+
+    $result = Invoke-CgxExpectedFailure `
+        -FilePath "powershell.exe" `
+        -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
+        -WorkingDirectory $repoRoot
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted a prematurely frozen provisional vector opcode encoding." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "ordinary vector RTL contract is incomplete") {
+        throw "Vector opcode provisional-status negative control did not report the expected invariant."
+    }
+
+    $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
     $architecture.execution_model.ordinary_vector_rtl.resident_wave_slot_width_guard = $false
     $architecture | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $probePath -Encoding UTF8
 
@@ -251,21 +277,21 @@ try {
         -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
         -WorkingDirectory $repoRoot
     if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted shared/local memory without workgroup-front-end integration." }
-    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "shared/local-memory reference contract or local proof status is incomplete") {
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "shared/local-memory reference contract or simulation evidence is incomplete") {
         throw "Shared/local-memory integration negative control did not report the expected invariant."
     }
 
     $architecture = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
-    $architecture.execution_model.shared_local_memory_reference.status = "RTL simulation passed without an exact revision identity"
+    $architecture.execution_model.shared_local_memory_reference.simulation_exercised = $false
     $architecture | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $probePath -Encoding UTF8
 
     $result = Invoke-CgxExpectedFailure `
         -FilePath "powershell.exe" `
         -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $checkScript, "-ArchitecturePath", $probePath) `
         -WorkingDirectory $repoRoot
-    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted shared/local-memory simulation evidence without the exact revision." }
-    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "shared/local-memory reference contract or local proof status is incomplete") {
-        throw "Shared/local-memory evidence negative control did not report the expected invariant."
+    if ($result.ExitCode -eq 0) { throw "Design consistency gate accepted shared/local-memory architecture data without simulation evidence." }
+    if ((([string]$result.Stdout) + ([string]$result.Stderr)) -notmatch "shared/local-memory reference contract or simulation evidence is incomplete") {
+        throw "Shared/local-memory simulation evidence negative control did not report the expected invariant."
     }
     Write-Host "[pass] Design consistency negative controls were rejected."
 }

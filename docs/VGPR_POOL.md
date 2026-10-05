@@ -8,7 +8,7 @@ The pooled VGPR design separates a wave's architectural 256-VGPR namespace from 
 
 The earlier per-resident-slot VGPR RTL remains a validated logical storage boundary. It is not the physical allocation architecture.
 
-The pooled implementation now exists as executable C++ reference code and synthesizable SystemVerilog candidate RTL. The current local working-tree candidate passes the repository RTL gate; published CI and physical implementation remain separate evidence.
+The pooled implementation exists as executable C++ reference code and synthesizable SystemVerilog candidate RTL. Local simulation, hosted workflow, and physical implementation evidence are recorded separately by candidate in `design/cgx1_validation_evidence.json`.
 
 Nothing in this boundary freezes resident-wave occupancy, physical register-file capacity, foundry memory macros, timing, area, or power.
 
@@ -113,6 +113,6 @@ The repository RTL gate now includes behavioral testbenches for pooled restore m
 
 ## Evidence boundary
 
-The current local working-tree candidate passes `scripts/validate_rtl.sh` for behavioral RTL simulation. The architecture field `simulation_exercised` remains **false** until the exact revision passes the repository's RTL CI contract. Neither result selects a foundry register-file macro or establishes timing closure, area, power, resident-wave occupancy, or fabricated-silicon performance.
+The bounded local RTL gate simulates pooled storage, allocation, preflight, and narrower execution compositions. The complete resident INT8 plus ordinary-vector composition testbench remains compile-only because its Icarus runtime exceeds the blocking gate. The architecture simulation flags point to testbench evidence, while revision-specific hosted workflow results are recorded in `design/cgx1_validation_evidence.json`. No foundry register-file macro, timing closure, area, power, occupancy, or silicon performance is established.
 
 Even after RTL simulation passes, this boundary remains logical/synthesizable implementation evidence. It does not select a foundry register-file macro or establish timing closure, area, power, resident-wave occupancy, or fabricated-silicon performance.

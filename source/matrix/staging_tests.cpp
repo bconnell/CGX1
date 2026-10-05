@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_check.h"
 #include "cgx1_matrix_staging.hpp"
 
-#include <cassert>
 #include <cstdint>
 #include <stdexcept>
 
@@ -44,7 +44,7 @@ void CaptureOperation(
 
         const bool committed =
             CaptureMatrixOperandCycle(state, cycle, read0, read1);
-        assert(committed == (cycle == kMatrixRegisterCaptureCycles - 1U));
+        CGX1_TEST_CHECK(committed == (cycle == kMatrixRegisterCaptureCycles - 1U));
     }
 }
 
@@ -54,7 +54,7 @@ void CheckActive(
 {
     using namespace cgx1::matrix;
 
-    assert(state.activeValid);
+    CGX1_TEST_CHECK(state.activeValid);
 
     for (std::uint32_t reg = 0U; reg < kMatrixSourceRegistersPerLane; ++reg)
     {
@@ -63,15 +63,15 @@ void CheckActive(
         const MatrixWaveRegister expectedB =
             MakeWave(tagBase + 0x20U + reg);
 
-        assert(state.active.a[reg] == expectedA);
-        assert(state.active.b[reg] == expectedB);
+        CGX1_TEST_CHECK(state.active.a[reg] == expectedA);
+        CGX1_TEST_CHECK(state.active.b[reg] == expectedB);
     }
 
     for (std::uint32_t reg = 0U; reg < kMatrixAccumulatorRegistersPerLane; ++reg)
     {
         const MatrixWaveRegister expectedC =
             MakeWave(tagBase + 0x30U + reg);
-        assert(state.active.c[reg] == expectedC);
+        CGX1_TEST_CHECK(state.active.c[reg] == expectedC);
     }
 }
 
@@ -90,14 +90,12 @@ int main()
     static_assert(kMatrixLogicalPipelineStorageBytesPerComputeUnit == 20480U);
 
     MatrixOperandStagingState state{};
-    assert(!state.activeValid);
-    assert(state.activeGeneration == 0U);
+    CGX1_TEST_CHECK(!state.activeValid);
+    CGX1_TEST_CHECK(state.activeGeneration == 0U);
 
     CaptureOperation(state, 0x100U);
-    assert(state.activeGeneration == 1U);
+    CGX1_TEST_CHECK(state.activeGeneration == 1U);
     CheckActive(state, 0x100U);
-
-    const MatrixOperandSet firstActive = state.active;
 
     // The next capture buffer may be overwritten while the current active
     // execution operands remain stable. The active set changes only when the
@@ -120,15 +118,19 @@ int main()
             read1 = MakeWave(0x200U + 0x30U + pair + 1U);
         }
 
-        assert(!CaptureMatrixOperandCycle(state, cycle, read0, read1));
-        assert(state.active == firstActive);
-        assert(state.activeGeneration == 1U);
+        const bool unexpectedCapture =
+            CaptureMatrixOperandCycle(state, cycle, read0, read1);
+        CGX1_TEST_CHECK(!unexpectedCapture);
+        CheckActive(state, 0x100U);
+        CGX1_TEST_CHECK(state.activeGeneration == 1U);
     }
 
     const MatrixWaveRegister final0 = MakeWave(0x200U + 0x36U);
     const MatrixWaveRegister final1 = MakeWave(0x200U + 0x37U);
-    assert(CaptureMatrixOperandCycle(state, 7U, final0, final1));
-    assert(state.activeGeneration == 2U);
+    const bool capturedFinalCycle =
+        CaptureMatrixOperandCycle(state, 7U, final0, final1);
+    CGX1_TEST_CHECK(capturedFinalCycle);
+    CGX1_TEST_CHECK(state.activeGeneration == 2U);
     CheckActive(state, 0x200U);
 
     bool rejectedOutOfOrder = false;
@@ -142,7 +144,7 @@ int main()
     {
         rejectedOutOfOrder = true;
     }
-    assert(rejectedOutOfOrder);
+    CGX1_TEST_CHECK(rejectedOutOfOrder);
 
     bool rejectedRange = false;
     try
@@ -155,7 +157,7 @@ int main()
     {
         rejectedRange = true;
     }
-    assert(rejectedRange);
+    CGX1_TEST_CHECK(rejectedRange);
 
     return 0;
 }

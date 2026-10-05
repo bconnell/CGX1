@@ -1,0 +1,35 @@
+name: RTL Tools CI
+
+on:
+  push:
+    branches:
+      - main
+      - codex/cgx1-completeness
+  pull_request:
+    branches:
+      - main
+      - codex/cgx1-completeness
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rtl-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-formal-synthesis:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install Verilator and Yosys
+        run: |
+          timeout 5m sudo apt-get update
+          timeout 5m sudo apt-get install -y --no-install-recommends verilator yosys
+      - name: Run bounded lint, formal, and synthesis smoke
+        run: ./scripts/validate_rtl_tools.sh

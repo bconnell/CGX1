@@ -1,0 +1,44 @@
+name: Linux Sanitizers
+
+on:
+  push:
+    branches:
+      - main
+      - codex/cgx1-completeness
+  pull_request:
+    branches:
+      - main
+      - codex/cgx1-completeness
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-sanitizers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  asan-ubsan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { cc: gcc, cxx: g++ }
+          - { cc: clang, cxx: clang++ }
+    env:
+      CC: ${{ matrix.compiler.cc }}
+      CXX: ${{ matrix.compiler.cxx }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Configure Debug with AddressSanitizer and UndefinedBehaviorSanitizer
+        run: cmake -S . -B build/sanitizers -DCMAKE_BUILD_TYPE=Debug -DCGX1_ENABLE_SANITIZERS=ON
+      - name: Build all executable tests
+        run: cmake --build build/sanitizers --parallel 2
+      - name: Run complete CTest suite
+        run: ctest --test-dir build/sanitizers --output-on-failure

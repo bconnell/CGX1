@@ -1,8 +1,107 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Brandon Connell
+#include "cgx1_test_context.hpp"
+
 #include <cstdint>
 #include <iostream>
 #include <random>
-#define CHECK(x) do{if(!(x)){std::cerr<<"[fail] " #x " line "<<__LINE__<<'\n';return 1;}}while(false)
-struct P{std::uint32_t limit=4,burst=0;bool pending=false;bool allow(bool v,bool r)const{return !(pending&&(v||r));}void tick(bool m,bool vw,bool va,bool rw,bool ra){bool c=vw||rw,p=va||ra;if(!c){burst=0;pending=false;}else if(pending){if(p){burst=0;pending=false;}}else if(m){if(++burst>=limit)pending=true;}}};
-int main(){P p;for(int i=0;i<4;i++){CHECK(p.allow(true,false));p.tick(true,true,false,false,false);}CHECK(!p.allow(true,false));for(int i=0;i<100;i++){p.tick(false,true,false,false,false);CHECK(!p.allow(true,false));}p.tick(false,true,true,false,false);CHECK(p.allow(true,false));for(int i=0;i<4;i++)p.tick(true,false,false,true,false);CHECK(!p.allow(false,true));p.tick(false,false,false,true,true);CHECK(p.allow(false,true));std::mt19937 g(0xfa17c0deU);P q;for(int i=0;i<100000;i++){bool vw=g()&1U,rw=g()&1U,va=vw&&((g()&15U)==0),ra=rw&&((g()&15U)==0),ma=q.allow(vw,rw)&&((g()&3U)==0);if(q.pending&&(vw||rw)&&!(va||ra))CHECK(!q.allow(vw,rw));q.tick(ma,vw,va,rw,ra);}std::cout<<"[pass] compute mixed-service progress policy checks passed.\n";return 0;}
+
+#define CHECK(expression) \
+    do { \
+        if (!(expression)) { \
+            std::cerr << "[fail] " #expression " line " << __LINE__; \
+            ::cgx1::testing::WriteRandomTestFailureContext(std::cerr); \
+            std::cerr << '\n'; \
+            return 1; \
+        } \
+    } while (false)
+
+struct Policy
+{
+    std::uint32_t limit = 4U;
+    std::uint32_t burst = 0U;
+    bool pending = false;
+
+    bool Allow(bool vector, bool restore) const
+    {
+        return !(pending && (vector || restore));
+    }
+
+    void Tick(bool matrix, bool vector, bool vectorAccepted,
+        bool restore, bool restoreAccepted)
+    {
+        const bool clientPresent = vector || restore;
+        const bool progress = vectorAccepted || restoreAccepted;
+        if (!clientPresent)
+        {
+            burst = 0U;
+            pending = false;
+        }
+        else if (pending)
+        {
+            if (progress)
+            {
+                burst = 0U;
+                pending = false;
+            }
+        }
+        else if (matrix && ++burst >= limit)
+        {
+            pending = true;
+        }
+    }
+};
+
+int main()
+{
+    Policy policy;
+    for (int cycle = 0; cycle < 4; ++cycle)
+    {
+        CHECK(policy.Allow(true, false));
+        policy.Tick(true, true, false, false, false);
+    }
+    CHECK(!policy.Allow(true, false));
+    for (int cycle = 0; cycle < 100; ++cycle)
+    {
+        policy.Tick(false, true, false, false, false);
+        CHECK(!policy.Allow(true, false));
+    }
+    policy.Tick(false, true, true, false, false);
+    CHECK(policy.Allow(true, false));
+    for (int cycle = 0; cycle < 4; ++cycle)
+        policy.Tick(true, false, false, true, false);
+    CHECK(!policy.Allow(false, true));
+    policy.Tick(false, false, false, true, true);
+    CHECK(policy.Allow(false, true));
+
+    constexpr std::uint32_t seed = 0xFA17C0DEU;
+    std::mt19937 random(seed);
+    Policy randomized;
+    for (std::uint32_t iteration = 0U; iteration < 100000U; ++iteration)
+    {
+        const bool vector = (random() & 1U) != 0U;
+        const bool restore = (random() & 1U) != 0U;
+        const bool vectorAccepted = vector && ((random() & 15U) == 0U);
+        const bool restoreAccepted = restore && ((random() & 15U) == 0U);
+        const bool matrixAccepted = randomized.Allow(vector, restore)
+            && ((random() & 3U) == 0U);
+        const std::uint64_t state =
+            (static_cast<std::uint64_t>(randomized.pending) << 4U)
+            | (static_cast<std::uint64_t>(vector) << 3U)
+            | (static_cast<std::uint64_t>(restore) << 2U)
+            | (static_cast<std::uint64_t>(vectorAccepted) << 1U)
+            | static_cast<std::uint64_t>(restoreAccepted);
+        ::cgx1::testing::SetRandomTestFailureContext(
+            "ComputeMixedServicePolicyRandomized", seed, iteration, state);
+
+        if (randomized.pending && (vector || restore)
+            && !(vectorAccepted || restoreAccepted))
+            CHECK(!randomized.Allow(vector, restore));
+        randomized.Tick(matrixAccepted, vector, vectorAccepted,
+            restore, restoreAccepted);
+    }
+    ::cgx1::testing::ClearRandomTestFailureContext();
+
+    std::cout << "[pass] compute mixed-service progress policy checks passed.\n";
+    return 0;
+}

@@ -1,0 +1,904 @@
+{
+  "schema_version": 1,
+  "fingerprint_algorithm": "sha256-path-content-records-v1",
+  "fingerprint_excluded_paths": [
+    "design/cgx1_validation_evidence.json"
+  ],
+  "current_claim_documents": [
+    "design/cgx1_architecture.json",
+    "design/cgx1_completeness_matrix.json",
+    "docs/STATUS.md",
+    "docs/VALIDATION.md",
+    "docs/VGPR_POOL.md",
+    "docs/MATRIX_ENGINE.md",
+    "source/rtl/README.md"
+  ],
+  "evidence_catalog": {
+    "ctest:cgx1_firmware_power_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_firmware_power_checks"
+    },
+    "ctest:cgx1_control_flow_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_control_flow_checks"
+    },
+    "ctest:cgx1_isa_encoding_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_isa_encoding_checks"
+    },
+    "ctest:cgx1_matrix_semantics_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_semantics_checks"
+    },
+    "ctest:cgx1_matrix_architecture_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_architecture_checks"
+    },
+    "ctest:cgx1_matrix_pipeline_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_pipeline_checks"
+    },
+    "ctest:cgx1_matrix_banking_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_banking_checks"
+    },
+    "ctest:cgx1_matrix_staging_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_staging_checks"
+    },
+    "ctest:cgx1_matrix_scoreboard_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_scoreboard_checks"
+    },
+    "ctest:cgx1_matrix_result_staging_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_result_staging_checks"
+    },
+    "ctest:cgx1_matrix_int8_execution_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_int8_execution_checks"
+    },
+    "ctest:cgx1_matrix_int8_path_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_int8_path_checks"
+    },
+    "ctest:cgx1_matrix_vgpr_pool_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_vgpr_pool_checks"
+    },
+    "ctest:cgx1_matrix_vgpr_pool_resident_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_vgpr_pool_resident_checks"
+    },
+    "ctest:cgx1_ordinary_shared_execution_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_ordinary_shared_execution_checks"
+    },
+    "ctest:cgx1_vector_execution_scheduling_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_vector_execution_scheduling_checks"
+    },
+    "ctest:cgx1_mixed_compute_frontend_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_mixed_compute_frontend_checks"
+    },
+    "ctest:cgx1_vector_dependency_scheduler_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_vector_dependency_scheduler_checks"
+    },
+    "ctest:cgx1_compute_mixed_service_policy_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_compute_mixed_service_policy_checks"
+    },
+    "ctest:cgx1_matrix_service_window_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_matrix_service_window_checks"
+    },
+    "ctest:cgx1_shared_local_memory_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_shared_local_memory_checks"
+    },
+    "ctest:cgx1_model_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_model_checks"
+    },
+    "ctest:cgx1_workgroup_scheduler_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_workgroup_scheduler_checks"
+    },
+    "ctest:cgx1_cu_dispatch_scheduler_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_cu_dispatch_scheduler_checks"
+    },
+    "ctest:cgx1_command_queue_runtime_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_command_queue_runtime_checks"
+    },
+    "ctest:cgx1_power_management_checks": {
+      "class": "executable_test",
+      "stages": [
+        "reference_model",
+        "executable_tests"
+      ],
+      "kind": "CTest",
+      "target": "cgx1_power_management_checks"
+    },
+    "rtl:cgx1_top_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_top_tb",
+      "artifact": "build/rtl/cgx1_top_tb.vvp",
+      "compile_line": 23
+    },
+    "rtl:cgx1_matrix_pipeline_control_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_pipeline_control_tb",
+      "artifact": "build/rtl/cgx1_matrix_pipeline_control_tb.vvp",
+      "compile_line": 31
+    },
+    "rtl:cgx1_matrix_operand_staging_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_operand_staging_tb",
+      "artifact": "build/rtl/cgx1_matrix_operand_staging_tb.vvp",
+      "compile_line": 37
+    },
+    "rtl:cgx1_matrix_wave_scoreboard_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_wave_scoreboard_tb",
+      "artifact": "build/rtl/cgx1_matrix_wave_scoreboard_tb.vvp",
+      "compile_line": 49
+    },
+    "rtl:cgx1_matrix_result_staging_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_result_staging_tb",
+      "artifact": "build/rtl/cgx1_matrix_result_staging_tb.vvp",
+      "compile_line": 62
+    },
+    "rtl:cgx1_matrix_int8_execution_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_int8_execution_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_execution_tb.vvp",
+      "compile_line": 74
+    },
+    "rtl:cgx1_matrix_int8_path_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_int8_path_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_path_tb.vvp",
+      "compile_line": 86
+    },
+    "rtl:cgx1_matrix_int8_engine_shell_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_int8_engine_shell_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_engine_shell_tb.vvp",
+      "compile_line": 102
+    },
+    "rtl:cgx1_resident_wave_vgpr_file_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_resident_wave_vgpr_file_tb",
+      "artifact": "build/rtl/cgx1_resident_wave_vgpr_file_tb.vvp",
+      "compile_line": 120
+    },
+    "rtl:cgx1_matrix_resident_wave_arbiter_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_resident_wave_arbiter_tb",
+      "artifact": "build/rtl/cgx1_matrix_resident_wave_arbiter_tb.vvp",
+      "compile_line": 132
+    },
+    "rtl:cgx1_matrix_int8_resident_engine_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_int8_resident_engine_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_resident_engine_tb.vvp",
+      "compile_line": 144
+    },
+    "rtl:cgx1_pooled_vgpr_restore_mapper_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_pooled_vgpr_restore_mapper_tb",
+      "artifact": "build/rtl/cgx1_pooled_vgpr_restore_mapper_tb.vvp",
+      "compile_line": 165
+    },
+    "rtl:cgx1_matrix_vgpr_preflight_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_vgpr_preflight_tb",
+      "artifact": "build/rtl/cgx1_matrix_vgpr_preflight_tb.vvp",
+      "compile_line": 176
+    },
+    "rtl:cgx1_resident_wave_vgpr_allocator_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_resident_wave_vgpr_allocator_tb",
+      "artifact": "build/rtl/cgx1_resident_wave_vgpr_allocator_tb.vvp",
+      "compile_line": 188
+    },
+    "rtl:cgx1_pooled_vgpr_storage_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_pooled_vgpr_storage_tb",
+      "artifact": "build/rtl/cgx1_pooled_vgpr_storage_tb.vvp",
+      "compile_line": 201
+    },
+    "rtl:cgx1_matrix_pooled_vgpr_frontend_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_pooled_vgpr_frontend_tb",
+      "artifact": "build/rtl/cgx1_matrix_pooled_vgpr_frontend_tb.vvp",
+      "compile_line": 212
+    },
+    "rtl:cgx1_pooled_vgpr_matrix_subsystem_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_pooled_vgpr_matrix_subsystem_tb",
+      "artifact": "build/rtl/cgx1_pooled_vgpr_matrix_subsystem_tb.vvp",
+      "compile_line": 226
+    },
+    "rtl:cgx1_matrix_int8_pooled_resident_engine_tb": {
+      "class": "compile_only",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_int8_pooled_resident_engine_tb",
+      "artifact": "build/rtl/cgx1_matrix_int8_pooled_resident_engine_tb.vvp",
+      "compile_line": 244,
+      "blocks_validation_for": "pooled_vgpr_matrix_vector_execution"
+    },
+    "rtl:cgx1_ordinary_shared_control_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_ordinary_shared_control_tb",
+      "artifact": "build/rtl/cgx1_ordinary_shared_control_tb.vvp",
+      "compile_line": 273
+    },
+    "rtl:cgx1_ordinary_read_sequencer_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_ordinary_read_sequencer_tb",
+      "artifact": "build/rtl/cgx1_ordinary_read_sequencer_tb.vvp",
+      "compile_line": 282
+    },
+    "rtl:cgx1_vector_int32_alu_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_vector_int32_alu_tb",
+      "artifact": "build/rtl/cgx1_vector_int32_alu_tb.vvp",
+      "compile_line": 289
+    },
+    "rtl:cgx1_vector_int32_pipeline_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_vector_int32_pipeline_tb",
+      "artifact": "build/rtl/cgx1_vector_int32_pipeline_tb.vvp",
+      "compile_line": 296
+    },
+    "rtl:cgx1_instruction_fetch_unit_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_instruction_fetch_unit_tb",
+      "artifact": "build/rtl/cgx1_instruction_fetch_unit_tb.vvp",
+      "compile_line": 304
+    },
+    "rtl:cgx1_vector_instruction_word_decoder_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_vector_instruction_word_decoder_tb",
+      "artifact": "build/rtl/cgx1_vector_instruction_word_decoder_tb.vvp",
+      "compile_line": 312
+    },
+    "rtl:cgx1_provisional_control_instruction_dispatch_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_provisional_control_instruction_dispatch_tb",
+      "artifact": "build/rtl/cgx1_provisional_control_instruction_dispatch_tb.vvp",
+      "compile_line": 324
+    },
+    "rtl:cgx1_vector_resident_wave_scheduler_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_vector_resident_wave_scheduler_tb",
+      "artifact": "build/rtl/cgx1_vector_resident_wave_scheduler_tb.vvp",
+      "compile_line": 332
+    },
+    "rtl:cgx1_vector_resident_wave_scheduler_invalid_param_tb": {
+      "class": "negative_control",
+      "stages": [],
+      "kind": "RTL testbench",
+      "target": "cgx1_vector_resident_wave_scheduler_invalid_param_tb",
+      "artifact": "build/rtl/cgx1_vector_resident_wave_scheduler_invalid_param_tb.vvp",
+      "compile_line": 339
+    },
+    "rtl:cgx1_pooled_vgpr_execution_subsystem_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_pooled_vgpr_execution_subsystem_tb",
+      "artifact": "build/rtl/cgx1_pooled_vgpr_execution_subsystem_tb.vvp",
+      "compile_line": 355
+    },
+    "rtl:cgx1_compute_int8_vector_execution_frontend_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_int8_vector_execution_frontend_tb",
+      "artifact": "build/rtl/cgx1_compute_int8_vector_execution_frontend_tb.vvp",
+      "compile_line": 374
+    },
+    "rtl:cgx1_matrix_resident_wave_scoreboard_export_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_resident_wave_scoreboard_export_tb",
+      "artifact": "build/rtl/cgx1_matrix_resident_wave_scoreboard_export_tb.vvp",
+      "compile_line": 413
+    },
+    "rtl:cgx1_resident_vector_dependency_scheduler_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_resident_vector_dependency_scheduler_tb",
+      "artifact": "build/rtl/cgx1_resident_vector_dependency_scheduler_tb.vvp",
+      "compile_line": 421
+    },
+    "rtl:cgx1_resident_vector_matrix_dependency_frontend_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_resident_vector_matrix_dependency_frontend_tb",
+      "artifact": "build/rtl/cgx1_resident_vector_matrix_dependency_frontend_tb.vvp",
+      "compile_line": 430
+    },
+    "rtl:cgx1_matrix_mixed_workload_admission_cadence_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_mixed_workload_admission_cadence_tb",
+      "artifact": "build/rtl/cgx1_matrix_mixed_workload_admission_cadence_tb.vvp",
+      "compile_line": 440
+    },
+    "rtl:cgx1_compute_mixed_service_policy_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_mixed_service_policy_tb",
+      "artifact": "build/rtl/cgx1_compute_mixed_service_policy_tb.vvp",
+      "compile_line": 447
+    },
+    "rtl:cgx1_workgroup_residency_barrier_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_workgroup_residency_barrier_tb",
+      "artifact": "build/rtl/cgx1_workgroup_residency_barrier_tb.vvp",
+      "compile_line": 454
+    },
+    "rtl:cgx1_wave_control_flow_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_wave_control_flow_tb",
+      "artifact": "build/rtl/cgx1_wave_control_flow_tb.vvp",
+      "compile_line": 463
+    },
+    "rtl:cgx1_compute_workgroup_dispatch_scheduler_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_dispatch_scheduler_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_dispatch_scheduler_tb.vvp",
+      "compile_line": 471
+    },
+    "rtl:cgx1_compute_workgroup_command_packet_parser_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_command_packet_parser_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_packet_parser_tb.vvp",
+      "compile_line": 479
+    },
+    "rtl:cgx1_compute_workgroup_command_packet_parser_pc48_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_command_packet_parser_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_packet_parser_pc48_tb.vvp",
+      "compile_line": 487
+    },
+    "rtl:cgx1_compute_workgroup_command_runtime_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_command_runtime_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_runtime_tb.vvp",
+      "compile_line": 496
+    },
+    "rtl:cgx1_compute_workgroup_command_queue_frontend_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration",
+        "cu_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_command_queue_frontend_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_queue_frontend_tb.vvp",
+      "compile_line": 505
+    },
+    "rtl:cgx1_compute_workgroup_command_lifecycle_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_command_lifecycle_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_lifecycle_tb.vvp",
+      "compile_line": 515
+    },
+    "rtl:cgx1_compute_workgroup_command_lifecycle_integration_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration",
+        "cu_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_command_lifecycle_integration_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
+      "compile_line": 523
+    },
+    "rtl:cgx1_compute_workgroup_dispatch_integration_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration",
+        "cu_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_dispatch_integration_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
+      "compile_line": 574
+    },
+    "rtl:cgx1_compute_workgroup_execution_frontend_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration",
+        "cu_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_execution_frontend_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
+      "compile_line": 622
+    },
+    "rtl:cgx1_cu_shared_local_memory_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_cu_shared_local_memory_tb",
+      "artifact": "build/rtl/cgx1_cu_shared_local_memory_tb.vvp",
+      "compile_line": 668
+    },
+    "rtl:cgx1_compute_workgroup_lsu_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation",
+        "subsystem_integration"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_compute_workgroup_lsu_tb",
+      "artifact": "build/rtl/cgx1_compute_workgroup_lsu_tb.vvp",
+      "compile_line": 676
+    },
+    "rtl-source:source/rtl/cgx1_compute_workgroup_command_packet_parser.sv": {
+      "class": "rtl_implementation",
+      "stages": [
+        "rtl"
+      ],
+      "kind": "RTL source",
+      "target": "source/rtl/cgx1_compute_workgroup_command_packet_parser.sv"
+    },
+    "rtl-source:source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv": {
+      "class": "rtl_implementation",
+      "stages": [
+        "rtl"
+      ],
+      "kind": "RTL source",
+      "target": "source/rtl/cgx1_compute_workgroup_command_queue_frontend.sv"
+    },
+    "rtl-source:source/rtl/cgx1_compute_workgroup_command_lifecycle.sv": {
+      "class": "rtl_implementation",
+      "stages": [
+        "rtl"
+      ],
+      "kind": "RTL source",
+      "target": "source/rtl/cgx1_compute_workgroup_command_lifecycle.sv"
+    },
+    "rtl-source:source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv": {
+      "class": "rtl_implementation",
+      "stages": [
+        "rtl"
+      ],
+      "kind": "RTL source",
+      "target": "source/rtl/cgx1_compute_workgroup_dispatch_scheduler.sv"
+    },
+    "rtl:cgx1_matrix_vector_issue_arbiter_tb": {
+      "class": "simulated",
+      "stages": [
+        "rtl_simulation"
+      ],
+      "kind": "RTL testbench",
+      "target": "cgx1_matrix_vector_issue_arbiter_tb",
+      "artifact": "build/rtl/cgx1_matrix_vector_issue_arbiter_tb.vvp"
+    }
+  },
+  "candidates": [
+    {
+      "commit": "56dde4cd92c261063d62c7019d81f6d8b4c8cc01",
+      "source_fingerprint": "48b8b055fcf129f80dc637b5c808db58b3136815e5db68d4b0facd62d9509e54",
+      "workflow_runs": [
+        {
+          "workflow": "RTL CI",
+          "run_id": 37091104373,
+          "head_sha": "56dde4cd92c261063d62c7019d81f6d8b4c8cc01",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "workflow": "Windows CI",
+          "run_id": 37091104769,
+          "head_sha": "56dde4cd92c261063d62c7019d81f6d8b4c8cc01",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "commit": "2de4a188e9d925d4fd74b45308d6b719c2980c79",
+      "source_fingerprint": "23b3e86dff9ee535ee4fe4c81dbf8a1a8c41b70078edff12c3fd3dd6c2a7f741",
+      "workflow_runs": [
+        {
+          "workflow": "RTL CI",
+          "run_id": 37142609707,
+          "head_sha": "2de4a188e9d925d4fd74b45308d6b719c2980c79",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "workflow": "Windows CI",
+          "run_id": 37142609735,
+          "head_sha": "2de4a188e9d925d4fd74b45308d6b719c2980c79",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "commit": "68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+      "source_fingerprint": "db19b3addf60fae84f68490665a414517113e75fb3fbae3e9a61fe733b2974a2",
+      "workflow_runs": [
+        {
+          "workflow": "RTL CI",
+          "run_id": 37145496015,
+          "head_sha": "68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "workflow": "Windows CI",
+          "run_id": 37145498188,
+          "head_sha": "68cb2c3bb1c68df8c662a82959f1db8119deb8d0",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "commit": "19b61750bc5e36812749992cdd6d327ecd4a6247",
+      "source_fingerprint": "3b55574e88f7f23876ccf5149af7eeabdfbfbce2ed7084297652cecb6a0ae367",
+      "workflow_runs": [
+        {
+          "workflow": "RTL CI",
+          "run_id": 37149380291,
+          "head_sha": "19b61750bc5e36812749992cdd6d327ecd4a6247",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "workflow": "Windows CI",
+          "run_id": 37149387017,
+          "head_sha": "19b61750bc5e36812749992cdd6d327ecd4a6247",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "commit": "0f57ca005c66f8687ff1138e9f949b41f6058887",
+      "source_fingerprint": "460d4963a969d5948b8777a2af106a23fd4dcd805e273fd16053443fe6bad354",
+      "workflow_runs": [
+        {
+          "workflow": "RTL CI",
+          "run_id": 37232145144,
+          "head_sha": "0f57ca005c66f8687ff1138e9f949b41f6058887",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "workflow": "Windows CI",
+          "run_id": 37232146699,
+          "head_sha": "0f57ca005c66f8687ff1138e9f949b41f6058887",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "legacy_local_records": [
+    {
+      "id": "pre-ledger-command-lifecycle-control-baseline",
+      "evidence_class": "local_only",
+      "base_commit": "19f6bdd5a0f5d34f7e943801b75e23b316a36865",
+      "legacy_source_fingerprint": "3eaa25716644c6828e439dcb29119726c35d11f7824d4aa96f17a4bb7e8e72b4",
+      "fingerprint_scope": "SHA-256 over sorted path:SHA256(file-content) records for files changed from base_commit; the old completeness matrix file was excluded.",
+      "current_candidate": false,
+      "hosted_ci": "not_run",
+      "results": {
+        "build": "cmake --build build -j2 passed under Ubuntu WSL",
+        "cpp": "CTest passed 26/26 under Ubuntu WSL",
+        "rtl": "bash scripts/validate_rtl.sh passed under Ubuntu WSL with Icarus Verilog 12.0",
+        "windows": "Public hygiene, integrity, design consistency, negative controls, and Markdown links passed; native Windows CMake configure did not run because cmake.exe was unavailable on PATH.",
+        "physical": "Synthesis, timing, area, power, physical implementation, and silicon were not established."
+      }
+    }
+  ],
+  "required_hosted_workflows": [
+    "RTL CI",
+    "Windows CI"
+  ]
+}

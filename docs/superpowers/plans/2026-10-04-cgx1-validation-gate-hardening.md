@@ -82,7 +82,8 @@
 - [x] Record that previous Release builds remain build evidence, while assertion-based Release expectations require fresh post-migration runs.
 - [x] Add reviewed strict warnings and promote clean warning classes to errors without broad suppression.
 - [x] Add hosted Linux AddressSanitizer and UndefinedBehaviorSanitizer coverage.
-- [ ] Run Debug and Release CTest with GCC and Clang where available. Clang is not installed in the local WSL environment; exact-SHA hosted checks remain pending.
+- [x] Run clean GCC Debug and Release CTest on the exact candidate (26/26 targets in each configuration), the Release/NDEBUG false-check proof, and the full RTL gate under an unprivileged Linux process. Windows CI also passed clean MSVC Debug/Release CTest and its false-check proof.
+- [ ] Run the hosted GCC and Clang ASan/UBSan matrix on an exact SHA. The current Linux Sanitizers attempt was cancelled before runner assignment; rerun after GitHub Actions recovers.
 
 ### Task 5: RTL inventory, bounded tools, and warning classification
 
@@ -104,7 +105,7 @@
 
 - [x] Ensure required gate failures propagate to the final exit code.
 - [x] Add executable regressions for Windows-style paths entering WSL, `/mnt/<drive>` translation, Linux-side Git identity, Windows/WSL source-fingerprint equality, and clear fail-closed identity diagnostics.
-- [x] Run the isolated Linux clean candidate as an existing unprivileged WSL user; verify non-root UID, exact commit/tree/index/fingerprint, and pre/post identity. Do not count root-only runs as contributor-grade evidence.
+- [x] Because Ubuntu's default UID 1000 has no passwd entry and the built-in `nobody` login shell is disabled, run the existing POSIX clean-candidate validator as UID 65534 through `setpriv`, without creating a WSL account. The validator process had zero effective capabilities and `no_new_privs=1`; it verified exact commit/tree/index/fingerprint before and after. Its committed-tree fingerprint matched Windows CI. The hosted Linux lane remains required for publication; root-only validation remains diagnostic.
 - [x] Include diff checks, matrix/schema/identity, clean/staged scope, hygiene, repository integrity, design consistency, negative controls, Markdown links, CTest, and RTL in authoritative local/hosted paths.
 - [x] Validate the exact staged source tree in a clean isolated checkout with no pre-existing build output; prove an uncommitted required helper cannot satisfy this gate.
 - [x] Configure a fresh build directory, build required targets, and execute CTest; clean-build proof must be part of the canonical gate.
@@ -117,7 +118,7 @@
 
 ### Task 7: Full candidate verification and one coherent commit
 
-- [x] Run all local positive and negative controls, Debug/Release CTest with GCC, the complete RTL gate, repository/design/hygiene/link checks, and exact source identity. Clang is unavailable locally; exact-SHA hosted checks remain pending.
+- [x] Run the positive/negative controls, GCC Debug/Release CTest, complete RTL gate, repository/design/hygiene/link checks, and exact source identity as an unprivileged UID 65534 clean candidate. Clang sanitizer coverage and the expanded hosted workflow set remain pending.
 - [ ] Run applicable clean-room, clean-build, sanitizer, Verilator, synthesis-smoke, formal/property, RTL coverage, escaped-defect, fault-injection, provenance, and resource-budget gates.
 - [ ] Review the entire staged diff and verify documentation truth against executable output.
 - [ ] Commit one coherent gate-hardening batch after all applicable local checks pass; push it fast-forward to the completeness branch and verify the exact remote SHA.

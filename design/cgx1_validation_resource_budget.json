@@ -9,6 +9,50 @@
     "maximum_local_cmake_parallel_jobs": 2,
     "minimum_free_bytes_before_full_validation": 2147483648
   },
+  "disk_budget": {
+    "profiles": {
+      "developer": {
+        "warning_free_bytes": 53687091200,
+        "minimum_free_bytes": 42949672960
+      },
+      "hosted": {
+        "warning_free_bytes": null,
+        "minimum_free_bytes": 2147483648
+      }
+    },
+    "operations": {
+      "clean-candidate": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "clean-cmake": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "wsl-candidate": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "gcc-debug": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "gcc-release": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "clang-debug": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "clang-release": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "sanitizer-build": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": true},
+      "hosted-tool-install": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "icarus": {
+        "estimated_peak_bytes": 15789147,
+        "measurement_status": "estimate",
+        "measurement_source": "15,789,147-byte existing build/rtl output-tree snapshot on commit f2018c95e0d859777519a10bc7b6a7c96bfeaf1c; 145 files; this is an observed output-size estimate, not a filesystem high-water measurement",
+        "maximum_output_tree_bytes": 31578294,
+        "block_when_warning": false
+      },
+      "verilator-toolchain-build": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": true},
+      "rtl-tools": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "synthesis-smoke": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "formal": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false}
+    },
+    "artifact_limits": {
+      "maximum_waveform_file_bytes": 16777216,
+      "maximum_test_output_file_bytes": 67108864
+    },
+    "measurement_notes": [
+      "Job estimates remain null until a completed gate records a representative output size; unknown is not a reservation. The Icarus estimate is a measured existing output-tree snapshot and is not a filesystem high-water measurement.",
+      "The Icarus output-tree limit is twice that measured snapshot so accumulated small files also trigger review.",
+      "The developer profile warns below 50 GiB and blocks below a 40 GiB reserve; these are configurable workstation safeguards, not architecture limits.",
+      "The hosted profile retains the existing 2 GiB free-space floor and is independent of developer-workstation thresholds."
+    ]
+  },
   "budgets": {
     "clean_debug_release_wall_seconds": 900,
     "rtl_iverilog_default_compile_timeout_seconds": 180,

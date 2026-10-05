@@ -36,9 +36,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Preflight sanitizer build storage
+        run: python3 scripts/check_disk_budget.py --profile hosted --operation sanitizer-build --output-path build/sanitizers
       - name: Configure Debug with AddressSanitizer and UndefinedBehaviorSanitizer
         run: cmake -S . -B build/sanitizers -DCMAKE_BUILD_TYPE=Debug -DCGX1_ENABLE_SANITIZERS=ON
       - name: Build all executable tests
         run: cmake --build build/sanitizers --parallel 2
       - name: Run complete CTest suite
         run: ctest --test-dir build/sanitizers --output-on-failure
+      - name: Measure and bound sanitizer outputs
+        if: always()
+        run: python3 scripts/check_disk_budget.py --profile hosted --operation sanitizer-build --output-path build/sanitizers --scan-root build/sanitizers

@@ -27,6 +27,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Preflight Verilator source and install volumes
+        run: |
+          python3 scripts/check_disk_budget.py --profile hosted --operation verilator-toolchain-build --output-path .tools/verilator
+          python3 scripts/check_disk_budget.py --profile hosted --operation verilator-toolchain-build --output-path "$RUNNER_TEMP/verilator-5.052"
+          python3 scripts/check_disk_budget.py --profile hosted --operation hosted-tool-install --output-path /usr
+          python3 scripts/check_disk_budget.py --profile hosted --operation hosted-tool-install --output-path /var/lib/apt/lists
+          python3 scripts/check_disk_budget.py --profile hosted --operation hosted-tool-install --output-path /var/cache/apt/archives
       - name: Install Yosys and Verilator build prerequisites
         run: |
           timeout 5m sudo apt-get update
@@ -49,5 +56,7 @@ jobs:
           echo "$RUNNER_TEMP/verilator-5.052/bin" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/verilator-5.052/bin/verilator" --version
           [[ "$("$RUNNER_TEMP/verilator-5.052/bin/verilator" --version)" == "Verilator 5.052 "* ]]
+      - name: Measure and bound installed Verilator outputs
+        run: python3 scripts/check_disk_budget.py --profile hosted --operation verilator-toolchain-build --output-path "$RUNNER_TEMP/verilator-5.052" --scan-root "$RUNNER_TEMP/verilator-5.052"
       - name: Run bounded lint, formal, and synthesis smoke
         run: ./scripts/validate_rtl_tools.sh

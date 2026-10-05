@@ -8,7 +8,6 @@ import os
 import shutil
 import subprocess
 import sys
-import uuid
 from pathlib import Path
 from typing import Sequence
 
@@ -18,9 +17,18 @@ except ModuleNotFoundError:  # direct execution places scripts/, not the reposit
     from validation_paths import PathTranslationError, resolve_root_argument
 
 try:
-    from scripts.run_clean_cmake_tests import CleanSourceIdentityError, source_identity
+    from scripts.run_clean_cmake_tests import CleanSourceIdentityError, source_identity, tree_bytes
 except ModuleNotFoundError:
-    from run_clean_cmake_tests import CleanSourceIdentityError, source_identity
+    from run_clean_cmake_tests import CleanSourceIdentityError, source_identity, tree_bytes
+
+try:
+    from scripts.check_disk_budget import (
+        DiskBudgetError, format_preflight_report, preflight_disk_budget,
+    )
+except ModuleNotFoundError:
+    from check_disk_budget import (
+        DiskBudgetError, format_preflight_report, preflight_disk_budget,
+    )
 
 
 class WslCandidateError(RuntimeError):
@@ -93,6 +101,28 @@ def required_linux_tools() -> None:
         )
 
 
+def require_no_existing_linux_candidates(
+    repository_root: Path,
+    candidate_parent: Path = Path("/tmp"),
+) -> None:
+    existing = sorted(candidate_parent.glob("cgx1-clean-candidate-*"))
+    if not existing:
+        return
+    registered: set[Path] = set()
+    for line in git(repository_root, "worktree", "list", "--porcelain").splitlines():
+        if line.startswith("worktree "):
+            registered.add(Path(line.removeprefix("worktree ")).resolve(strict=False))
+    details = []
+    for path in existing:
+        state = "registered Git worktree (active status not proven)" if path.resolve(strict=False) in registered else "unregistered output"
+        details.append(f"{path} [{state}]")
+    raise WslCandidateError(
+        "an earlier CGX1 Linux clean-candidate output remains; determine whether it is active "
+        "and remove only a positively identified stale candidate before starting another: "
+        + "; ".join(details)
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--git-root", required=True,
@@ -114,9 +144,19 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     candidate_path: Path | None = None
     added_worktree = False
+    pass_message: str | None = None
     result_code = 1
     try:
         required_linux_tools()
+        linux_output_root = Path("/tmp")
+        disk_report = preflight_disk_budget(
+            root, "wsl-candidate", linux_output_root,
+        )
+        print(format_preflight_report(disk_report), flush=True)
+        if disk_report["status"] == "unsafe":
+            raise DiskBudgetError(disk_report["reason"])
+        require_no_existing_linux_candidates(root, linux_output_root)
+
         commit, tree = require_git_candidate_identity(root, args.commit, args.tree)
 
         sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -129,11 +169,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         require_fingerprint_match(args.source_fingerprint, linux_commit_fingerprint,
                                   view="before configure")
 
-        candidate_path = Path("/tmp") / f"cgx1-clean-candidate-{uuid.uuid4().hex}"
+        candidate_path = linux_output_root / f"cgx1-clean-candidate-{commit}"
         if candidate_path.exists():
             raise WslCandidateError(f"refusing to reuse existing Linux candidate path: {candidate_path}")
-        git(root, "worktree", "add", "--detach", "--quiet", str(candidate_path), commit)
         added_worktree = True
+        git(root, "worktree", "add", "--detach", "--quiet", str(candidate_path), commit)
         identity_before = source_identity(candidate_path)
         if identity_before["git_head"] != commit or identity_before["head_tree"] != tree:
             raise WslCandidateError(
@@ -188,16 +228,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         linux_fingerprint_after = validate_evidence.source_fingerprint(root, commit, excluded)
         require_fingerprint_match(args.source_fingerprint, linux_fingerprint_after,
                                   view="after validation")
-        print(
+        candidate_bytes_after_validation = tree_bytes(candidate_path)
+        print(json.dumps({
+            "candidate_commit": commit,
+            "linux_candidate_tree_bytes_after_validation": candidate_bytes_after_validation,
+            "linux_free_bytes_before": disk_report["free_bytes"],
+            "disk_output_root": str(linux_output_root),
+        }, sort_keys=True), flush=True)
+        pass_message = (
             f"[wsl-clean-candidate] PASS uid={os.geteuid()} commit={commit} tree={tree} "
-            f"source_fingerprint={args.source_fingerprint} path={candidate_path}",
-            flush=True,
+            f"source_fingerprint={args.source_fingerprint} path={candidate_path}"
         )
         result_code = 0
-    except (OSError, ValueError, WslCandidateError, CleanSourceIdentityError,
+    except (DiskBudgetError, OSError, ValueError, WslCandidateError, CleanSourceIdentityError,
             subprocess.SubprocessError, json.JSONDecodeError) as error:
         print(f"unprivileged WSL candidate validation failed: {error}", file=sys.stderr)
-        result_code = 1
+        result_code = 2 if isinstance(error, DiskBudgetError) else 1
     finally:
         if added_worktree and candidate_path is not None:
             cleanup = subprocess.run(
@@ -210,6 +256,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 detail = cleanup.stderr.strip() or cleanup.stdout.strip() or "no Git diagnostic"
                 print(f"Linux candidate cleanup failed for {candidate_path}: {detail}", file=sys.stderr)
                 result_code = 1
+            elif candidate_path.exists():
+                print(f"Linux candidate cleanup failed; path remains: {candidate_path}", file=sys.stderr)
+                result_code = 1
+            else:
+                try:
+                    after_cleanup = shutil.disk_usage(linux_output_root).free
+                    print(
+                        f"[wsl-clean-candidate] storage: linux_free_before={disk_report['free_bytes']} "
+                        f"linux_free_after_cleanup={after_cleanup}; Windows host free space and WSL VHDX "
+                        "allocation are separate measurements",
+                        flush=True,
+                    )
+                except (OSError, UnboundLocalError):
+                    pass
+    if result_code == 0 and pass_message is not None:
+        print(pass_message, flush=True)
     return result_code
 
 

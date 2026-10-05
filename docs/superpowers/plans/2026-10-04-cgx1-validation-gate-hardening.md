@@ -22,6 +22,9 @@
 - Treat WSL root runs as diagnostics only. Prefer an existing unprivileged account; do not create a persistent WSL user if a usable account or hosted unprivileged Linux runner is available.
 - Add GPU-specific Verilator, synthesis-smoke, sanitizer, coverage, escaped-defect, and fault-injection evidence where current tools and RTL contracts support it.
 - Validation remains CPU-only and headless; optional heavier lanes cannot become a baseline hardware requirement.
+- Storage-heavy gates must preflight the volume that receives output, use configurable developer and hosted profiles, report unmeasured job sizes honestly, and fail before output creation when measured headroom is unsafe.
+- Validation outputs must have a bounded size and an explicit owner and cleanup lifecycle; cleanup must stay within exact known CGX1-generated paths and respect path redirection.
+- Prefer sequential local build configurations while host free space is below the configured warning threshold; never compact WSL or purge shared caches automatically.
 - Commit one coherent batch only after its complete validation gate passes; push the validated commit to the completeness branch, verify the exact remote SHA, dispatch applicable workflows, and continue local work while hosted checks run.
 - Treat feature publication and main integration as separate relationships: report local-to-feature and feature-to-main SHAs, ancestry, ahead/behind counts, integration PR state, hosted-green integration debt, and latest integrated main SHA.
 - Do not begin a new major GPU subsystem while main is behind the hosted-green feature milestone or contains commits absent from the feature branch.
@@ -38,6 +41,7 @@
 - The pooled resident INT8 plus ordinary-vector composition must remain explicitly partial if only compiled.
 - Missing Markdown targets and missing heading anchors must fail with distinct diagnostics.
 - Randomized failures must report seed and enough iteration/state to reproduce them.
+- A missing output-volume measurement, unsafe projected free space, stale temporary candidate, or oversized waveform/test output must produce a clear nonzero gate result.
 
 ### Task 1: Candidate identity and executable evidence ledger
 
@@ -126,5 +130,18 @@
 - [ ] Create or update the integration PR from `codex/cgx1-completeness` to protected `main`; verify exact PR head/base, all required checks, and the complete merge diff.
 - [ ] Merge through the protected workflow with ancestry preserved; verify resulting main SHA and ancestry, fetch it, reconcile the completeness branch by fast-forward when possible, and rerun branch-state checks.
 - [ ] Only after integration is complete, run the major-slice preflight and resume the dependency-aware complete-GPU queue.
+
+### Task 8: Storage-aware validation and artifact lifecycle
+
+**Files:** Extend `design/cgx1_validation_resource_budget.json`, add `scripts/check_disk_budget.py` and focused tests, integrate checks into clean-candidate/CMake/WSL/RTL/RTL-tools entry points, and update `docs/VALIDATION.md`.
+
+- [x] Write disk-policy tests first for local warning/unsafe thresholds, hosted reserve, projected headroom, unknown estimates, nonexistent output leaves, actual output-volume selection, symlink-safe output scanning, and oversized waveform/test output.
+- [x] Add independent measured observations only where existing artifacts or a completed gate provide real byte counts; keep machine free-space readings out of committed policy.
+- [x] Preflight before creating clean candidate worktrees or build/output directories; use the developer profile locally and the hosted profile in CI.
+- [x] Record output and free-space measurements in compact summaries, classify unmeasured gate classes as unmeasured, and never treat an unknown size as an observed reservation.
+- [x] Keep local Debug/Release runs sequential; define retention and failure cleanup for temporary clean-room candidates and each RTL-tools output root.
+- [x] Add bounded output-size checks for waveforms and test artifacts; preserve evidence logs needed to classify failures.
+- [ ] Verify the new checks with their Python tests and existing full gate suite; run unprivileged clean Debug/Release, the false Release-check proof, bounded RTL, and identity/fingerprint gates on the exact candidate through a supported non-root WSL process or the exact-SHA hosted Linux workflow; complete the changed-file scope audit and `git diff --check` before commit.
+- [x] Report any OS-policy-rejected cleanup as not performed; do not route around a deletion refusal.
 
 **Explicit deferral:** External-consumer validation is not required in this batch because an assembler/compiler/runtime consumer path is not yet ready; retain it as a dependency-queue item until those interfaces exist.

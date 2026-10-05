@@ -6,7 +6,9 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -16,10 +18,17 @@ from typing import Any
 
 try:
     from scripts.validation_paths import PathTranslationError, resolve_root_argument
+    from scripts.check_disk_budget import (
+        DiskBudgetError, format_preflight_report, is_redirected_path, load_disk_policy,
+        preflight_disk_budget, scan_generated_artifacts,
+    )
 except ModuleNotFoundError:  # direct execution places scripts/, not the repository root, on sys.path
     from validation_paths import PathTranslationError, resolve_root_argument
+    from check_disk_budget import (
+        DiskBudgetError, format_preflight_report, is_redirected_path, load_disk_policy,
+        preflight_disk_budget, scan_generated_artifacts,
+    )
 
-MIN_FREE_BYTES = 2 * 1024 * 1024 * 1024
 DEFAULT_BUDGET_SECONDS = 900
 
 
@@ -112,12 +121,32 @@ def source_identity(root: Path) -> dict[str, str]:
 
 def tree_bytes(path: Path) -> int:
     total = 0
-    for item in path.rglob("*"):
-        if item.is_file():
+
+    def fail_on_walk_error(error: OSError) -> None:
+        raise error
+
+    for directory, child_directories, file_names in os.walk(
+        path, topdown=True, followlinks=False, onerror=fail_on_walk_error,
+    ):
+        current = Path(directory)
+        retained_directories = []
+        for name in child_directories:
+            child = current / name
             try:
-                total += item.stat().st_size
-            except OSError:
-                pass
+                metadata = child.lstat()
+            except OSError as error:
+                raise DiskBudgetError(f"cannot inspect generated output directory {child}: {error}") from error
+            if not is_redirected_path(child, metadata) and stat.S_ISDIR(metadata.st_mode):
+                retained_directories.append(name)
+        child_directories[:] = retained_directories
+        for name in file_names:
+            item = current / name
+            try:
+                metadata = item.lstat()
+            except OSError as error:
+                raise DiskBudgetError(f"cannot measure generated output {item}: {error}") from error
+            if not is_redirected_path(item, metadata) and stat.S_ISREG(metadata.st_mode):
+                total += metadata.st_size
     return total
 
 
@@ -207,6 +236,90 @@ def write_summary(path: Path | None, summary: dict[str, Any]) -> None:
     path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
+def require_no_stale_clean_builds(build_root: Path) -> None:
+    if not build_root.is_dir():
+        return
+    existing = sorted(
+        child for child in build_root.iterdir()
+        if child.name.startswith("cgx1-clean-cmake-")
+    )
+    if existing:
+        paths = ", ".join(str(path) for path in existing)
+        raise RuntimeError(
+            "an earlier CGX1 clean CMake output is still present; determine whether it is active "
+            f"before cleanup or starting another build: {paths}"
+        )
+
+
+def require_build_root_inside_repo(root: Path, build_root: Path) -> None:
+    root_resolved = root.resolve()
+    build_directory = root_resolved / "build"
+    try:
+        resolved_build_directory = build_directory.resolve(strict=False)
+        resolved_output = build_root.resolve(strict=False)
+    except (OSError, RuntimeError) as error:
+        raise DiskBudgetError(f"cannot resolve clean build output path {build_root}: {error}") from error
+    if is_redirected_path(build_directory) or os.path.ismount(build_directory):
+        raise DiskBudgetError(f"clean build directory is redirected or mounted: {build_directory}")
+    if is_redirected_path(build_root) or os.path.ismount(build_root):
+        raise DiskBudgetError(f"clean build output is redirected or mounted: {build_root}")
+    if (not resolved_build_directory.is_relative_to(root_resolved)
+            or resolved_build_directory == root_resolved):
+        raise DiskBudgetError(f"clean build directory resolves outside the repository: {build_directory}")
+    if (not resolved_output.is_relative_to(resolved_build_directory)
+            or resolved_output == resolved_build_directory):
+        raise DiskBudgetError(
+            f"clean build output must remain under the repository build directory: {build_root}"
+        )
+
+
+def require_safe_owned_tree(path: Path, expected_parent: Path, prefix: str) -> None:
+    if not path.exists():
+        return
+    if not path.name.startswith(prefix):
+        raise RuntimeError(f"refusing to remove output without the CGX1 owner prefix: {path}")
+    if is_redirected_path(path) or os.path.ismount(path):
+        raise RuntimeError(f"refusing to remove a symlink or mount point: {path}")
+    if is_redirected_path(expected_parent) or os.path.ismount(expected_parent):
+        raise RuntimeError(f"refusing cleanup through a redirected or mounted parent: {expected_parent}")
+    if not path.is_dir():
+        raise RuntimeError(f"refusing to recursively remove a non-directory output: {path}")
+    if path.resolve(strict=True).parent != expected_parent.resolve(strict=True):
+        raise RuntimeError(f"refusing to remove output outside its owned parent: {path}")
+
+    def fail_on_walk_error(error: OSError) -> None:
+        raise RuntimeError(f"cannot inspect generated output before cleanup {path}: {error}") from error
+
+    for directory, child_directories, file_names in os.walk(
+        path, topdown=True, followlinks=False, onerror=fail_on_walk_error,
+    ):
+        current = Path(directory)
+        for name in child_directories + file_names:
+            child = current / name
+            try:
+                metadata = child.lstat()
+            except OSError as error:
+                raise RuntimeError(f"cannot inspect generated output before cleanup {child}: {error}") from error
+            if is_redirected_path(child, metadata) or os.path.ismount(child):
+                raise RuntimeError(f"refusing recursive cleanup through redirected path: {child}")
+
+
+def compiler_operation(root: Path, config: str) -> str:
+    if os.name == "nt":
+        return "clean-cmake"
+    compiler = shlex.split(os.environ.get("CC") or shutil.which("cc") or "cc")
+    description = first_line([*compiler, "--version"], root) or ""
+    family = "clang" if "clang" in description.lower() else "gcc"
+    operation = f"{family}-{config.lower()}"
+    try:
+        budget = json.loads((root / "design/cgx1_validation_resource_budget.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "clean-cmake"
+    if operation not in budget.get("disk_budget", {}).get("operations", {}):
+        return "clean-cmake"
+    return operation
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", help="repository root in this shell's path syntax")
@@ -268,8 +381,36 @@ def main() -> int:
         return 2
 
     build_root = root / "build" / "clean-validation"
+    build_root_existed = build_root.exists()
+    build_parent_existed = (root / "build").exists()
+    try:
+        require_build_root_inside_repo(root, build_root)
+        disk_report = preflight_disk_budget(root, "clean-cmake", build_root)
+        print(format_preflight_report(disk_report), flush=True)
+        if disk_report["status"] == "unsafe":
+            raise DiskBudgetError(disk_report["reason"])
+        require_no_stale_clean_builds(build_root)
+    except (DiskBudgetError, OSError, RuntimeError) as error:
+        message = str(error)
+        summary = {
+            "schema_version": 1, "root": root.name, **identity_before,
+            "configuration_set": list(configs), "status": "preflight_failed", "exit_code": 2,
+            "runner_uid": runner_uid, "privilege_class": privilege_class,
+            "failure": {"message": message}, "budget_seconds": args.budget_seconds,
+            "parallel_jobs": args.jobs, "host": platform.platform(), "python": sys.version,
+            "configurations": [], "disk_budget_preflight": locals().get("disk_report"),
+            "total_elapsed_seconds": time.monotonic() - started,
+        }
+        print(f"Clean CMake preflight failed: {message}", file=sys.stderr)
+        write_summary(args.summary_json, summary)
+        print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
+        return 2
+
     build_root.mkdir(parents=True, exist_ok=True)
     base = Path(tempfile.mkdtemp(prefix="cgx1-clean-cmake-", dir=build_root))
+    if args.summary_json is not None and args.summary_json.resolve(strict=False).is_relative_to(base.resolve()):
+        shutil.rmtree(base)
+        raise ValueError("--summary-json must not be placed inside the disposable clean build tree")
     summary: dict[str, Any] = {
         "schema_version": 1, "root": root.name, **identity_before,
         "configuration_set": list(configs),
@@ -279,26 +420,24 @@ def main() -> int:
         "cmake": first_line(["cmake", "--version"], root),
         "ctest": first_line(["ctest", "--version"], root),
         "ctest_executable": shutil.which("ctest"),
-        "free_bytes_before": shutil.disk_usage(base.parent).free,
-        "minimum_free_bytes": MIN_FREE_BYTES, "build_tree_bytes": None,
+        "free_bytes_before": disk_report["free_bytes"],
+        "minimum_free_bytes": disk_report["minimum_free_bytes"],
+        "disk_budget_preflight": disk_report,
+        "build_tree_bytes": None, "peak_configuration_tree_bytes": 0,
         "configurations": [], "total_elapsed_seconds": None,
     }
-    if summary["free_bytes_before"] < MIN_FREE_BYTES:
-        print(f"Less than {MIN_FREE_BYTES} bytes free before clean validation.", file=sys.stderr)
-        summary["status"] = "insufficient_space"
-        summary["exit_code"] = 2
-        summary["total_elapsed_seconds"] = time.monotonic() - started
-        write_summary(args.summary_json, summary)
-        print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
-        if not args.keep_build:
-            shutil.rmtree(base, ignore_errors=True)
-        return 2
 
     exit_code = 0
     try:
         for config in configs:
             config_started = time.monotonic()
             build = base / config.lower()
+            stage_disk_report = preflight_disk_budget(
+                root, compiler_operation(root, config), build,
+            )
+            print(format_preflight_report(stage_disk_report), flush=True)
+            if stage_disk_report["status"] == "unsafe":
+                raise DiskBudgetError(stage_disk_report["reason"])
             stages: dict[str, float] = {}
             configure = ["cmake", "-S", str(root), "-B", str(build), f"-DCMAKE_BUILD_TYPE={config}", *args.cmake_arg]
             stages["configure_seconds"] = run(configure, root, started, args.budget_seconds)
@@ -335,10 +474,34 @@ def main() -> int:
                 "--parallel", str(args.jobs)], root, started, args.budget_seconds)
             stages["ctest_seconds"] = run(["ctest", "--test-dir", str(build), "-C", config,
                 "--output-on-failure"], root, started, args.budget_seconds)
+            disk_policy = load_disk_policy(root)
+            limits = disk_policy["artifact_limits"]
+            artifact_scan = scan_generated_artifacts(
+                build,
+                max_waveform_bytes=limits["maximum_waveform_file_bytes"],
+                max_test_output_bytes=limits["maximum_test_output_file_bytes"],
+            )
+            if not artifact_scan["passed"]:
+                summary["artifact_scan_failure"] = artifact_scan
+                raise RuntimeError(
+                    "clean CMake output exceeded its configured per-file size limit: "
+                    + json.dumps(artifact_scan.get("oversized", []), sort_keys=True)
+                )
+            config_bytes = tree_bytes(build)
+            summary["peak_configuration_tree_bytes"] = max(
+                summary["peak_configuration_tree_bytes"], config_bytes,
+            )
             summary["configurations"].append({"name": config, "status": "passed", "test_count": test_count,
                 "test_inventory_method": inventory_method,
+                "disk_budget_preflight": stage_disk_report,
+                "artifact_scan": artifact_scan,
+                "build_tree_bytes": config_bytes,
+                "free_bytes_after": shutil.disk_usage(base.parent).free,
                 "toolchain": toolchain, **stages,
                 "elapsed_seconds": time.monotonic() - config_started})
+            if not args.keep_build:
+                require_safe_owned_tree(build, base, config.lower())
+                shutil.rmtree(build)
         identity_after = source_identity(root)
         require_unchanged_source_identity(identity_before, identity_after)
         if privilege_class == "root_diagnostic_only":
@@ -365,7 +528,7 @@ def main() -> int:
         summary["status"] = "identity_changed"
         summary["failure"] = {"message": str(error)}
         print(str(error), file=sys.stderr)
-    except (OSError, subprocess.SubprocessError, json.JSONDecodeError, RuntimeError) as error:
+    except (DiskBudgetError, OSError, subprocess.SubprocessError, json.JSONDecodeError, RuntimeError) as error:
         exit_code = 1
         summary["status"] = "failed"
         summary["failure"] = {"message": str(error)}
@@ -373,16 +536,52 @@ def main() -> int:
     finally:
         summary["exit_code"] = exit_code
         summary["total_elapsed_seconds"] = time.monotonic() - started
-        summary["build_tree_bytes"] = tree_bytes(base)
-        summary["free_bytes_after"] = shutil.disk_usage(base.parent).free
-        summary["build_tree_path"] = str(base) if args.keep_build else None
         try:
-            write_summary(args.summary_json, summary)
-        finally:
-            if args.keep_build:
-                print(f"Retained fresh build trees: {base}")
-            else:
-                shutil.rmtree(base, ignore_errors=True)
+            summary["build_tree_bytes"] = (
+                tree_bytes(base) if args.keep_build else summary["peak_configuration_tree_bytes"]
+            )
+        except (DiskBudgetError, OSError) as error:
+            summary["build_tree_bytes"] = None
+            summary["artifact_size_measurement_failure"] = str(error)
+            if exit_code == 0:
+                exit_code = 1
+                summary["status"] = "failed"
+                summary["failure"] = {"message": str(error)}
+        summary["build_tree_path"] = str(base) if args.keep_build else None
+        if args.keep_build:
+            print(f"Retained fresh build trees: {base}")
+        else:
+            try:
+                require_safe_owned_tree(base, build_root, "cgx1-clean-cmake-")
+                if base.exists():
+                    shutil.rmtree(base)
+                if not build_root_existed:
+                    try:
+                        build_root.rmdir()
+                    except OSError:
+                        pass
+                if not build_parent_existed:
+                    try:
+                        (root / "build").rmdir()
+                    except OSError:
+                        pass
+            except (OSError, RuntimeError) as error:
+                exit_code = 1
+                summary["exit_code"] = exit_code
+                summary["status"] = "cleanup_failed"
+                summary["failure"] = {"message": str(error)}
+                print(f"Clean CMake output cleanup failed: {error}", file=sys.stderr)
+        try:
+            summary["free_bytes_after"] = shutil.disk_usage(disk_report["filesystem_probe_path"]).free
+        except (OSError, KeyError):
+            summary["free_bytes_after"] = None
+        summary["free_bytes_after_cleanup"] = summary["free_bytes_after"]
+        if summary["free_bytes_after_cleanup"] is None and exit_code == 0:
+            exit_code = 1
+            summary["status"] = "failed"
+            summary["failure"] = {"message": "post-cleanup filesystem free space could not be measured"}
+        summary["exit_code"] = exit_code
+        write_summary(args.summary_json, summary)
         print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
     return exit_code
 

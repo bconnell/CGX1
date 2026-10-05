@@ -23,6 +23,9 @@ if ! command -v timeout >/dev/null 2>&1; then
     exit 1
 fi
 
+python3 scripts/check_disk_budget.py \
+    --operation icarus --output-path build/rtl --scan-root build/rtl
+
 iverilog_bin="$(command -v iverilog)"
 echo "==> Icarus Verilog version"
 timeout 10s "$iverilog_bin" -V
@@ -743,5 +746,7 @@ echo "==> Run per-wave workgroup LSU RTL"
 timeout 30s vvp build/rtl/cgx1_compute_workgroup_lsu_tb.vvp
 
 python3 scripts/validate_rtl_warnings.py --log build/rtl/compiler-warnings.log
+python3 scripts/check_disk_budget.py \
+    --operation icarus --output-path build/rtl --scan-root build/rtl
 
 echo "[pass] CGX 1 RTL validation completed."

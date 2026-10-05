@@ -10,6 +10,9 @@ for tool in verilator yosys timeout; do
     fi
 done
 
+python3 scripts/check_disk_budget.py \
+    --operation rtl-tools --output-path build/rtl-tools --scan-root build/rtl-tools
+
 mkdir -p build/rtl-tools/logs
 rtl_sources=(source/rtl/*.sv)
 verilator_tops=(
@@ -37,6 +40,8 @@ verilator_args=()
 while IFS= read -r log; do verilator_args+=(--verilator-log "$log"); done < build/rtl-tools/verilator-logs.list
 
 formal_log="build/rtl-tools/logs/yosys-formal-issue-arbiter.log"
+python3 scripts/check_disk_budget.py \
+    --operation formal --output-path "$formal_log"
 echo "==> Bounded Yosys assertion proof: matrix/vector issue arbitration truth table"
 if ! timeout --signal=TERM --kill-after=5s 90s yosys -Q -p \
     'read_verilog -formal -sv source/rtl/cgx1_matrix_vector_issue_arbiter.sv source/rtl/formal/cgx1_matrix_vector_issue_arbiter_formal.sv; prep -top cgx1_matrix_vector_issue_arbiter_formal -flatten; sat -prove-asserts -verify -show-ports' \
@@ -48,6 +53,8 @@ fi
 cat "$formal_log"
 
 synthesis_log="build/rtl-tools/logs/yosys-synthesis-issue-arbiter.log"
+python3 scripts/check_disk_budget.py \
+    --operation synthesis-smoke --output-path "$synthesis_log"
 echo "==> Bounded Yosys synthesis smoke: matrix/vector issue arbitration"
 if ! timeout --signal=TERM --kill-after=5s 90s yosys -Q -p \
     'read_verilog -sv source/rtl/cgx1_matrix_vector_issue_arbiter.sv; hierarchy -check -top cgx1_matrix_vector_issue_arbiter; proc; opt; check; stat' \
@@ -60,4 +67,6 @@ cat "$synthesis_log"
 
 python3 scripts/validate_rtl_tool_warnings.py "${verilator_args[@]}" \
     --yosys-log "$formal_log" --yosys-log "$synthesis_log"
+python3 scripts/check_disk_budget.py \
+    --operation rtl-tools --output-path build/rtl-tools --scan-root build/rtl-tools
 echo "[pass] Bounded Verilator lint, Yosys assertion proof, and representative synthesis smoke completed."

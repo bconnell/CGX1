@@ -20,6 +20,7 @@ from validate_clean_candidate import (  # noqa: E402
     require_candidate_paths,
     CleanCandidate,
     run_linux_candidate_validation,
+    require_no_existing_candidate_worktrees,
 )
 
 
@@ -56,11 +57,13 @@ class CleanCandidateTests(unittest.TestCase):
         (self.root / "required_helper.py").write_text("value = 1\n", encoding="utf-8")
         candidate = create_clean_candidate(self.root, self.worktree_parent)
         try:
+            self.assertEqual(candidate.path.name, "candidate-" + candidate.tree)
             self.assertFalse((candidate.path / "required_helper.py").exists())
             with self.assertRaisesRegex(CandidateValidationError, "required_helper.py"):
                 require_candidate_paths(candidate.path, ["required_helper.py"])
         finally:
             remove_clean_candidate(self.root, candidate)
+        self.assertFalse(candidate.path.exists(), "candidate worktree cleanup must remove its owned tree")
 
     def test_staged_required_helper_is_present_in_candidate(self) -> None:
         (self.root / "required_helper.py").write_text("value = 1\n", encoding="utf-8")
@@ -77,6 +80,28 @@ class CleanCandidateTests(unittest.TestCase):
         with self.assertRaisesRegex(CandidateValidationError, "must be repository-relative"):
             require_candidate_paths(self.root, ["../outside.txt"])
 
+    def test_candidate_output_parent_must_be_in_the_designated_build_area(self) -> None:
+        unowned_parent = self.root / "other-output"
+        with self.assertRaisesRegex(CandidateValidationError, "build directory"):
+            create_clean_candidate(self.root, unowned_parent)
+        self.assertFalse(unowned_parent.exists(), "rejected output parents must not be created")
+
+    def test_candidate_output_parent_must_use_the_deterministic_directory(self) -> None:
+        alternate_parent = self.root / "build" / "other-candidates"
+        with self.assertRaisesRegex(CandidateValidationError, "deterministic"):
+            create_clean_candidate(self.root, alternate_parent)
+        self.assertFalse(alternate_parent.exists(), "alternate output parents must not be created")
+
+    def test_candidate_output_parent_rejects_a_reported_redirected_path(self) -> None:
+        with patch(
+            "validate_clean_candidate.is_redirected_path",
+            side_effect=lambda path, *_args: Path(path) == self.worktree_parent,
+        ):
+            with self.assertRaisesRegex(CandidateValidationError, "redirected"):
+                create_clean_candidate(self.root, self.worktree_parent)
+
+        self.assertEqual([], list(self.worktree_parent.iterdir()))
+
     def test_existing_build_directory_is_rejected_before_candidate_validation(self) -> None:
         candidate = create_clean_candidate(self.root, self.worktree_parent)
         try:
@@ -85,6 +110,23 @@ class CleanCandidateTests(unittest.TestCase):
                 require_empty_build_start(candidate.path)
         finally:
             remove_clean_candidate(self.root, candidate)
+
+    def test_registered_candidate_blocks_duplicate_clean_validation(self) -> None:
+        candidate = create_clean_candidate(self.root, self.worktree_parent)
+        try:
+            with self.assertRaisesRegex(CandidateValidationError, "active status not proven"):
+                require_no_existing_candidate_worktrees(self.root, self.worktree_parent)
+        finally:
+            remove_clean_candidate(self.root, candidate)
+
+    def test_unregistered_candidate_output_is_preserved_and_reported(self) -> None:
+        stale = self.worktree_parent / "candidate-unclassified"
+        stale.mkdir()
+
+        with self.assertRaisesRegex(CandidateValidationError, "unregistered output"):
+            require_no_existing_candidate_worktrees(self.root, self.worktree_parent)
+
+        self.assertTrue(stale.is_dir(), "uncertain candidate output must not be deleted by the guard")
 
     def test_root_linux_runner_is_rejected_as_canonical_candidate_evidence(self) -> None:
         with self.assertRaisesRegex(CandidateValidationError, "diagnostic"):

@@ -29,6 +29,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Preflight Icarus installation volumes
+        run: |
+          python3 scripts/check_disk_budget.py --profile hosted --operation hosted-tool-install --output-path /usr
+          python3 scripts/check_disk_budget.py --profile hosted --operation hosted-tool-install --output-path /var/lib/apt/lists
+          python3 scripts/check_disk_budget.py --profile hosted --operation hosted-tool-install --output-path /var/cache/apt/archives
+
       - name: Install Icarus Verilog
         run: |
           sudo apt-get update

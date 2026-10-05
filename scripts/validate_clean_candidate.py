@@ -8,7 +8,6 @@ import os
 import shutil
 import subprocess
 import sys
-import uuid
 from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 from typing import Sequence
@@ -22,6 +21,9 @@ try:
         resolve_root_argument,
         translate_windows_path_to_wsl,
     )
+    from scripts.check_disk_budget import (
+        DiskBudgetError, format_preflight_report, is_redirected_path, preflight_disk_budget,
+    )
 except ModuleNotFoundError:  # direct execution places scripts/, not the repository root, on sys.path
     from validation_paths import (
         PathTranslationError,
@@ -31,6 +33,14 @@ except ModuleNotFoundError:  # direct execution places scripts/, not the reposit
         resolve_root_argument,
         translate_windows_path_to_wsl,
     )
+    from check_disk_budget import (
+        DiskBudgetError, format_preflight_report, is_redirected_path, preflight_disk_budget,
+    )
+
+try:
+    from scripts.run_clean_cmake_tests import tree_bytes
+except ModuleNotFoundError:
+    from run_clean_cmake_tests import tree_bytes
 
 DEFAULT_REQUIRED_PATHS = (
     "CMakeLists.txt",
@@ -40,6 +50,8 @@ DEFAULT_REQUIRED_PATHS = (
     "scripts/validate_clean_candidate.py",
     "scripts/run_wsl_candidate.py",
     "scripts/run_clean_cmake_tests.py",
+    "scripts/check_disk_budget.py",
+    "design/cgx1_validation_resource_budget.json",
     "scripts/prove_release_test_check_failure.py",
     "scripts/validate_evidence.py",
     "scripts/validate_hardening_ledgers.py",
@@ -121,9 +133,7 @@ def create_clean_candidate(root: Path, worktree_parent: Path | None = None) -> C
     root = Path(_git(root.resolve(), "rev-parse", "--show-toplevel")).resolve()
     if worktree_parent is None:
         worktree_parent = root / "build" / "cgx1-clean-candidates"
-    worktree_parent = worktree_parent.resolve()
-    if not worktree_parent.is_relative_to(root):
-        raise CandidateValidationError("candidate worktree parent must remain inside the repository build directory")
+    worktree_parent = require_candidate_parent_inside_build(root, worktree_parent)
     worktree_parent.mkdir(parents=True, exist_ok=True)
 
     tree = _git(root, "write-tree")
@@ -139,9 +149,8 @@ def create_clean_candidate(root: Path, worktree_parent: Path | None = None) -> C
             "commit-tree", tree, "-p", head, "-m", "CGX1 staged clean-validation candidate",
         )
 
-    token = uuid.uuid4().hex
-    path = worktree_parent / f"candidate-{tree[:12]}-{token[:8]}"
-    ref = f"refs/cgx1/clean-candidates/{token}"
+    path = worktree_parent / f"candidate-{tree}"
+    ref = f"refs/cgx1/clean-candidates/{tree}"
     if path.exists():
         raise CandidateValidationError(f"refusing to reuse existing candidate path: {path}")
     _git(root, "update-ref", ref, commit)
@@ -162,13 +171,82 @@ def create_clean_candidate(root: Path, worktree_parent: Path | None = None) -> C
         raise
 
 
+def require_candidate_parent_inside_build(root: Path, worktree_parent: Path) -> Path:
+    root_resolved = root.resolve()
+    build_directory = root_resolved / "build"
+    parent = Path(worktree_parent)
+    if not parent.is_absolute():
+        parent = root_resolved / parent
+    try:
+        resolved_build_directory = build_directory.resolve(strict=False)
+        resolved_parent = parent.resolve(strict=False)
+    except (OSError, RuntimeError) as error:
+        raise CandidateValidationError(
+            f"cannot resolve candidate worktree output path {worktree_parent}: {error}"
+        ) from error
+    if is_redirected_path(build_directory) or os.path.ismount(build_directory):
+        raise CandidateValidationError(f"candidate build directory is redirected or mounted: {build_directory}")
+    if is_redirected_path(parent) or os.path.ismount(parent):
+        raise CandidateValidationError(f"candidate output parent is redirected or mounted: {parent}")
+    if (not resolved_build_directory.is_relative_to(root_resolved)
+            or resolved_build_directory == root_resolved):
+        raise CandidateValidationError(
+            f"candidate build directory resolves outside the repository: {build_directory}"
+        )
+    if (not resolved_parent.is_relative_to(resolved_build_directory)
+            or resolved_parent == resolved_build_directory):
+        raise CandidateValidationError(
+            "candidate worktree parent must remain inside the repository build directory"
+        )
+    if resolved_parent != resolved_build_directory / "cgx1-clean-candidates":
+        raise CandidateValidationError(
+            "candidate worktrees must use the deterministic build/cgx1-clean-candidates directory"
+        )
+    return resolved_parent
+
+
+def require_no_existing_candidate_worktrees(root: Path, worktree_parent: Path) -> None:
+    worktree_parent = require_candidate_parent_inside_build(root, worktree_parent)
+    parent_resolved = worktree_parent.resolve(strict=False)
+    registered: set[Path] = set()
+    for line in _git(root, "worktree", "list", "--porcelain").splitlines():
+        if line.startswith("worktree "):
+            registered.add(Path(line.removeprefix("worktree ")).resolve())
+    candidates = sorted(
+        entry for entry in worktree_parent.iterdir()
+        if entry.name.startswith("candidate-")
+    ) if worktree_parent.is_dir() else []
+    registered_candidates = sorted(
+        path for path in registered
+        if path != parent_resolved and path.is_relative_to(parent_resolved)
+    )
+    if not candidates and not registered_candidates:
+        return
+    details = []
+    for path in sorted(set(candidates) | set(registered_candidates)):
+        resolved = path.resolve(strict=False)
+        state = "registered Git worktree (active status not proven)" if resolved in registered else "unregistered output"
+        details.append(f"{path} [{state}]")
+    raise CandidateValidationError(
+        "an earlier CGX1 clean-candidate output remains; determine whether it is active and "
+        "remove only a positively identified stale candidate before starting another: "
+        + "; ".join(details)
+    )
+
+
 def remove_clean_candidate(root: Path, candidate: CleanCandidate) -> None:
     root = Path(_git(root.resolve(), "rev-parse", "--show-toplevel")).resolve()
+    expected_parent = require_candidate_parent_inside_build(
+        root, root / "build" / "cgx1-clean-candidates",
+    )
+    if is_redirected_path(candidate.path) or os.path.ismount(candidate.path):
+        raise CandidateValidationError(f"refusing to remove a redirected candidate path: {candidate.path}")
     candidate_path = candidate.path.resolve()
-    expected_parent = (root / "build" / "cgx1-clean-candidates").resolve()
     if candidate_path.parent != expected_parent or not candidate_path.name.startswith("candidate-"):
         raise CandidateValidationError(f"refusing to remove a path outside the owned candidate root: {candidate_path}")
     _git(root, "worktree", "remove", "--force", str(candidate_path))
+    if candidate_path.exists():
+        raise CandidateValidationError(f"candidate worktree remains after Git cleanup: {candidate_path}")
     _git(root, "update-ref", "-d", candidate.ref, candidate.commit)
 
 
@@ -368,8 +446,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error(str(error))
     required = tuple(dict.fromkeys((*DEFAULT_REQUIRED_PATHS, *args.required_path)))
     candidate: CleanCandidate | None = None
+    disk_report: dict[str, object] | None = None
+    pass_message: str | None = None
     exit_code = 1
     try:
+        candidate_parent = root / "build" / "cgx1-clean-candidates"
+        candidate_parent = require_candidate_parent_inside_build(root, candidate_parent)
+        disk_report = preflight_disk_budget(root, "clean-candidate", candidate_parent)
+        print(format_preflight_report(disk_report), flush=True)
+        if disk_report["status"] == "unsafe":
+            raise DiskBudgetError(disk_report["reason"])
+        require_no_existing_candidate_worktrees(root, candidate_parent)
         candidate = create_clean_candidate(root)
         require_empty_build_start(candidate.path)
         require_candidate_paths(candidate.path, required)
@@ -399,6 +486,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             rtl_status = run_linux_candidate_validation(
                 candidate, args.timeout_seconds, args.skip_rtl,
             )
+        host_disk_after = preflight_disk_budget(
+            root, "clean-candidate", root / "build" / "cgx1-clean-candidates",
+        )
+        print(format_preflight_report(host_disk_after), flush=True)
+        if host_disk_after["status"] == "unsafe":
+            raise DiskBudgetError("post-validation host free space is below the configured reserve")
         after_git = _candidate_git_identity(candidate)
         after_checkout = _working_fingerprint(candidate.path)
         after_commit = _source_fingerprint(candidate.path, candidate.commit)
@@ -408,22 +501,57 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"before={candidate_git_before}/{before}/{checkout_before}, "
                 f"after={after_git}/{after_commit}/{after_checkout}"
             )
-        print(
+        pass_message = (
             f"[clean-candidate] PASS commit={candidate.commit} tree={candidate.tree} "
-            f"source_fingerprint={before} path={candidate.path.resolve()} rtl={rtl_status}",
-            flush=True,
+            f"source_fingerprint={before} path={candidate.path.resolve()} rtl={rtl_status}"
         )
         exit_code = 0
-    except (OSError, ValueError, CandidateValidationError, subprocess.SubprocessError) as error:
+    except (DiskBudgetError, OSError, ValueError, CandidateValidationError, subprocess.SubprocessError) as error:
         print(f"clean-candidate validation failed: {error}", file=sys.stderr)
-        exit_code = 1
+        exit_code = 2 if isinstance(error, DiskBudgetError) else 1
     finally:
         if candidate is not None:
             try:
+                try:
+                    candidate_bytes = tree_bytes(candidate.path)
+                    candidate_size_error = None
+                except (DiskBudgetError, OSError) as error:
+                    candidate_bytes = None
+                    candidate_size_error = str(error)
+                cleanup_probe = Path(disk_report["filesystem_probe_path"]) if disk_report else root
+                try:
+                    free_before_cleanup = shutil.disk_usage(cleanup_probe).free
+                except OSError:
+                    free_before_cleanup = None
                 remove_clean_candidate(root, candidate)
+                try:
+                    free_after_cleanup = shutil.disk_usage(cleanup_probe).free
+                except OSError:
+                    free_after_cleanup = None
+                print(json.dumps({
+                    "candidate_tree_bytes_before_cleanup": candidate_bytes,
+                    "candidate_tree_size_measurement_failure": candidate_size_error,
+                    "host_free_bytes_before_cleanup": free_before_cleanup,
+                    "host_free_bytes_after_cleanup": free_after_cleanup,
+                    "candidate_cleanup_status": "removed",
+                }, sort_keys=True), flush=True)
+                if candidate_size_error or free_before_cleanup is None or free_after_cleanup is None:
+                    exit_code = 1
+                if candidate_size_error:
+                    print(
+                        f"clean-candidate output-size measurement failed: {candidate_size_error}",
+                        file=sys.stderr,
+                    )
+                if free_before_cleanup is None or free_after_cleanup is None:
+                    print(
+                        "clean-candidate free-space measurement was unavailable around cleanup",
+                        file=sys.stderr,
+                    )
             except Exception as error:  # cleanup failure is itself a gate failure
                 print(f"clean-candidate cleanup failed: {error}", file=sys.stderr)
                 exit_code = 1
+    if exit_code == 0 and pass_message is not None:
+        print(pass_message, flush=True)
     return exit_code
 
 

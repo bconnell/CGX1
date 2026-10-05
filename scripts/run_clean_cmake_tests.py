@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -149,9 +150,54 @@ def read_cache(build: Path) -> dict[str, str]:
         key = name.split(":", 1)[0]
         if key in {"CMAKE_C_COMPILER", "CMAKE_C_COMPILER_ID", "CMAKE_C_COMPILER_VERSION",
                    "CMAKE_CXX_COMPILER", "CMAKE_CXX_COMPILER_ID", "CMAKE_CXX_COMPILER_VERSION",
-                   "CMAKE_BUILD_TYPE"}:
+                   "CMAKE_BUILD_TYPE", "CMAKE_GENERATOR", "CMAKE_GENERATOR_PLATFORM"}:
             result[key] = value
     return result
+
+
+def ctest_inventory_count(json_output: str, human_output: str = "") -> tuple[int, str]:
+    """Count registered tests, retaining a human-list fallback for CTest builds."""
+    try:
+        parsed = json.loads(json_output)
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, dict) and isinstance(parsed.get("tests"), list):
+        json_count = len(parsed["tests"])
+        if json_count:
+            return json_count, "json"
+
+    human_count = len(re.findall(r"^\s*Test\s+#\d+:", human_output, re.MULTILINE))
+    if human_count:
+        return human_count, "human"
+    return 0, "empty"
+
+
+def describe_empty_ctest_inventory(
+    build: Path,
+    json_result: subprocess.CompletedProcess[str],
+    human_result: subprocess.CompletedProcess[str],
+    ctest_path: str | None,
+    ctest_version: str | None,
+) -> str:
+    generated_files = sorted(build.rglob("CTestTestfile.cmake"))
+    file_details: list[str] = []
+    for path in generated_files[:16]:
+        try:
+            content = path.read_text(encoding="utf-8", errors="replace")[:3000]
+        except OSError as error:
+            content = f"<read failed: {error}>"
+        file_details.append(f"{path.relative_to(build).as_posix()}: {content!r}")
+    if len(generated_files) > 16:
+        file_details.append(f"... {len(generated_files) - 16} additional CTestTestfile.cmake files omitted")
+    return (
+        "fresh CMake configuration exposes no CTest tests after JSON and human inventory checks; "
+        f"ctest_path={ctest_path!r}; ctest_version={ctest_version!r}; "
+        f"json_exit={json_result.returncode}; json_stdout={json_result.stdout[:4000]!r}; "
+        f"json_stderr={json_result.stderr[:2000]!r}; "
+        f"human_exit={human_result.returncode}; human_stdout={human_result.stdout[:4000]!r}; "
+        f"human_stderr={human_result.stderr[:2000]!r}; "
+        f"generated_test_files={file_details!r}"
+    )
 
 
 def write_summary(path: Path | None, summary: dict[str, Any]) -> None:
@@ -231,6 +277,8 @@ def main() -> int:
         "status": "in_progress", "exit_code": None, "budget_seconds": args.budget_seconds,
         "parallel_jobs": args.jobs, "host": platform.platform(), "python": sys.version,
         "cmake": first_line(["cmake", "--version"], root),
+        "ctest": first_line(["ctest", "--version"], root),
+        "ctest_executable": shutil.which("ctest"),
         "c_banner": first_line(["cc", "--version"], root),
         "cxx_banner": first_line(["c++", "--version"], root),
         "free_bytes_before": shutil.disk_usage(base.parent).free,
@@ -259,17 +307,38 @@ def main() -> int:
             toolchain = read_cache(build)
             inventory_started = time.monotonic()
             tests_json = subprocess.run(["ctest", "--test-dir", str(build), "--show-only=json-v1"],
-                cwd=root, check=True, text=True, encoding="utf-8", stdout=subprocess.PIPE,
+                cwd=root, check=False, text=True, encoding="utf-8", stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, timeout=30)
-            test_count = len(json.loads(tests_json.stdout).get("tests", []))
+            if tests_json.returncode:
+                raise RuntimeError(
+                    "CTest JSON inventory command failed: "
+                    f"exit={tests_json.returncode}; stdout={tests_json.stdout[:4000]!r}; "
+                    f"stderr={tests_json.stderr[:2000]!r}"
+                )
+            test_count, inventory_method = ctest_inventory_count(tests_json.stdout)
             if test_count < 1:
-                raise RuntimeError("fresh CMake configuration exposes no CTest tests")
+                tests_human = subprocess.run(["ctest", "--test-dir", str(build), "--show-only"],
+                    cwd=root, check=False, text=True, encoding="utf-8", stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, timeout=30)
+                test_count, inventory_method = ctest_inventory_count(
+                    tests_json.stdout, tests_human.stdout + "\n" + tests_human.stderr)
+                if tests_human.returncode:
+                    raise RuntimeError(
+                        "CTest human inventory command failed: "
+                        f"exit={tests_human.returncode}; stdout={tests_human.stdout[:4000]!r}; "
+                        f"stderr={tests_human.stderr[:2000]!r}"
+                    )
+                if test_count < 1:
+                    raise RuntimeError(describe_empty_ctest_inventory(
+                        build, tests_json, tests_human, shutil.which("ctest"),
+                        first_line(["ctest", "--version"], root)))
             stages["ctest_inventory_seconds"] = time.monotonic() - inventory_started
             stages["build_seconds"] = run(["cmake", "--build", str(build), "--config", config,
                 "--parallel", str(args.jobs)], root, started, args.budget_seconds)
             stages["ctest_seconds"] = run(["ctest", "--test-dir", str(build), "-C", config,
                 "--output-on-failure"], root, started, args.budget_seconds)
             summary["configurations"].append({"name": config, "status": "passed", "test_count": test_count,
+                "test_inventory_method": inventory_method,
                 "toolchain": toolchain, **stages,
                 "elapsed_seconds": time.monotonic() - config_started})
         identity_after = source_identity(root)

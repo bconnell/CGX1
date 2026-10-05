@@ -150,7 +150,7 @@ public:
         std::fill_n(
             storage_.begin() + region->second.baseByteAddress,
             region->second.byteCount,
-            0U);
+            std::uint8_t{0});
         allocatedBytes_ -= region->second.byteCount;
         regions_.erase(region);
         return true;
@@ -374,7 +374,7 @@ public:
 
     void Reset()
     {
-        std::fill(storage_.begin(), storage_.end(), 0U);
+        std::fill(storage_.begin(), storage_.end(), std::uint8_t{0});
         regions_.clear();
         requests_.clear();
         responses_.clear();

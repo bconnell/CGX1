@@ -65,6 +65,8 @@ module cgx1_matrix_int8_pooled_resident_engine #(
     logic [WAVE_SLOT_WIDTH-1:0] rf_read_wave_slot;
     logic [1023:0] rf_read_data0;
     logic [1023:0] rf_read_data1;
+    logic [(RESIDENT_WAVE_SLOTS*256)-1:0] matrix_source_pending_flat;
+    logic [(RESIDENT_WAVE_SLOTS*256)-1:0] matrix_destination_pending_flat;
     logic rf_read_ready;
     logic rf_read0_initialized;
     logic rf_read1_initialized;

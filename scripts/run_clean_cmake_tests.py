@@ -32,6 +32,10 @@ except ModuleNotFoundError:  # direct execution places scripts/, not the reposit
     )
 
 DEFAULT_BUDGET_SECONDS = 900
+CLEAN_BUILD_DIRECTORY = "cv"
+CLEAN_BUILD_PREFIX = "cv-"
+LEGACY_CLEAN_BUILD_DIRECTORY = "clean-validation"
+LEGACY_CLEAN_BUILD_PREFIX = "cgx1-clean-cmake-"
 
 
 class CleanSourceIdentityError(RuntimeError):
@@ -238,19 +242,30 @@ def write_summary(path: Path | None, summary: dict[str, Any]) -> None:
     path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
-def require_no_stale_clean_builds(build_root: Path) -> None:
+def clean_build_root(root: Path) -> Path:
+    """Return the compact, repository-owned clean-build output root."""
+    return root / "build" / CLEAN_BUILD_DIRECTORY
+
+
+def require_no_stale_clean_builds(build_root: Path, prefix: str = LEGACY_CLEAN_BUILD_PREFIX) -> None:
     if not build_root.is_dir():
         return
-    existing = sorted(
-        child for child in build_root.iterdir()
-        if child.name.startswith("cgx1-clean-cmake-")
-    )
+    existing = sorted(build_root.iterdir())
     if existing:
         paths = ", ".join(str(path) for path in existing)
         raise RuntimeError(
-            "an earlier CGX1 clean CMake output is still present; determine whether it is active "
-            f"before cleanup or starting another build: {paths}"
+            "CGX1 clean CMake output location is not empty; determine whether it is active or "
+            f"owned by prefix {prefix!r} before cleanup or starting another build: {paths}"
         )
+
+
+def require_no_stale_clean_outputs(root: Path) -> None:
+    """Check both the legacy output root and the current compact root."""
+    require_no_stale_clean_builds(
+        root / "build" / LEGACY_CLEAN_BUILD_DIRECTORY,
+        LEGACY_CLEAN_BUILD_PREFIX,
+    )
+    require_no_stale_clean_builds(clean_build_root(root), CLEAN_BUILD_PREFIX)
 
 
 def require_build_root_inside_repo(root: Path, build_root: Path) -> None:
@@ -382,16 +397,18 @@ def main() -> int:
         print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
         return 2
 
-    build_root = root / "build" / "clean-validation"
+    build_root = clean_build_root(root)
+    legacy_build_root = root / "build" / LEGACY_CLEAN_BUILD_DIRECTORY
     build_root_existed = build_root.exists()
     build_parent_existed = (root / "build").exists()
     try:
         require_build_root_inside_repo(root, build_root)
+        require_build_root_inside_repo(root, legacy_build_root)
         disk_report = preflight_disk_budget(root, "clean-cmake", build_root)
         print(format_preflight_report(disk_report), flush=True)
         if disk_report["status"] == "unsafe":
             raise DiskBudgetError(disk_report["reason"])
-        require_no_stale_clean_builds(build_root)
+        require_no_stale_clean_outputs(root)
     except (DiskBudgetError, OSError, RuntimeError) as error:
         message = str(error)
         summary = {
@@ -409,7 +426,7 @@ def main() -> int:
         return 2
 
     build_root.mkdir(parents=True, exist_ok=True)
-    base = Path(tempfile.mkdtemp(prefix="cgx1-clean-cmake-", dir=build_root))
+    base = Path(tempfile.mkdtemp(prefix=CLEAN_BUILD_PREFIX, dir=build_root))
     if args.summary_json is not None and args.summary_json.resolve(strict=False).is_relative_to(base.resolve()):
         shutil.rmtree(base)
         raise ValueError("--summary-json must not be placed inside the disposable clean build tree")
@@ -582,7 +599,7 @@ def main() -> int:
             print(f"Retained fresh build trees: {base}")
         else:
             try:
-                require_safe_owned_tree(base, build_root, "cgx1-clean-cmake-")
+                require_safe_owned_tree(base, build_root, CLEAN_BUILD_PREFIX)
                 if base.exists():
                     shutil.rmtree(base)
                 if not build_root_existed:

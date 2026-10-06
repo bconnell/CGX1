@@ -6,7 +6,7 @@ import sys
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import tempfile
 from unittest.mock import patch
 
@@ -14,6 +14,24 @@ from scripts import run_clean_cmake_tests
 
 
 class CleanCMakeInventoryTests(unittest.TestCase):
+    def test_clean_build_root_keeps_the_msvc_filetracker_path_under_legacy_limit(self) -> None:
+        candidate = (
+            PureWindowsPath(r"C:\Users\developer\source\repos\CGX1")
+            / "build" / "cgx1-clean-candidates" / ("candidate-" + "e" * 40)
+        )
+        build_root = run_clean_cmake_tests.clean_build_root(candidate)
+        file_tracker_log = (
+            build_root / "cv-12345678" / "debug" / "source" / "matrix"
+            / "cgx1_compute_mixed_service_policy_tests.dir" / "Debug"
+            / "cgx1_com.4E647985.tlog" / "link-cvtres.write.1.tlog"
+        )
+
+        self.assertEqual(candidate / "build" / "cv", build_root)
+        self.assertLessEqual(
+            len(str(file_tracker_log)), 259,
+            "MSBuild must leave room for the terminating NUL within legacy MAX_PATH",
+        )
+
     def test_human_inventory_fallback_recovers_registered_tests(self) -> None:
         inventory = getattr(run_clean_cmake_tests, "ctest_inventory_count", None)
         self.assertIsNotNone(inventory, "clean runner must provide a tested CTest inventory parser")
@@ -50,6 +68,44 @@ class CleanCMakeInventoryTests(unittest.TestCase):
 
             self.assertTrue(stale.is_dir(), "the stale-output guard must not delete unknown build data")
 
+    def test_legacy_stale_output_blocks_compact_build_without_deleting_it(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cgx1-stale-legacy-build-") as temporary:
+            root = Path(temporary)
+            stale = root / "build" / "clean-validation" / "cgx1-clean-cmake-interrupted"
+            stale.mkdir(parents=True)
+
+            with self.assertRaisesRegex(RuntimeError, "determine whether it is active"):
+                run_clean_cmake_tests.require_no_stale_clean_outputs(root)
+
+            self.assertTrue(stale.is_dir(), "legacy output must be preserved for ownership review")
+            self.assertFalse(
+                (root / "build" / "cv").exists(),
+                "a stale legacy run must block creation of compact output",
+            )
+
+    def test_stale_compact_output_blocks_a_duplicate_run(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cgx1-stale-compact-build-") as temporary:
+            root = Path(temporary)
+            stale = root / "build" / "cv" / "cv-interrupted"
+            stale.mkdir(parents=True)
+
+            with self.assertRaisesRegex(RuntimeError, "determine whether it is active"):
+                run_clean_cmake_tests.require_no_stale_clean_outputs(root)
+
+            self.assertTrue(stale.is_dir(), "the stale-output guard must not remove an unexplained tree")
+
+    def test_unclassified_clean_output_blocks_a_run_without_modification(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cgx1-unclassified-clean-output-") as temporary:
+            root = Path(temporary)
+            unknown = root / "build" / "cv" / "notes.txt"
+            unknown.parent.mkdir(parents=True)
+            unknown.write_text("preserve", encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "not empty"):
+                run_clean_cmake_tests.require_no_stale_clean_outputs(root)
+
+            self.assertEqual("preserve", unknown.read_text(encoding="utf-8"))
+
     def test_clean_build_root_must_remain_under_the_build_directory(self) -> None:
         with tempfile.TemporaryDirectory(prefix="cgx1-clean-build-root-") as temporary:
             root = Path(temporary)
@@ -64,7 +120,7 @@ class CleanCMakeInventoryTests(unittest.TestCase):
             build_directory.mkdir()
             target = root / "docs"
             target.mkdir()
-            build_root = build_directory / "clean-validation"
+            build_root = build_directory / "cv"
             with patch(
                 "scripts.run_clean_cmake_tests.is_redirected_path",
                 side_effect=lambda path, *_args: Path(path) == build_root,

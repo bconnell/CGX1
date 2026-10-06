@@ -144,7 +144,7 @@ class DiskBudgetTests(unittest.TestCase):
             self.assertEqual(by_path[str(waveform)]["bytes"], 1025)
             self.assertEqual(by_path[str(test_log)]["bytes"], 2049)
 
-    def test_verilator_file_limit_allows_measured_binary_without_guessing_combined_tree_size(self):
+    def test_verilator_file_and_tree_limits_use_measured_output_baseline(self):
         root = Path(__file__).resolve().parents[2]
         policy = disk_budget.load_disk_policy(root)
         operation = policy["operations"]["verilator-toolchain-build"]
@@ -154,11 +154,12 @@ class DiskBudgetTests(unittest.TestCase):
 
         self.assertEqual(268435456, limits["maximum_test_output_file_bytes"])
         self.assertGreater(limits["maximum_test_output_file_bytes"], 231709824)
-        self.assertIsNone(operation.get("maximum_output_tree_bytes"))
+        self.assertEqual(2236212581, operation["observed_output_tree_bytes"])
+        self.assertEqual(2 * operation["observed_output_tree_bytes"], operation["maximum_output_tree_bytes"])
         self.assertIsNone(operation["estimated_peak_bytes"])
         self.assertEqual("unmeasured", operation["measurement_status"])
         self.assertTrue(any(
-            "257,576,704" in note and "complete Verilator source-build plus installed-prefix size remains unmeasured" in note
+            "257,576,704" in note and "complete-build peak, which remains unknown" in note
             for note in policy["measurement_notes"]
         ))
 
@@ -333,8 +334,14 @@ class DiskBudgetTests(unittest.TestCase):
         verilator = policy["operations"]["verilator-toolchain-build"]
         self.assertIsNone(verilator["estimated_peak_bytes"], "the combined Verilator build peak is still unknown")
         self.assertGreater(verilator["maximum_test_output_file_bytes"], 231709824)
-        self.assertIsNone(verilator.get("maximum_output_tree_bytes"))
+        self.assertEqual(2236212581, verilator["observed_output_tree_bytes"])
+        self.assertEqual(11201, verilator["observed_output_file_count"])
+        self.assertEqual(2 * verilator["observed_output_tree_bytes"], verilator["maximum_output_tree_bytes"])
+        self.assertIn("d9e118d99d4b213c87a71bc6dd40b61cf61453c7",
+                      verilator["observed_output_measurement_source"])
+        self.assertIn("one redirected entry was skipped", verilator["observed_output_measurement_source"])
         self.assertTrue(any("257,576,704" in note for note in policy["measurement_notes"]))
+        self.assertTrue(any("2,236,212,581" in note for note in policy["measurement_notes"]))
 
     def test_policy_rejects_unmeasured_size_labeled_as_measured(self):
         document = {
@@ -383,7 +390,7 @@ class DiskBudgetTests(unittest.TestCase):
 
     def test_cmake_runner_fails_closed_before_creating_output_when_reserve_is_unsafe(self):
         root = Path(__file__).resolve().parents[2]
-        build_root = root / "build" / "clean-validation"
+        build_root = run_clean_cmake_tests.clean_build_root(root)
         before = sorted(path.name for path in build_root.iterdir()) if build_root.exists() else []
         output = io.StringIO()
         with patch.dict(os.environ, {

@@ -59,6 +59,10 @@
         "estimated_peak_bytes": null,
         "measurement_status": "unmeasured",
         "maximum_test_output_file_bytes": 268435456,
+        "observed_output_tree_bytes": 2236212581,
+        "observed_output_file_count": 11201,
+        "observed_output_measurement_source": "Hosted exact-SHA RTL Tools CI artifact scan measured 2,236,212,581 regular-file bytes across 11,201 files in the Verilator source/build checkout and installed prefix on commit d9e118d99d4b213c87a71bc6dd40b61cf61453c7; one redirected entry was skipped. This is an output-tree observation, not a filesystem high-water or complete-build peak measurement.",
+        "maximum_output_tree_bytes": 4472425162,
         "block_when_warning": true
       },
       "rtl-tools": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
@@ -71,7 +75,7 @@
     },
     "measurement_notes": [
       "Unmeasured job peaks remain null until a completed gate records a representative output size; unknown is not a reservation. Estimates for GCC Debug/Release, ASan/UBSan, and Icarus are exact-SHA observed output-tree sizes and are not filesystem high-water measurements.",
-      "Icarus, GCC Debug/Release, and ASan/UBSan output-tree limits use twice the respective measured tree sizes so accumulated smaller files also trigger review. A hosted v5.052 installed prefix measured 257,576,704 bytes across 127 files on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db, with a 231,709,824-byte debug executable. The complete Verilator source-build plus installed-prefix size remains unmeasured; its next exact-SHA scan aggregates both disjoint roots, allows that measured executable under an operation-specific 256 MiB file cap, and will supply the combined baseline before a tree cap or peak estimate is recorded.",
+    "Icarus, GCC Debug/Release, ASan/UBSan, and the Verilator combined source/build plus installed-prefix tree cap use twice their respective measured output-tree sizes so accumulated smaller files also trigger review. A hosted v5.052 installed prefix measured 257,576,704 bytes across 127 files on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db, with a 231,709,824-byte debug executable. On commit d9e118d99d4b213c87a71bc6dd40b61cf61453c7, the aggregate Verilator scan measured 2,236,212,581 regular-file bytes across 11,201 files in .tools/verilator and the installed prefix; one redirected entry was skipped. This post-build output-tree observation sets the 4,472,425,162-byte aggregate cap but does not measure filesystem high-water or complete-build peak, which remains unknown. The operation-specific 256 MiB per-file cap accommodates the observed compiler executable.",
       "The developer profile warns below 50 GiB and blocks below a 40 GiB reserve; these are configurable workstation safeguards, not architecture limits.",
       "The hosted profile retains the existing 2 GiB free-space floor and is independent of developer-workstation thresholds."
     ]

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
@@ -74,6 +79,134 @@ class CleanCMakeInventoryTests(unittest.TestCase):
             with patch.object(Path, "lstat", side_effect=PermissionError("denied")):
                 with self.assertRaisesRegex(run_clean_cmake_tests.DiskBudgetError, "cannot measure"):
                     run_clean_cmake_tests.tree_bytes(root)
+
+    def test_failed_build_records_partial_output_size_before_cleanup(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cgx1-clean-build-failure-") as temporary:
+            root = Path(temporary)
+            (root / "CMakeLists.txt").write_text("project(failure_fixture)\n", encoding="utf-8")
+            summary_path = root / "summary.json"
+            identity = {
+                "candidate_path": str(root.resolve()),
+                "git_head": "a" * 40,
+                "head_tree": "b" * 40,
+                "index_tree": "b" * 40,
+                "source_fingerprint": "c" * 64,
+            }
+            build_commands = []
+
+            def fake_run(command, cwd, started, budget_seconds):
+                del cwd, started, budget_seconds
+                if command[0] == "cmake" and "-B" in command:
+                    build = Path(command[command.index("-B") + 1])
+                    build.mkdir(parents=True)
+                    (build / "partial-output.bin").write_bytes(b"x" * 16384)
+                    return 0.01
+                if command[0] == "cmake" and "--build" in command:
+                    build_commands.append(command)
+                    raise subprocess.CalledProcessError(1, command, output="mock build failure")
+                self.fail(f"unexpected command: {command}")
+
+            def fake_ctest_inventory(command, **kwargs):
+                return subprocess.CompletedProcess(
+                    command, 0, stdout='{"tests":[{}]}', stderr="",
+                )
+
+            output = StringIO()
+            error = StringIO()
+            with patch.object(sys, "argv", [
+                "run_clean_cmake_tests.py", "--root", str(root), "--config", "Debug",
+                "--summary-json", str(summary_path),
+            ]), patch.object(run_clean_cmake_tests, "source_identity", return_value=identity), patch.object(
+                run_clean_cmake_tests, "preflight_disk_budget", return_value={
+                    "status": "info", "reason": "fixture", "free_bytes": 10**9,
+                    "minimum_free_bytes": 1, "filesystem_probe_path": str(root),
+                },
+            ), patch.object(run_clean_cmake_tests, "format_preflight_report", return_value="disk fixture"), patch.object(
+                run_clean_cmake_tests.shutil, "which", return_value="mock-tool",
+            ), patch.object(run_clean_cmake_tests, "first_line", return_value="mock version"), patch.object(
+                run_clean_cmake_tests, "run", side_effect=fake_run,
+            ), patch.object(run_clean_cmake_tests.subprocess, "run", side_effect=fake_ctest_inventory), redirect_stdout(
+                output,
+            ), redirect_stderr(error):
+                result = run_clean_cmake_tests.main()
+
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            self.assertEqual(1, result)
+            self.assertEqual(1, len(build_commands))
+            self.assertEqual(
+                run_clean_cmake_tests.os.name == "nt",
+                "--verbose" in build_commands[0],
+                "Windows clean builds need compiler invocation diagnostics in the hosted log",
+            )
+            self.assertEqual("failed", summary["status"])
+            self.assertEqual("Debug", summary["failed_configuration"]["name"])
+            self.assertEqual(16384, summary["failed_configuration"]["build_tree_bytes"])
+            self.assertEqual(16384, summary["peak_configuration_tree_bytes"])
+            self.assertFalse((root / "build").exists(), "partial clean-build output must be removed after measurement")
+
+    def test_clean_cmake_output_tree_uses_the_compiler_operation_budget(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cgx1-clean-tree-budget-") as temporary:
+            root = Path(temporary)
+            (root / "CMakeLists.txt").write_text("project(tree_fixture)\n", encoding="utf-8")
+            summary_path = root / "summary.json"
+            identity = {
+                "candidate_path": str(root.resolve()),
+                "git_head": "a" * 40,
+                "head_tree": "b" * 40,
+                "index_tree": "b" * 40,
+                "source_fingerprint": "c" * 64,
+            }
+
+            def fake_run(command, cwd, started, budget_seconds):
+                del cwd, started, budget_seconds
+                if command[0] == "cmake" and "-B" in command:
+                    build = Path(command[command.index("-B") + 1])
+                    build.mkdir(parents=True)
+                    (build / "large-build-output.bin").write_bytes(b"x" * 2048)
+                    return 0.01
+                if command[0] == "cmake" and "--build" in command:
+                    return 0.01
+                if command[0] == "ctest":
+                    return 0.01
+                self.fail(f"unexpected command: {command}")
+
+            def fake_ctest_inventory(command, **kwargs):
+                return subprocess.CompletedProcess(
+                    command, 0, stdout='{"tests":[{}]}', stderr="",
+                )
+
+            policy = {
+                "operations": {"clean-cmake": {"maximum_output_tree_bytes": 1024}},
+                "artifact_limits": {
+                    "maximum_waveform_file_bytes": 1024,
+                    "maximum_test_output_file_bytes": 4096,
+                },
+            }
+            with patch.object(sys, "argv", [
+                "run_clean_cmake_tests.py", "--root", str(root), "--config", "Debug",
+                "--summary-json", str(summary_path),
+            ]), patch.object(run_clean_cmake_tests, "source_identity", return_value=identity), patch.object(
+                run_clean_cmake_tests, "preflight_disk_budget", return_value={
+                    "status": "info", "reason": "fixture", "free_bytes": 10**9,
+                    "minimum_free_bytes": 1, "filesystem_probe_path": str(root),
+                },
+            ), patch.object(run_clean_cmake_tests, "format_preflight_report", return_value="disk fixture"), patch.object(
+                run_clean_cmake_tests, "compiler_operation", return_value="clean-cmake",
+            ), patch.object(run_clean_cmake_tests, "load_disk_policy", return_value=policy), patch.object(
+                run_clean_cmake_tests.shutil, "which", return_value="mock-tool",
+            ), patch.object(run_clean_cmake_tests, "first_line", return_value="mock version"), patch.object(
+                run_clean_cmake_tests, "run", side_effect=fake_run,
+            ), patch.object(run_clean_cmake_tests.subprocess, "run", side_effect=fake_ctest_inventory), redirect_stdout(
+                StringIO(),
+            ), redirect_stderr(StringIO()):
+                result = run_clean_cmake_tests.main()
+
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            self.assertEqual(1, result)
+            self.assertEqual("output_tree", summary["artifact_scan_failure"]["oversized"][0]["kind"])
+            self.assertEqual(1024, summary["artifact_scan_failure"]["oversized"][0]["limit_bytes"])
+            self.assertEqual(2048, summary["failed_configuration"]["build_tree_bytes"])
+            self.assertFalse((root / "build").exists(), "unsafe build output must be measured before cleanup")
 
     def test_cleanup_guard_refuses_a_symlink_inside_its_owned_tree(self) -> None:
         with tempfile.TemporaryDirectory(prefix="cgx1-cleanup-redirection-") as temporary:

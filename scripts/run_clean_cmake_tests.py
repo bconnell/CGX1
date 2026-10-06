@@ -19,13 +19,15 @@ from typing import Any
 try:
     from scripts.validation_paths import PathTranslationError, resolve_root_argument
     from scripts.check_disk_budget import (
-        DiskBudgetError, format_preflight_report, is_redirected_path, load_disk_policy,
+        DiskBudgetError, artifact_limits_for_operation, format_preflight_report,
+        is_redirected_path, load_disk_policy,
         preflight_disk_budget, scan_generated_artifacts,
     )
 except ModuleNotFoundError:  # direct execution places scripts/, not the repository root, on sys.path
     from validation_paths import PathTranslationError, resolve_root_argument
     from check_disk_budget import (
-        DiskBudgetError, format_preflight_report, is_redirected_path, load_disk_policy,
+        DiskBudgetError, artifact_limits_for_operation, format_preflight_report,
+        is_redirected_path, load_disk_policy,
         preflight_disk_budget, scan_generated_artifacts,
     )
 
@@ -428,17 +430,20 @@ def main() -> int:
     }
 
     exit_code = 0
+    active_configuration: dict[str, Any] | None = None
     try:
         for config in configs:
             config_started = time.monotonic()
             build = base / config.lower()
+            stages: dict[str, float] = {}
+            active_configuration = {"name": config, "build": build, "stages": stages}
+            operation = compiler_operation(root, config)
             stage_disk_report = preflight_disk_budget(
-                root, compiler_operation(root, config), build,
+                root, operation, build,
             )
             print(format_preflight_report(stage_disk_report), flush=True)
             if stage_disk_report["status"] == "unsafe":
                 raise DiskBudgetError(stage_disk_report["reason"])
-            stages: dict[str, float] = {}
             configure = ["cmake", "-S", str(root), "-B", str(build), f"-DCMAKE_BUILD_TYPE={config}", *args.cmake_arg]
             stages["configure_seconds"] = run(configure, root, started, args.budget_seconds)
             toolchain = read_cache(build)
@@ -470,16 +475,20 @@ def main() -> int:
                         build, tests_json, tests_human, shutil.which("ctest"),
                         first_line(["ctest", "--version"], root)))
             stages["ctest_inventory_seconds"] = time.monotonic() - inventory_started
-            stages["build_seconds"] = run(["cmake", "--build", str(build), "--config", config,
-                "--parallel", str(args.jobs)], root, started, args.budget_seconds)
+            build_command = ["cmake", "--build", str(build), "--config", config,
+                "--parallel", str(args.jobs)]
+            if os.name == "nt":
+                build_command.append("--verbose")
+            stages["build_seconds"] = run(build_command, root, started, args.budget_seconds)
             stages["ctest_seconds"] = run(["ctest", "--test-dir", str(build), "-C", config,
                 "--output-on-failure"], root, started, args.budget_seconds)
             disk_policy = load_disk_policy(root)
-            limits = disk_policy["artifact_limits"]
+            limits = artifact_limits_for_operation(disk_policy, operation)
             artifact_scan = scan_generated_artifacts(
                 build,
                 max_waveform_bytes=limits["maximum_waveform_file_bytes"],
                 max_test_output_bytes=limits["maximum_test_output_file_bytes"],
+                max_tree_bytes=disk_policy["operations"][operation].get("maximum_output_tree_bytes"),
             )
             if not artifact_scan["passed"]:
                 summary["artifact_scan_failure"] = artifact_scan
@@ -502,6 +511,7 @@ def main() -> int:
             if not args.keep_build:
                 require_safe_owned_tree(build, base, config.lower())
                 shutil.rmtree(build)
+            active_configuration = None
         identity_after = source_identity(root)
         require_unchanged_source_identity(identity_before, identity_after)
         if privilege_class == "root_diagnostic_only":
@@ -536,6 +546,26 @@ def main() -> int:
     finally:
         summary["exit_code"] = exit_code
         summary["total_elapsed_seconds"] = time.monotonic() - started
+        if exit_code != 0 and active_configuration is not None:
+            failed_build = active_configuration["build"]
+            try:
+                failed_build_bytes = tree_bytes(failed_build) if failed_build.exists() else 0
+                summary["failed_configuration"] = {
+                    "name": active_configuration["name"],
+                    "build_tree_bytes": failed_build_bytes,
+                    "completed_stages": dict(active_configuration["stages"]),
+                }
+                summary["peak_configuration_tree_bytes"] = max(
+                    summary["peak_configuration_tree_bytes"], failed_build_bytes,
+                )
+            except (DiskBudgetError, OSError) as error:
+                summary["failed_configuration"] = {
+                    "name": active_configuration["name"],
+                    "build_tree_bytes": None,
+                    "measurement_failure": str(error),
+                    "completed_stages": dict(active_configuration["stages"]),
+                }
+                summary["artifact_size_measurement_failure"] = str(error)
         try:
             summary["build_tree_bytes"] = (
                 tree_bytes(base) if args.keep_build else summary["peak_configuration_tree_bytes"]

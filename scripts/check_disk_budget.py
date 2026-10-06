@@ -196,6 +196,12 @@ def validate_disk_policy(document: Mapping[str, Any]) -> dict[str, Any]:
             not isinstance(tree_limit, int) or isinstance(tree_limit, bool) or tree_limit <= 0
         ):
             raise DiskBudgetError(f"operation {name!r} has an invalid maximum_output_tree_bytes")
+        test_output_limit = operation.get("maximum_test_output_file_bytes")
+        if test_output_limit is not None and (
+            not isinstance(test_output_limit, int) or isinstance(test_output_limit, bool)
+            or test_output_limit <= 0
+        ):
+            raise DiskBudgetError(f"operation {name!r} has an invalid maximum_test_output_file_bytes")
         if not isinstance(operation.get("block_when_warning"), bool):
             raise DiskBudgetError(f"operation {name!r} needs a boolean block_when_warning field")
     limits = budget.get("artifact_limits")
@@ -206,6 +212,26 @@ def validate_disk_policy(document: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
             raise DiskBudgetError(f"disk-budget artifact limit {key!r} must be a positive integer")
     return budget
+
+
+def artifact_limits_for_operation(
+    budget: Mapping[str, Any], operation: str,
+) -> dict[str, int]:
+    """Return global artifact limits with any explicitly scoped operation override."""
+    operations = budget.get("operations")
+    limits = budget.get("artifact_limits")
+    if not isinstance(operations, dict) or operation not in operations:
+        raise DiskBudgetError(f"operation {operation!r} has no artifact-scan policy")
+    if not isinstance(limits, dict):
+        raise DiskBudgetError("disk-budget artifact limits are missing")
+    operation_limit = operations[operation].get("maximum_test_output_file_bytes")
+    return {
+        "maximum_waveform_file_bytes": limits["maximum_waveform_file_bytes"],
+        "maximum_test_output_file_bytes": (
+            operation_limit if operation_limit is not None
+            else limits["maximum_test_output_file_bytes"]
+        ),
+    }
 
 
 def _profile_with_overrides(profile: Mapping[str, Any], environ: Mapping[str, str]) -> dict[str, Any]:
@@ -352,6 +378,64 @@ def scan_generated_artifacts(
     }
 
 
+def scan_generated_artifact_roots(
+    roots: list[str | os.PathLike[str]],
+    *,
+    max_waveform_bytes: int,
+    max_test_output_bytes: int,
+    max_tree_bytes: int | None = None,
+) -> dict[str, Any]:
+    """Scan disjoint output roots and apply a single aggregate tree limit."""
+    native_roots = [_native_path(root) for root in roots]
+    if not native_roots:
+        raise DiskBudgetError("at least one artifact scan root is required")
+    resolved_roots: list[Path] = []
+    for root in native_roots:
+        if is_redirected_path(root):
+            raise DiskBudgetError(f"refusing to scan a redirected output root: {root}")
+        resolved = root.resolve(strict=False)
+        if any(
+            resolved == existing or resolved.is_relative_to(existing) or existing.is_relative_to(resolved)
+            for existing in resolved_roots
+        ):
+            raise DiskBudgetError(f"artifact scan roots overlap: {root}")
+        resolved_roots.append(resolved)
+
+    reports = [
+        scan_generated_artifacts(
+            root,
+            max_waveform_bytes=max_waveform_bytes,
+            max_test_output_bytes=max_test_output_bytes,
+        )
+        for root in native_roots
+    ]
+    total_bytes = sum(report["total_bytes"] for report in reports)
+    oversized = [issue for report in reports for issue in report.get("oversized", [])]
+    if max_tree_bytes is not None and total_bytes > max_tree_bytes:
+        oversized.append({
+            "path": ", ".join(str(root) for root in native_roots),
+            "relative_path": ".",
+            "bytes": total_bytes,
+            "kind": "output_tree",
+            "limit_bytes": max_tree_bytes,
+        })
+    errors = [f"{report['root']}: {report['error']}" for report in reports if report.get("error")]
+    largest_files = sorted(
+        (row for report in reports for row in report.get("largest_files", [])),
+        key=lambda row: (-row["bytes"], row["path"]),
+    )[:5]
+    return {
+        "passed": not oversized and not errors,
+        "roots": [report["root"] for report in reports],
+        "files_scanned": sum(report["files_scanned"] for report in reports),
+        "total_bytes": total_bytes,
+        "largest_files": largest_files,
+        "oversized": oversized,
+        "errors": errors,
+        "skipped_redirected": sum(report["skipped_redirected"] for report in reports),
+    }
+
+
 def format_size(byte_count: int | None) -> str:
     if byte_count is None:
         return "unmeasured"
@@ -381,8 +465,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--profile", choices=("auto", "developer", "hosted"), default="auto")
     parser.add_argument("--estimate-bytes", type=int,
                         help="explicit peak-size estimate when the policy has no measurement")
-    parser.add_argument("--scan-root", type=Path,
-                        help="also check existing generated files under this root")
+    parser.add_argument("--scan-root", type=Path, action="append",
+                        help="also check generated files under this root; repeat to aggregate disjoint roots")
     args = parser.parse_args(argv)
     try:
         report = preflight_disk_budget(
@@ -393,8 +477,8 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr if report["status"] == "unsafe" else sys.stdout, flush=True)
         if args.scan_root is not None:
             budget = load_disk_policy(args.root.resolve())
-            limits = budget.get("artifact_limits", {})
-            scan = scan_generated_artifacts(
+            limits = artifact_limits_for_operation(budget, args.operation)
+            scan = scan_generated_artifact_roots(
                 args.scan_root,
                 max_waveform_bytes=limits["maximum_waveform_file_bytes"],
                 max_test_output_bytes=limits["maximum_test_output_file_bytes"],
@@ -408,8 +492,8 @@ def main(argv: list[str] | None = None) -> int:
                         f"{issue['bytes']} bytes exceeds {issue['limit_bytes']} bytes",
                         file=sys.stderr,
                     )
-                if scan.get("error"):
-                    print(f"[disk-budget] {scan['error']}", file=sys.stderr)
+                for error in scan.get("errors", []):
+                    print(f"[disk-budget] {error}", file=sys.stderr)
                 return 2
         return 2 if report["status"] == "unsafe" else 0
     except (DiskBudgetError, OSError, KeyError, ValueError) as error:

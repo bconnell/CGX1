@@ -86,8 +86,9 @@
 - [x] Record that previous Release builds remain build evidence, while assertion-based Release expectations require fresh post-migration runs.
 - [x] Add reviewed strict warnings and promote clean warning classes to errors without broad suppression.
 - [x] Add hosted Linux AddressSanitizer and UndefinedBehaviorSanitizer coverage.
-- [x] Run clean GCC Debug and Release CTest on the exact candidate (26/26 targets in each configuration), the Release/NDEBUG false-check proof, and the full RTL gate under an unprivileged Linux process. Windows CI also passed clean MSVC Debug/Release CTest and its false-check proof.
-- [ ] Run the hosted GCC and Clang ASan/UBSan matrix on an exact SHA. The current Linux Sanitizers attempt was cancelled before runner assignment; rerun after GitHub Actions recovers.
+- [x] Run clean GCC Debug and Release CTest, the Release/NDEBUG false-check proof, and the full RTL gate under the hosted unprivileged Linux runner on exact commit `ae0dbd016ed32abfcaec24351e0679f3b892f3db`.
+- [x] Run the hosted GCC and Clang ASan/UBSan matrix on exact commit `ae0dbd016ed32abfcaec24351e0679f3b892f3db`; both CTest suites and output scans passed.
+- [ ] Repair and rerun the Windows clean-build gate. Attempts 1 and 2 on `ae0dbd016ed32abfcaec24351e0679f3b892f3db` both returned exit code 1 from the clean MSVC Debug build without a compiler diagnostic; the old runner also recorded zero partial build bytes. The updated runner reports partial bytes and enables verbose MSBuild output.
 
 ### Task 5: RTL inventory, bounded tools, and warning classification
 
@@ -142,6 +143,10 @@
 - [x] Keep local Debug/Release runs sequential; define retention and failure cleanup for temporary clean-room candidates and each RTL-tools output root.
 - [x] Add bounded output-size checks for waveforms and test artifacts; preserve evidence logs needed to classify failures.
 - [ ] Verify the new checks with their Python tests and existing full gate suite; run unprivileged clean Debug/Release, the false Release-check proof, bounded RTL, and identity/fingerprint gates on the exact candidate through a supported non-root WSL process or the exact-SHA hosted Linux workflow; complete the changed-file scope audit and `git diff --check` before commit.
-- [x] Report any OS-policy-rejected cleanup as not performed; do not route around a deletion refusal.
+- [x] Complete the scoped local disk audit and report the storage-policy-rejected exact cleanup as not performed with 0 bytes reclaimed; do not route around the refusal. No unrelated paths were touched.
+- [x] Record hosted GCC Debug/Release, GCC/Clang ASan/UBSan, Icarus, and Verilator installed-prefix output measurements with exact source SHA and explicit high-water/peak limitations.
+- [x] Add operation-specific generated-file limits and a disjoint multi-root aggregate scan for the Verilator source/build checkout plus installed prefix; keep the combined tree and peak unmeasured until the exact hosted scan records them.
+- [x] Rerun the complete Python suite after the aggregate-scan and partial-failure-size changes: 149 tests passed, 6 skipped. Resource-limit, hardening-ledger, RTL-inventory, randomized-seed, Release test-source, evidence, RTL-tool-warning-policy, and Markdown-link gates passed on the local working candidate.
+- [ ] Run the bounded RTL suite, unprivileged clean Debug/Release, Release false-check proof, and before/after candidate identity on the exact newly committed candidate; the hosted Linux workflow is the canonical unprivileged path.
 
 **Explicit deferral:** External-consumer validation is not required in this batch because an assembler/compiler/runtime consumer path is not yet ready; retain it as a dependency-queue item until those interfaces exist.

@@ -24,20 +24,43 @@
       "clean-candidate": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
       "clean-cmake": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
       "wsl-candidate": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "gcc-debug": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "gcc-release": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "clang-debug": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "clang-release": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "sanitizer-build": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": true},
-      "hosted-tool-install": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "icarus": {
-        "estimated_peak_bytes": 15789147,
+      "gcc-debug": {
+        "estimated_peak_bytes": 28471237,
         "measurement_status": "estimate",
-        "measurement_source": "15,789,147-byte existing build/rtl output-tree snapshot on commit f2018c95e0d859777519a10bc7b6a7c96bfeaf1c; 145 files; this is an observed output-size estimate, not a filesystem high-water measurement",
-        "maximum_output_tree_bytes": 31578294,
+        "measurement_source": "Hosted exact-SHA clean-candidate GCC Debug configuration tree measured 28,471,237 bytes on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db; observed output size, not a filesystem high-water measurement.",
+        "maximum_output_tree_bytes": 56942474,
         "block_when_warning": false
       },
-      "verilator-toolchain-build": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": true},
+      "gcc-release": {
+        "estimated_peak_bytes": 3612512,
+        "measurement_status": "estimate",
+        "measurement_source": "Hosted exact-SHA clean-candidate GCC Release configuration tree measured 3,612,512 bytes on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db; observed output size, not a filesystem high-water measurement.",
+        "maximum_output_tree_bytes": 7225024,
+        "block_when_warning": false
+      },
+      "clang-debug": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "clang-release": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "sanitizer-build": {
+        "estimated_peak_bytes": 87320145,
+        "measurement_status": "estimate",
+        "measurement_source": "Hosted exact-SHA ASan/UBSan Clang matrix output tree measured 87,320,145 bytes on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db; the larger of GCC (68,108,995) and Clang (87,320,145) observed trees is used, not a filesystem high-water measurement.",
+        "maximum_output_tree_bytes": 174640290,
+        "block_when_warning": true
+      },
+      "hosted-tool-install": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "icarus": {
+        "estimated_peak_bytes": 11022503,
+        "measurement_status": "estimate",
+        "measurement_source": "Hosted exact-SHA RTL CI completed bounded Icarus output scan measured 11,022,503 bytes across 98 files on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db; this is an observed output-size estimate, not a filesystem high-water measurement.",
+        "maximum_output_tree_bytes": 22045006,
+        "block_when_warning": false
+      },
+      "verilator-toolchain-build": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "maximum_test_output_file_bytes": 268435456,
+        "block_when_warning": true
+      },
       "rtl-tools": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
       "synthesis-smoke": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
       "formal": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false}
@@ -47,8 +70,8 @@
       "maximum_test_output_file_bytes": 67108864
     },
     "measurement_notes": [
-      "Job estimates remain null until a completed gate records a representative output size; unknown is not a reservation. The Icarus estimate is a measured existing output-tree snapshot and is not a filesystem high-water measurement.",
-      "The Icarus output-tree limit is twice that measured snapshot so accumulated small files also trigger review.",
+      "Unmeasured job peaks remain null until a completed gate records a representative output size; unknown is not a reservation. Estimates for GCC Debug/Release, ASan/UBSan, and Icarus are exact-SHA observed output-tree sizes and are not filesystem high-water measurements.",
+      "Icarus, GCC Debug/Release, and ASan/UBSan output-tree limits use twice the respective measured tree sizes so accumulated smaller files also trigger review. A hosted v5.052 installed prefix measured 257,576,704 bytes across 127 files on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db, with a 231,709,824-byte debug executable. The complete Verilator source-build plus installed-prefix size remains unmeasured; its next exact-SHA scan aggregates both disjoint roots, allows that measured executable under an operation-specific 256 MiB file cap, and will supply the combined baseline before a tree cap or peak estimate is recorded.",
       "The developer profile warns below 50 GiB and blocks below a 40 GiB reserve; these are configurable workstation safeguards, not architecture limits.",
       "The hosted profile retains the existing 2 GiB free-space floor and is independent of developer-workstation thresholds."
     ]

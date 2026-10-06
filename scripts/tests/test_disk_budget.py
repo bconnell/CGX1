@@ -4,7 +4,7 @@ import io
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -144,6 +144,125 @@ class DiskBudgetTests(unittest.TestCase):
             self.assertEqual(by_path[str(waveform)]["bytes"], 1025)
             self.assertEqual(by_path[str(test_log)]["bytes"], 2049)
 
+    def test_verilator_file_limit_allows_measured_binary_without_guessing_combined_tree_size(self):
+        root = Path(__file__).resolve().parents[2]
+        policy = disk_budget.load_disk_policy(root)
+        operation = policy["operations"]["verilator-toolchain-build"]
+        limits = disk_budget.artifact_limits_for_operation(
+            policy, "verilator-toolchain-build",
+        )
+
+        self.assertEqual(268435456, limits["maximum_test_output_file_bytes"])
+        self.assertGreater(limits["maximum_test_output_file_bytes"], 231709824)
+        self.assertIsNone(operation.get("maximum_output_tree_bytes"))
+        self.assertIsNone(operation["estimated_peak_bytes"])
+        self.assertEqual("unmeasured", operation["measurement_status"])
+        self.assertTrue(any(
+            "257,576,704" in note and "complete Verilator source-build plus installed-prefix size remains unmeasured" in note
+            for note in policy["measurement_notes"]
+        ))
+
+        with tempfile.TemporaryDirectory(prefix="cgx1-verilator-budget-") as temporary:
+            output = Path(temporary) / "bin" / "verilator_bin_dbg"
+            output.parent.mkdir()
+            output.write_bytes(b"x" * 2048)
+            policy["artifact_limits"]["maximum_test_output_file_bytes"] = 1024
+            policy["operations"]["verilator-toolchain-build"][
+                "maximum_test_output_file_bytes"
+            ] = 4096
+            limits = disk_budget.artifact_limits_for_operation(
+                policy, "verilator-toolchain-build",
+            )
+            report = disk_budget.scan_generated_artifacts(
+                temporary,
+                max_waveform_bytes=limits["maximum_waveform_file_bytes"],
+                max_test_output_bytes=limits["maximum_test_output_file_bytes"],
+                max_tree_bytes=operation.get("maximum_output_tree_bytes"),
+            )
+            self.assertTrue(report["passed"], report)
+            report = disk_budget.scan_generated_artifacts(
+                temporary,
+                max_waveform_bytes=limits["maximum_waveform_file_bytes"],
+                max_test_output_bytes=limits["maximum_test_output_file_bytes"],
+                max_tree_bytes=1024,
+            )
+            self.assertFalse(report["passed"])
+            self.assertEqual("output_tree", report["oversized"][0]["kind"])
+
+    def test_cli_applies_operation_specific_artifact_file_limit(self):
+        budget = {
+            "profiles": {"hosted": {"minimum_free_bytes": 1}},
+            "operations": {"verilator-toolchain-build": {
+                "estimated_peak_bytes": None,
+                "block_when_warning": False,
+                "maximum_test_output_file_bytes": 4096,
+                "maximum_output_tree_bytes": 8192,
+            }},
+            "artifact_limits": {
+                "maximum_waveform_file_bytes": 1024,
+                "maximum_test_output_file_bytes": 1024,
+            },
+        }
+        with tempfile.TemporaryDirectory(prefix="cgx1-disk-cli-") as temporary:
+            source_root = Path(temporary) / "verilator-source"
+            install_root = Path(temporary) / "verilator-install"
+            source_root.mkdir()
+            install_root.mkdir()
+            (source_root / "verilator_bin_dbg").write_bytes(b"x" * 2048)
+            (install_root / "verilator").write_bytes(b"y" * 2048)
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch.object(sys, "argv", [
+                "check_disk_budget.py", "--root", temporary, "--profile", "hosted",
+                "--operation", "verilator-toolchain-build", "--output-path", temporary,
+                "--scan-root", str(source_root), "--scan-root", str(install_root),
+            ]), patch.object(
+                disk_budget, "preflight_disk_budget", return_value={"status": "info"},
+            ), patch.object(
+                disk_budget, "format_preflight_report", return_value="disk fixture",
+            ), patch.object(
+                disk_budget, "load_disk_policy", return_value=budget,
+            ), redirect_stdout(stdout), redirect_stderr(stderr):
+                result = disk_budget.main()
+
+            self.assertEqual(0, result, stderr.getvalue())
+            self.assertIn('"passed": true', stdout.getvalue())
+            self.assertIn('"total_bytes": 4096', stdout.getvalue())
+
+    def test_multi_root_artifact_scan_applies_one_aggregate_tree_limit(self):
+        with tempfile.TemporaryDirectory(prefix="cgx1-artifact-roots-") as temporary:
+            root = Path(temporary)
+            source = root / "source-build"
+            install = root / "installed-prefix"
+            source.mkdir()
+            install.mkdir()
+            (source / "object.o").write_bytes(b"abcd")
+            (install / "tool").write_bytes(b"efgh")
+
+            report = disk_budget.scan_generated_artifact_roots(
+                [source, install],
+                max_waveform_bytes=1024,
+                max_test_output_bytes=1024,
+                max_tree_bytes=7,
+            )
+
+            self.assertFalse(report["passed"])
+            self.assertEqual(2, report["files_scanned"])
+            self.assertEqual(8, report["total_bytes"])
+            self.assertEqual(2, len(report["roots"]))
+            self.assertEqual("output_tree", report["oversized"][0]["kind"])
+
+    def test_multi_root_artifact_scan_rejects_overlapping_roots(self):
+        with tempfile.TemporaryDirectory(prefix="cgx1-overlapping-roots-") as temporary:
+            root = Path(temporary)
+            child = root / "child"
+            child.mkdir()
+
+            with self.assertRaisesRegex(disk_budget.DiskBudgetError, "overlap"):
+                disk_budget.scan_generated_artifact_roots(
+                    [root, child], max_waveform_bytes=1024, max_test_output_bytes=1024,
+                )
+
     def test_artifact_scan_does_not_follow_symlinked_files(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "output"
@@ -186,20 +305,36 @@ class DiskBudgetTests(unittest.TestCase):
             disk_budget.select_profile("auto", {"GITHUB_ACTIONS": "false"}), "developer"
         )
 
-    def test_repository_policy_keeps_required_classes_with_unknown_sizes_explicit(self):
+    def test_repository_policy_uses_measured_gate_sizes_and_labels_unknowns(self):
         policy = disk_budget.load_disk_policy(Path(__file__).resolve().parents[2])
 
         self.assertEqual(policy["profiles"]["developer"]["minimum_free_bytes"], 40 * GIB)
         self.assertEqual(policy["profiles"]["hosted"]["minimum_free_bytes"], 2 * GIB)
-        for operation in ("gcc-debug", "gcc-release", "clang-debug", "clang-release",
-                          "sanitizer-build", "hosted-tool-install", "verilator-toolchain-build",
-                          "synthesis-smoke", "formal", "clean-candidate"):
+        for operation in ("clean-candidate", "clean-cmake", "wsl-candidate", "clang-debug",
+                          "clang-release", "hosted-tool-install", "verilator-toolchain-build",
+                          "rtl-tools", "synthesis-smoke", "formal"):
             self.assertIsNone(policy["operations"][operation]["estimated_peak_bytes"])
             self.assertEqual(policy["operations"][operation]["measurement_status"], "unmeasured")
-        self.assertEqual(policy["operations"]["icarus"]["estimated_peak_bytes"], 15789147)
-        self.assertEqual(policy["operations"]["icarus"]["measurement_status"], "estimate")
-        self.assertIn("not a filesystem high-water", policy["operations"]["icarus"]["measurement_source"])
-        self.assertEqual(policy["operations"]["icarus"]["maximum_output_tree_bytes"], 2 * 15789147)
+        measured = {
+            "gcc-debug": 28471237,
+            "gcc-release": 3612512,
+            "sanitizer-build": 87320145,
+            "icarus": 11022503,
+        }
+        for operation, size in measured.items():
+            self.assertEqual(size, policy["operations"][operation]["estimated_peak_bytes"])
+            self.assertEqual("estimate", policy["operations"][operation]["measurement_status"])
+            self.assertIn("not a filesystem high-water", policy["operations"][operation]["measurement_source"])
+            self.assertEqual(2 * size, policy["operations"][operation]["maximum_output_tree_bytes"])
+            self.assertIn("ae0dbd016ed32abfcaec24351e0679f3b892f3db",
+                          policy["operations"][operation]["measurement_source"])
+        self.assertIn("98 files", policy["operations"]["icarus"]["measurement_source"])
+        self.assertIn("Clang", policy["operations"]["sanitizer-build"]["measurement_source"])
+        verilator = policy["operations"]["verilator-toolchain-build"]
+        self.assertIsNone(verilator["estimated_peak_bytes"], "the combined Verilator build peak is still unknown")
+        self.assertGreater(verilator["maximum_test_output_file_bytes"], 231709824)
+        self.assertIsNone(verilator.get("maximum_output_tree_bytes"))
+        self.assertTrue(any("257,576,704" in note for note in policy["measurement_notes"]))
 
     def test_policy_rejects_unmeasured_size_labeled_as_measured(self):
         document = {
@@ -302,6 +437,15 @@ class DiskBudgetTests(unittest.TestCase):
         self.assertLess(sanitizer.index("--profile hosted"), sanitizer.index("run: cmake -S . -B build/sanitizers"))
         self.assertLess(rtl_tools.index("--profile hosted"), rtl_tools.index("path: .tools/verilator"))
         self.assertLess(rtl_tools.index("--profile hosted"), rtl_tools.index("- name: Install Yosys and Verilator build prerequisites"))
+        source_preflight = rtl_tools.index("--operation verilator-toolchain-build")
+        source_checkout = rtl_tools.index("- name: Check out Verilator v5.052 source")
+        source_scan = rtl_tools.index("--scan-root .tools/verilator")
+        self.assertLess(source_preflight, source_checkout)
+        self.assertGreater(source_scan, rtl_tools.index("make install"))
+        self.assertLess(source_scan, rtl_tools.index("- name: Run bounded lint, formal, and synthesis smoke"))
+        prefix_scan = rtl_tools.index('--scan-root "$RUNNER_TEMP/verilator-5.052"')
+        self.assertGreater(prefix_scan, rtl_tools.index("make install"))
+        self.assertLess(prefix_scan, rtl_tools.index("- name: Run bounded lint, formal, and synthesis smoke"))
         self.assertLess(rtl_ci.index("--profile hosted"), rtl_ci.index("- name: Install Icarus Verilog"))
         for output_path in ("/usr", "/var/lib/apt/lists", "/var/cache/apt/archives"):
             self.assertIn(output_path, rtl_ci)

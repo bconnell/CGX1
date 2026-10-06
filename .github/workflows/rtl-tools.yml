@@ -56,7 +56,7 @@ jobs:
           echo "$RUNNER_TEMP/verilator-5.052/bin" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/verilator-5.052/bin/verilator" --version
           [[ "$("$RUNNER_TEMP/verilator-5.052/bin/verilator" --version)" == "Verilator 5.052 "* ]]
-      - name: Measure and bound installed Verilator outputs
-        run: python3 scripts/check_disk_budget.py --profile hosted --operation verilator-toolchain-build --output-path "$RUNNER_TEMP/verilator-5.052" --scan-root "$RUNNER_TEMP/verilator-5.052"
+      - name: Measure Verilator source build and installed prefix
+        run: python3 scripts/check_disk_budget.py --profile hosted --operation verilator-toolchain-build --output-path "$RUNNER_TEMP/verilator-5.052" --scan-root .tools/verilator --scan-root "$RUNNER_TEMP/verilator-5.052"
       - name: Run bounded lint, formal, and synthesis smoke
         run: ./scripts/validate_rtl_tools.sh

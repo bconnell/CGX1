@@ -450,14 +450,18 @@ def validate_current_claims(
     findings: list[str] = []
     for path, text in documents:
         for line_number, line in enumerate(text.splitlines(), start=1):
-            lower = line.lower()
-            if "current" not in lower or "candidate" not in lower:
-                continue
-            for sha in re.findall(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", line.lower()):
-                if sha != candidate_commit.lower():
-                    findings.append(
-                        f"{path}:{line_number}: current candidate points to superseded SHA {sha}"
-                    )
+            claims = re.split(
+                r"(?:(?<=[.!?])\s+(?=[\"'“‘(\[]*[A-Z0-9`])|;\s+)", line,
+            )
+            for claim in claims:
+                lower = claim.lower()
+                if "current" not in lower or "candidate" not in lower:
+                    continue
+                for sha in re.findall(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", lower):
+                    if sha != candidate_commit.lower():
+                        findings.append(
+                            f"{path}:{line_number}: current candidate points to superseded SHA {sha}"
+                        )
     return findings
 
 

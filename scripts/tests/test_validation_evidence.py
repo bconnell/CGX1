@@ -310,6 +310,16 @@ class CurrentClaimTests(unittest.TestCase):
 
         self.assertEqual(validate_current_claims([("docs/VALIDATION.md", f"Historical candidate {historical}")], active), [])
 
+    def test_historical_sha_in_same_paragraph_as_current_claim_is_not_rejected(self):
+        active = "a" * 40
+        historical = "b" * 40
+        text = (
+            f"Historical hosted measurement on {historical} remains valid. "
+            f"The current candidate is {active}."
+        )
+
+        self.assertEqual(validate_current_claims([("docs/VALIDATION.md", text)], active), [])
+
 
 class ArchitectureClaimTests(unittest.TestCase):
     def _architecture(self):

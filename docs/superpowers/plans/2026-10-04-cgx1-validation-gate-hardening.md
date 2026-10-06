@@ -123,6 +123,7 @@
 
 ### Task 7: Full candidate verification and one coherent commit
 
+- [x] Correct the current-candidate SHA evidence gate after the committed-tree check exposed a false positive when a historical measurement and unrelated current-candidate wording shared one Markdown paragraph. Add a regression, confirm it fails before the fix, then scope SHA validation to individual sentences; current working-tree evidence validation now passes.
 - [x] Run the positive/negative controls, GCC Debug/Release CTest, complete RTL gate, repository/design/hygiene/link checks, and exact source identity as an unprivileged UID 65534 clean candidate. Clang sanitizer coverage and the expanded hosted workflow set remain pending.
 - [ ] Run applicable clean-room, clean-build, sanitizer, Verilator, synthesis-smoke, formal/property, RTL coverage, escaped-defect, fault-injection, provenance, and resource-budget gates.
 - [ ] Review the entire staged diff and verify documentation truth against executable output.

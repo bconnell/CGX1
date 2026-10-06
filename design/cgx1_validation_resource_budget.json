@@ -21,39 +21,123 @@
       }
     },
     "operations": {
-      "clean-candidate": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "clean-cmake": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "wsl-candidate": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "clean-candidate": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/cgx1-clean-candidates/candidate-<tree>"],
+          "retention_policy": "Temporary detached source/build tree; retain compact candidate summary and required diagnostics only.",
+          "cleanup_after_success": "Remove the exact registered Git worktree after identity and free-space evidence is captured.",
+          "cleanup_after_failure": "Attempt exact owned-worktree cleanup; preserve the failure summary and diagnostics; report cleanup failure and leave unexplained paths untouched."
+        }
+      },
+      "clean-cmake": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/cv/cv-<run-id>/<configuration>"],
+          "retention_policy": "Temporary configuration output; retain the compact run summary and required failure diagnostics.",
+          "cleanup_after_success": "Remove each configuration after its CTest run, then remove the owned run directory.",
+          "cleanup_after_failure": "Measure partial output and preserve the summary, then remove only the verified owned run directory; report cleanup failure."
+        }
+      },
+      "wsl-candidate": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["/tmp/cgx1-clean-candidate-<commit>"],
+          "retention_policy": "Temporary Linux detached source/build tree; retain compact evidence and diagnostics only.",
+          "cleanup_after_success": "Remove the owned Linux worktree after validation and identity recheck.",
+          "cleanup_after_failure": "Attempt exact owned-worktree cleanup and preserve the concise failure summary; leave unknown or active paths untouched."
+        }
+      },
       "gcc-debug": {
         "estimated_peak_bytes": 28471237,
         "measurement_status": "estimate",
         "measurement_source": "Hosted exact-SHA clean-candidate GCC Debug configuration tree measured 28,471,237 bytes on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db; observed output size, not a filesystem high-water measurement.",
         "maximum_output_tree_bytes": 56942474,
-        "block_when_warning": false
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/cv/cv-<run-id>/Debug"],
+          "retention_policy": "Temporary GCC Debug configuration output; keep only while its CTest run and evidence capture are active.",
+          "cleanup_after_success": "Remove the Debug configuration after its CTest result and byte measurement are captured.",
+          "cleanup_after_failure": "Capture partial-tree size and diagnostics, then remove only the verified owned configuration directory."
+        }
       },
       "gcc-release": {
         "estimated_peak_bytes": 3612512,
         "measurement_status": "estimate",
         "measurement_source": "Hosted exact-SHA clean-candidate GCC Release configuration tree measured 3,612,512 bytes on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db; observed output size, not a filesystem high-water measurement.",
         "maximum_output_tree_bytes": 7225024,
-        "block_when_warning": false
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/cv/cv-<run-id>/Release"],
+          "retention_policy": "Temporary GCC Release configuration output; keep only while its CTest run and evidence capture are active.",
+          "cleanup_after_success": "Remove the Release configuration after its CTest result and byte measurement are captured.",
+          "cleanup_after_failure": "Capture partial-tree size and diagnostics, then remove only the verified owned configuration directory."
+        }
       },
-      "clang-debug": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "clang-release": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "clang-debug": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/cv/cv-<run-id>/Debug"],
+          "retention_policy": "Temporary Clang Debug configuration output; keep only while its CTest run and evidence capture are active.",
+          "cleanup_after_success": "Remove the Debug configuration after its CTest result and byte measurement are captured.",
+          "cleanup_after_failure": "Capture partial-tree size and diagnostics, then remove only the verified owned configuration directory."
+        }
+      },
+      "clang-release": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/cv/cv-<run-id>/Release"],
+          "retention_policy": "Temporary Clang Release configuration output; keep only while its CTest run and evidence capture are active.",
+          "cleanup_after_success": "Remove the Release configuration after its CTest result and byte measurement are captured.",
+          "cleanup_after_failure": "Capture partial-tree size and diagnostics, then remove only the verified owned configuration directory."
+        }
+      },
       "sanitizer-build": {
         "estimated_peak_bytes": 87320145,
         "measurement_status": "estimate",
         "measurement_source": "Hosted exact-SHA ASan/UBSan Clang matrix output tree measured 87,320,145 bytes on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db; the larger of GCC (68,108,995) and Clang (87,320,145) observed trees is used, not a filesystem high-water measurement.",
         "maximum_output_tree_bytes": 174640290,
-        "block_when_warning": true
+        "block_when_warning": true,
+        "artifact_lifecycle": {
+          "output_roots": ["build/sanitizers"],
+          "retention_policy": "Hosted job output lives only for the job; an explicitly run local tree remains reusable until deliberately removed.",
+          "cleanup_after_success": "Hosted runner disposal retires the tree; do not create a second local configuration to preserve these outputs.",
+          "cleanup_after_failure": "Hosted runner disposal retires generated output after diagnostics are emitted; local failure output remains available for diagnosis."
+        }
       },
-      "hosted-tool-install": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
+      "hosted-tool-install": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["/usr", "/var/lib/apt/lists", "/var/cache/apt/archives"],
+          "retention_policy": "Hosted runner package state exists only for the current CI job.",
+          "cleanup_after_success": "Rely on hosted runner disposal; do not purge shared developer package caches.",
+          "cleanup_after_failure": "Rely on hosted runner disposal and retain job diagnostics; do not purge shared developer package caches."
+        }
+      },
       "icarus": {
         "estimated_peak_bytes": 11022503,
         "measurement_status": "estimate",
         "measurement_source": "Hosted exact-SHA RTL CI completed bounded Icarus output scan measured 11,022,503 bytes across 98 files on commit ae0dbd016ed32abfcaec24351e0679f3b892f3db; this is an observed output-size estimate, not a filesystem high-water measurement.",
         "maximum_output_tree_bytes": 22045006,
-        "block_when_warning": false
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/rtl"],
+          "retention_policy": "Reusable current validation outputs at deterministic names; preserve bounded logs for failure classification.",
+          "cleanup_after_success": "Keep reusable outputs until the next RTL run overwrites them or a separately authorized cleanup removes them.",
+          "cleanup_after_failure": "Keep bounded compiler and simulation diagnostics for classification; do not silently delete the failing outputs."
+        }
       },
       "verilator-toolchain-build": {
         "estimated_peak_bytes": null,
@@ -63,11 +147,47 @@
         "observed_output_file_count": 11201,
         "observed_output_measurement_source": "Hosted exact-SHA RTL Tools CI artifact scan measured 2,236,212,581 regular-file bytes across 11,201 files in the Verilator source/build checkout and installed prefix on commit d9e118d99d4b213c87a71bc6dd40b61cf61453c7; one redirected entry was skipped. This is an output-tree observation, not a filesystem high-water or complete-build peak measurement.",
         "maximum_output_tree_bytes": 4472425162,
-        "block_when_warning": true
+        "block_when_warning": true,
+        "artifact_lifecycle": {
+          "output_roots": [".tools/verilator", "$RUNNER_TEMP/verilator-5.052"],
+          "retention_policy": "Pinned source/build checkout and install prefix live only for the hosted workflow job.",
+          "cleanup_after_success": "Hosted runner disposal retires both roots after the post-install size scan and bounded RTL Tools gates.",
+          "cleanup_after_failure": "Hosted runner disposal retires generated roots after available job diagnostics are emitted."
+        }
       },
-      "rtl-tools": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "synthesis-smoke": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false},
-      "formal": {"estimated_peak_bytes": null, "measurement_status": "unmeasured", "block_when_warning": false}
+      "rtl-tools": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/rtl-tools"],
+          "retention_policy": "Reusable current validation logs and bounded tool outputs remain until the next run overwrites them.",
+          "cleanup_after_success": "Retain deterministic reusable outputs; do not copy the large Verilator build tree into the repository.",
+          "cleanup_after_failure": "Retain bounded tool logs needed to classify the failure; overwrite only on a later owned run."
+        }
+      },
+      "synthesis-smoke": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/rtl-tools/logs"],
+          "retention_policy": "One deterministic synthesis log is retained with the reusable RTL Tools outputs.",
+          "cleanup_after_success": "The next RTL Tools run overwrites the log; no additional output tree is retained.",
+          "cleanup_after_failure": "Retain the bounded failing log for diagnosis until a subsequent run overwrites it."
+        }
+      },
+      "formal": {
+        "estimated_peak_bytes": null,
+        "measurement_status": "unmeasured",
+        "block_when_warning": false,
+        "artifact_lifecycle": {
+          "output_roots": ["build/rtl-tools/logs"],
+          "retention_policy": "One deterministic formal log is retained with the reusable RTL Tools outputs.",
+          "cleanup_after_success": "The next RTL Tools run overwrites the log; no additional output tree is retained.",
+          "cleanup_after_failure": "Retain the bounded failing log for diagnosis until a subsequent run overwrites it."
+        }
+      }
     },
     "artifact_limits": {
       "maximum_waveform_file_bytes": 16777216,

@@ -180,6 +180,10 @@ def validate_disk_policy(document: Mapping[str, Any]) -> dict[str, Any]:
     for name, operation in budget["operations"].items():
         if not isinstance(operation, dict):
             raise DiskBudgetError(f"disk-budget operation {name!r} must be an object")
+        if "estimated_peak_bytes" not in operation:
+            raise DiskBudgetError(
+                f"operation {name!r} must declare estimated_peak_bytes; use null when unmeasured"
+            )
         estimate = operation.get("estimated_peak_bytes")
         status = operation.get("measurement_status")
         if estimate is None and status != "unmeasured":
@@ -204,6 +208,26 @@ def validate_disk_policy(document: Mapping[str, Any]) -> dict[str, Any]:
             raise DiskBudgetError(f"operation {name!r} has an invalid maximum_test_output_file_bytes")
         if not isinstance(operation.get("block_when_warning"), bool):
             raise DiskBudgetError(f"operation {name!r} needs a boolean block_when_warning field")
+        lifecycle = operation.get("artifact_lifecycle")
+        if not isinstance(lifecycle, dict):
+            raise DiskBudgetError(f"operation {name!r} needs an artifact_lifecycle object")
+        output_roots = lifecycle.get("output_roots")
+        if (
+            not isinstance(output_roots, list)
+            or not output_roots
+            or any(not isinstance(path, str) or not path.strip() for path in output_roots)
+        ):
+            raise DiskBudgetError(
+                f"operation {name!r} artifact_lifecycle needs non-empty output_roots"
+            )
+        for field in (
+            "retention_policy", "cleanup_after_success", "cleanup_after_failure",
+        ):
+            value = lifecycle.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise DiskBudgetError(
+                    f"operation {name!r} artifact_lifecycle needs {field}"
+                )
     limits = budget.get("artifact_limits")
     if not isinstance(limits, dict):
         raise DiskBudgetError("disk-budget artifact limits are missing")

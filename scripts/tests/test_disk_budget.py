@@ -17,6 +17,41 @@ GIB = 1024**3
 
 
 class DiskBudgetTests(unittest.TestCase):
+    @staticmethod
+    def minimal_policy_document():
+        operation_names = (
+            "clean-candidate", "clean-cmake", "wsl-candidate", "gcc-debug",
+            "gcc-release", "clang-debug", "clang-release", "sanitizer-build",
+            "hosted-tool-install", "icarus", "verilator-toolchain-build", "rtl-tools",
+            "synthesis-smoke", "formal",
+        )
+        return {
+            "disk_budget": {
+                "profiles": {
+                    "developer": {"warning_free_bytes": 50 * GIB, "minimum_free_bytes": 40 * GIB},
+                    "hosted": {"warning_free_bytes": None, "minimum_free_bytes": 2 * GIB},
+                },
+                "operations": {
+                    name: {
+                        "estimated_peak_bytes": None,
+                        "measurement_status": "unmeasured",
+                        "block_when_warning": False,
+                        "artifact_lifecycle": {
+                            "output_roots": [f"build/{name}"],
+                            "retention_policy": "retain only for the active validation purpose",
+                            "cleanup_after_success": "remove owned temporary output after evidence capture",
+                            "cleanup_after_failure": "remove owned temporary output and preserve diagnostics",
+                        },
+                    }
+                    for name in operation_names
+                },
+                "artifact_limits": {
+                    "maximum_waveform_file_bytes": 1,
+                    "maximum_test_output_file_bytes": 1,
+                },
+            },
+        }
+
     def test_developer_profile_warns_below_fifty_gib(self):
         report = disk_budget.evaluate_budget(
             {"warning_free_bytes": 50 * GIB, "minimum_free_bytes": 40 * GIB},
@@ -344,30 +379,56 @@ class DiskBudgetTests(unittest.TestCase):
         self.assertTrue(any("2,236,212,581" in note for note in policy["measurement_notes"]))
 
     def test_policy_rejects_unmeasured_size_labeled_as_measured(self):
-        document = {
-            "disk_budget": {
-                "profiles": {
-                    "developer": {"warning_free_bytes": 50 * GIB, "minimum_free_bytes": 40 * GIB},
-                    "hosted": {"warning_free_bytes": None, "minimum_free_bytes": 2 * GIB},
-                },
-                "operations": {
-                    name: {"estimated_peak_bytes": None, "measurement_status": "unmeasured",
-                           "block_when_warning": False}
-                    for name in ("clean-candidate", "clean-cmake", "wsl-candidate", "gcc-debug",
-                                 "gcc-release", "clang-debug", "clang-release", "sanitizer-build",
-                                 "hosted-tool-install", "icarus", "verilator-toolchain-build", "rtl-tools",
-                                 "synthesis-smoke", "formal")
-                },
-                "artifact_limits": {
-                    "maximum_waveform_file_bytes": 1,
-                    "maximum_test_output_file_bytes": 1,
-                },
-            }
-        }
+        document = self.minimal_policy_document()
         document["disk_budget"]["operations"]["icarus"]["measurement_status"] = "measured"
 
         with self.assertRaisesRegex(disk_budget.DiskBudgetError, "must be labeled unmeasured"):
             disk_budget.validate_disk_policy(document)
+
+    def test_policy_rejects_operation_without_artifact_lifecycle(self):
+        document = self.minimal_policy_document()
+        del document["disk_budget"]["operations"]["icarus"]["artifact_lifecycle"]
+
+        with self.assertRaisesRegex(disk_budget.DiskBudgetError, "artifact_lifecycle"):
+            disk_budget.validate_disk_policy(document)
+
+    def test_policy_rejects_operation_without_failure_cleanup_policy(self):
+        for field in (
+            "retention_policy", "cleanup_after_success", "cleanup_after_failure",
+        ):
+            with self.subTest(field=field):
+                document = self.minimal_policy_document()
+                del document["disk_budget"]["operations"]["icarus"]["artifact_lifecycle"][field]
+
+                with self.assertRaisesRegex(disk_budget.DiskBudgetError, field):
+                    disk_budget.validate_disk_policy(document)
+
+    def test_policy_rejects_operation_without_a_declared_output_root(self):
+        document = self.minimal_policy_document()
+        document["disk_budget"]["operations"]["icarus"]["artifact_lifecycle"][
+            "output_roots"
+        ] = []
+
+        with self.assertRaisesRegex(disk_budget.DiskBudgetError, "output_roots"):
+            disk_budget.validate_disk_policy(document)
+
+    def test_policy_requires_magnitude_field_even_when_it_is_unmeasured(self):
+        document = self.minimal_policy_document()
+        del document["disk_budget"]["operations"]["icarus"]["estimated_peak_bytes"]
+
+        with self.assertRaisesRegex(disk_budget.DiskBudgetError, "estimated_peak_bytes"):
+            disk_budget.validate_disk_policy(document)
+
+    def test_policy_accepts_complete_artifact_lifecycle(self):
+        document = self.minimal_policy_document()
+
+        policy = disk_budget.validate_disk_policy(document)
+
+        lifecycle = policy["operations"]["icarus"]["artifact_lifecycle"]
+        self.assertEqual(["build/icarus"], lifecycle["output_roots"])
+        self.assertTrue(lifecycle["retention_policy"])
+        self.assertTrue(lifecycle["cleanup_after_success"])
+        self.assertTrue(lifecycle["cleanup_after_failure"])
 
     def test_unknown_operation_fails_closed(self):
         root = Path(__file__).resolve().parents[2]

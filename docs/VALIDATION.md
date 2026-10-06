@@ -37,6 +37,8 @@ Hosted Linux sanitizer and RTL-tools lanes add GCC/Clang ASan+UBSan and bounded 
 
 The branch-state gate reports local-to-feature publication and feature-to-main integration separately, including both SHAs, merge bases, ahead/behind counts, open integration-PR query state, latest exact hosted-valid feature SHA, and hosted-green integration debt. `--for-major-slice` blocks a new major slice while main has unmerged commits or hosted-green completeness work remains outside main. Feature milestones integrate through a protected ancestry-preserving PR merge; the completeness branch is then reconciled with main.
 
+Every registered disk-budget operation declares its output roots, expected magnitude or explicit unmeasured status, retention policy, and success/failure cleanup behavior in `design/cgx1_validation_resource_budget.json`. Any new CGX1 gate or tool that creates substantial local artifacts must add that lifecycle before it is considered complete. Cleanup remains limited to paths the operation owns; failure diagnostics and unexplained user data are preserved.
+
 ## 2. Analytical model
 
 The C++ model verifies:

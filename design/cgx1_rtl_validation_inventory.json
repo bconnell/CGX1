@@ -1223,8 +1223,8 @@
         "build/rtl/cgx1_compute_workgroup_command_lifecycle_integration_tb.vvp",
         "build/rtl/cgx1_compute_workgroup_dispatch_integration_tb.vvp",
         "build/rtl/cgx1_compute_workgroup_execution_frontend_tb.vvp",
-        "build/rtl/cgx1_provisional_control_instruction_dispatch_tb.vvp",
-        "build/rtl/cgx1_provisional_control_instruction_dispatch_invalid_param_tb.vvp"
+        "build/rtl/cgx1_provisional_control_instruction_dispatch_invalid_param_tb.vvp",
+        "build/rtl/cgx1_provisional_control_instruction_dispatch_tb.vvp"
       ]
     },
     {

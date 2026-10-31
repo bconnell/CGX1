@@ -10,6 +10,8 @@ The earlier per-resident-slot VGPR RTL remains a validated logical storage bound
 
 The pooled implementation exists as executable C++ reference code and synthesizable SystemVerilog candidate RTL. Local simulation, hosted workflow, and physical implementation evidence are recorded separately by candidate in `design/cgx1_validation_evidence.json`.
 
+The C++ resident-wave pool and VGPR storage model validate their dimensions before allocating host memory. Each has a configurable 64 MiB default host-backing budget. The pool accounts for wave-slot metadata and its per-row occupancy bitmap; the storage model accounts for physical-row data and validity. These are limits on the executable model's resource use, not architectural VGPR capacity, wave occupancy, or an SRAM macro specification. The tests exercise the exact storage backing boundary and rejection of undersized budgets without allocating large buffers.
+
 Nothing in this boundary freezes resident-wave occupancy, physical register-file capacity, foundry memory macros, timing, area, or power.
 
 ## Physical row mapping

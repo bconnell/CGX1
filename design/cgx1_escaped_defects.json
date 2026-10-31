@@ -197,6 +197,85 @@
           "needle": "fetched control dispatcher invalid-parameter diagnostic was missing"
         }
       ]
+    },
+    {
+      "id": "vgpr-model-dimension-preallocation-resource-exhaustion",
+      "origin": "Found during the 2026-10-31 cross-subsystem CGX1 memory-safety review.",
+      "failure_mode": "VGPR pool wave-slot metadata or physical VGPR rows could allocate unbounded host memory before invalid or excessive model dimensions are rejected.",
+      "regressions": [
+        {
+          "path": "source/matrix/vgpr_pool_tests.cpp",
+          "needle": "PooledVgprStorage belowBudget(1U, storageRowFootprint - 1U)"
+        },
+        {
+          "path": "source/matrix/vgpr_pool_tests.cpp",
+          "needle": "ResidentWaveVgprPool excessiveSlots(64U, 128U, 32U)"
+        }
+      ],
+      "gates": [
+        {
+          "path": "source/matrix/CMakeLists.txt",
+          "needle": "add_test(NAME cgx1_matrix_vgpr_pool_checks COMMAND cgx1_matrix_vgpr_pool_tests)"
+        },
+        {
+          "path": "source/matrix/cgx1_matrix_vgpr_pool.hpp",
+          "needle": "ValidatedStorageRows(physicalRows, maximumHostBackingBytes)"
+        },
+        {
+          "path": "source/matrix/cgx1_matrix_vgpr_pool.hpp",
+          "needle": "ValidatedWaveSlots("
+        }
+      ]
+    },
+    {
+      "id": "cu-other-state-resource-addition-wraparound",
+      "origin": "Found during the 2026-10-31 numerical-width and resource-admission audit.",
+      "failure_mode": "Other workgroup-state usage was narrowed to 32 bits; addition of an admitted UINT32_MAX demand and a new unit wrapped to zero, permitting a second workgroup that exceeds its declared CU resource limit.",
+      "regressions": [
+        {
+          "path": "source/model/workgroup_scheduler_tests.cpp",
+          "needle": "otherOverflow.UsedOtherWorkgroupUnits() == maxResourceUnits"
+        },
+        {
+          "path": "source/model/workgroup_scheduler_tests.cpp",
+          "needle": "== AdmissionFailure::OtherWorkgroupStateUnavailable"
+        }
+      ],
+      "gates": [
+        {
+          "path": "source/model/workgroup_scheduler.hpp",
+          "needle": "std::uint64_t UsedOtherWorkgroupUnits() const noexcept"
+        },
+        {
+          "path": "source/model/CMakeLists.txt",
+          "needle": "cgx1_workgroup_scheduler_tests"
+        }
+      ]
+    },
+    {
+      "id": "rtl-module-inventory-artifact-order-diagnostic",
+      "origin": "A fetched-Control dispatcher negative test was registered out of order on the 2026-10-31 candidate; the hosted validator rejected it but only reported a generic module mismatch.",
+      "failure_mode": "A correct new RTL negative test can be blocked by a module inventory ordering error, while the generic diagnostic hides the exact affected module and artifact list.",
+      "regressions": [
+        {
+          "path": "scripts/tests/test_rtl_inventory.py",
+          "needle": "test_misordered_module_artifacts_report_the_exact_owner"
+        },
+        {
+          "path": "scripts/tests/test_rtl_inventory.py",
+          "needle": "test_missing_module_artifact_identifies_expected_output"
+        }
+      ],
+      "gates": [
+        {
+          "path": "scripts/validate_rtl_inventory.py",
+          "needle": "module validation artifact order mismatch"
+        },
+        {
+          "path": "scripts/validate_rtl_inventory.py",
+          "needle": "module validation artifact drift:"
+        }
+      ]
     }
   ]
 }

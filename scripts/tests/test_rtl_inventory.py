@@ -43,6 +43,32 @@ class RtlInventoryTests(unittest.TestCase):
         errors = MODULE.validate_document(changed, self.script_text, ROOT)
         self.assertTrue(any("module inventory mismatch" in error for error in errors))
 
+    def test_misordered_module_artifacts_report_the_exact_owner(self):
+        changed = json.loads(json.dumps(self.inventory))
+        module = next(item for item in changed["modules"]
+                      if item["module"] == "cgx1_provisional_control_instruction_dispatch")
+        self.assertGreaterEqual(len(module["validated_by_artifacts"]), 2)
+        module["validated_by_artifacts"].reverse()
+        errors = MODULE.validate_document(changed, self.script_text, ROOT)
+        self.assertTrue(any("module validation artifact order mismatch" in error
+                            and "cgx1_provisional_control_instruction_dispatch" in error
+                            for error in errors))
+
+    def test_malformed_module_identity_reports_failure_without_crashing(self):
+        changed = json.loads(json.dumps(self.inventory))
+        changed["modules"][0]["path"] = ["not a path"]
+        errors = MODULE.validate_document(changed, self.script_text, ROOT)
+        self.assertTrue(any("malformed path or module" in error for error in errors))
+
+    def test_missing_module_artifact_identifies_expected_output(self):
+        changed = json.loads(json.dumps(self.inventory))
+        module = next(item for item in changed["modules"]
+                      if item["module"] == "cgx1_provisional_control_instruction_dispatch")
+        missing_artifact = module["validated_by_artifacts"].pop()
+        errors = MODULE.validate_document(changed, self.script_text, ROOT)
+        self.assertTrue(any("module validation artifact drift" in error
+                            and missing_artifact in error for error in errors))
+
     def test_compile_only_entry_requires_partial_reason(self):
         changed = json.loads(json.dumps(self.inventory))
         target = next(item for item in changed["invocations"] if item["mode"] == "compile_only")

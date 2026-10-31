@@ -5,6 +5,7 @@
 #include "cgx1_matrix_vgpr_pool.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <optional>
@@ -89,6 +90,29 @@ std::optional<std::uint32_t> ExpectedFirstFit(
 
 int main()
 {
+    // Small configurable budgets test both constructor boundaries without
+    // permitting a regression to allocate gigabytes of host memory.
+    CHECK(Throws([] { ResidentWaveVgprPool invalid(0U, 1U); (void)invalid; }));
+    CHECK(Throws([] { ResidentWaveVgprPool invalid(64U, 0U); (void)invalid; }));
+    CHECK(Throws([] {
+        ResidentWaveVgprPool excessiveSlots(64U, 128U, 32U);
+        (void)excessiveSlots;
+    }));
+    CHECK(Throws([] {
+        ResidentWaveVgprPool oversizedBitmap(2048U, 1U, 32U);
+        (void)oversizedBitmap;
+    }));
+    CHECK(Throws([] { PooledVgprStorage empty(0U); (void)empty; }));
+    constexpr std::size_t storageRowFootprint =
+        sizeof(PooledWaveRegister) * kVgprRegistersPerPhysicalRow
+        + sizeof(std::array<bool, kVgprRegistersPerPhysicalRow>);
+    const PooledVgprStorage exactBudget(1U, storageRowFootprint);
+    (void)exactBudget;
+    CHECK(Throws([] {
+        PooledVgprStorage belowBudget(1U, storageRowFootprint - 1U);
+        (void)belowBudget;
+    }));
+
     CHECK(VgprRowsForRegisterCount(1U) == 1U);
     CHECK(VgprRowsForRegisterCount(8U) == 1U);
     CHECK(VgprRowsForRegisterCount(9U) == 2U);

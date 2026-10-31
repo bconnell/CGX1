@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -148,6 +149,32 @@ int TestAdmissionAndResourceBoundaries()
         CHECK(check_action_admit_110_13
         == AdmissionFailure::ScalarPredicateStateUnavailable);
     }
+
+    // An exact UINT32_MAX demand is legal with a matching declared CU
+    // limit. The next single unit must be rejected, not wrapped to zero.
+    constexpr std::uint32_t maxResourceUnits
+        = std::numeric_limits<std::uint32_t>::max();
+    ComputeUnitWorkgroupScheduler otherOverflow(
+        Limits(4U, 32U, 32U, 1024U, 2U, maxResourceUnits));
+    CHECK(otherOverflow.Admit(Demand(
+        70U, 1U, 16U, 1U, 0U, maxResourceUnits)) == AdmissionFailure::None);
+    CHECK(otherOverflow.UsedOtherWorkgroupUnits() == maxResourceUnits);
+    CHECK(otherOverflow.Admit(Demand(
+        71U, 1U, 16U, 1U, 0U, 1U))
+        == AdmissionFailure::OtherWorkgroupStateUnavailable);
+    CHECK(otherOverflow.WorkgroupCount() == 1U);
+    CHECK(otherOverflow.UsedOtherWorkgroupUnits() == maxResourceUnits);
+    CHECK(otherOverflow.CheckInvariants());
+
+    ComputeUnitWorkgroupScheduler scalarOverflow(
+        Limits(4U, 32U, maxResourceUnits, 1024U, 2U, 4U));
+    CHECK(scalarOverflow.Admit(Demand(
+        72U, 1U, 16U, maxResourceUnits)) == AdmissionFailure::None);
+    CHECK(scalarOverflow.Admit(Demand(
+        73U, 1U, 16U, 1U))
+        == AdmissionFailure::ScalarPredicateStateUnavailable);
+    CHECK(scalarOverflow.UsedScalarPredicateUnits() == maxResourceUnits);
+    CHECK(scalarOverflow.CheckInvariants());
 
     ComputeUnitWorkgroupScheduler barrierBusy(Limits(4U, 32U, 32U, 1024U, 1U));
     {

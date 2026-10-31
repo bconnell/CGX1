@@ -614,7 +614,7 @@ public:
         return vgprPool_.OccupiedRows();
     }
 
-    [[nodiscard]] std::uint32_t UsedScalarPredicateUnits() const noexcept
+    [[nodiscard]] std::uint64_t UsedScalarPredicateUnits() const noexcept
     {
         std::uint64_t total = 0U;
         for (const auto& [id, workgroup] : workgroups_)
@@ -626,7 +626,7 @@ public:
                     total += workgroup.demand.scalarPredicateUnitsPerWave;
             }
         }
-        return static_cast<std::uint32_t>(total);
+        return total;
     }
 
     [[nodiscard]] std::uint32_t UsedSharedLocalBytes() const noexcept
@@ -634,7 +634,7 @@ public:
         return sharedLocalMemory_.AllocatedBytes();
     }
 
-    [[nodiscard]] std::uint32_t UsedOtherWorkgroupUnits() const noexcept
+    [[nodiscard]] std::uint64_t UsedOtherWorkgroupUnits() const noexcept
     {
         std::uint64_t total = 0U;
         for (const auto& [id, workgroup] : workgroups_)
@@ -642,7 +642,7 @@ public:
             (void)id;
             total += workgroup.demand.otherWorkgroupStateUnits;
         }
-        return static_cast<std::uint32_t>(total);
+        return total;
     }
 
     [[nodiscard]] bool CheckInvariants() const

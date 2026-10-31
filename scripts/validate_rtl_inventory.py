@@ -210,6 +210,46 @@ def validate_document(document: Any, script_text: str, root: Path) -> list[str]:
     modules = document.get("modules")
     if modules != expected_modules:
         errors.append("module inventory mismatch: every first-party RTL module and exact validation artifact must be listed")
+        if not isinstance(modules, list):
+            errors.append("module inventory entries must be an array")
+        else:
+            expected_by_key = {
+                (item["path"], item["module"]): item for item in expected_modules
+            }
+            recorded_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+            for item in modules:
+                if (not isinstance(item, dict)
+                        or not isinstance(item.get("path"), str)
+                        or not isinstance(item.get("module"), str)):
+                    errors.append("module inventory entry has malformed path or module")
+                    continue
+                recorded_by_key[(item["path"], item["module"])] = item
+            for key in sorted(expected_by_key.keys() & recorded_by_key.keys()):
+                expected_artifacts = expected_by_key[key]["validated_by_artifacts"]
+                artifacts = recorded_by_key[key].get("validated_by_artifacts")
+                if artifacts == expected_artifacts:
+                    continue
+                label = f"{key[0]}::{key[1]}"
+                if not isinstance(artifacts, list) or not all(
+                    isinstance(value, str) for value in artifacts
+                ):
+                    errors.append(f"module validation artifacts malformed: {label}")
+                elif sorted(artifacts) == expected_artifacts:
+                    errors.append(f"module validation artifact order mismatch: {label}; list must be sorted")
+                else:
+                    missing = sorted(set(expected_artifacts) - set(artifacts))
+                    extra = sorted(set(artifacts) - set(expected_artifacts))
+                    errors.append(f"module validation artifact drift: {label}; missing={missing}; extra={extra}")
+            if set(expected_by_key) != set(recorded_by_key):
+                missing_keys = sorted(set(expected_by_key) - set(recorded_by_key))
+                extra_keys = sorted(set(recorded_by_key) - set(expected_by_key))
+                errors.append(f"module inventory entries missing={missing_keys}; extra={extra_keys}")
+            elif all(
+                recorded_by_key[key].get("validated_by_artifacts")
+                == expected_by_key[key]["validated_by_artifacts"]
+                for key in expected_by_key
+            ):
+                errors.append("module inventory entries are not in canonical module order")
     for module in expected_modules:
         if not module["validated_by_artifacts"]:
             errors.append(f"first-party RTL module is not compiled by any inventory entry: {module['path']}")

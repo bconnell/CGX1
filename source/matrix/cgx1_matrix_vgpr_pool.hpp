@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -20,6 +21,9 @@ inline constexpr std::uint32_t kVgprRegistersPerPhysicalRow =
     kMatrixRegisterBankClasses;
 inline constexpr std::uint32_t kArchitecturalRowsPerWave =
     kArchitecturalVgprsPerWave / kVgprRegistersPerPhysicalRow;
+// Host reference-model preallocation cap; not a physical register-file limit.
+inline constexpr std::size_t kDefaultVgprModelBackingBudgetBytes
+    = 64U * 1024U * 1024U;
 
 using PooledWaveRegister =
     std::array<std::uint32_t, kPooledVgprWaveLanes>;
@@ -69,7 +73,7 @@ inline std::optional<std::uint32_t> FindFirstFitVgprRows(
     }
 
     for (std::uint32_t base = 0U;
-         base + rowsNeeded <= occupied.size();
+         static_cast<std::size_t>(base) <= occupied.size() - rowsNeeded;
          ++base)
     {
         bool free = true;
@@ -93,18 +97,38 @@ inline std::optional<std::uint32_t> FindFirstFitVgprRows(
 
 class ResidentWaveVgprPool
 {
+private:
+    [[nodiscard]] static std::uint32_t ValidatedWaveSlots(
+        std::uint32_t physicalRows,
+        std::uint32_t residentWaveSlots,
+        std::size_t maximumHostBackingBytes)
+    {
+        const std::uint64_t allocationBytes
+            = static_cast<std::uint64_t>(residentWaveSlots)
+            * sizeof(ResidentWaveVgprAllocation);
+        const std::uint64_t bitmapBytes
+            = (static_cast<std::uint64_t>(physicalRows) + 7U) / 8U;
+        if (physicalRows == 0U || residentWaveSlots == 0U
+            || maximumHostBackingBytes == 0U
+            || allocationBytes > maximumHostBackingBytes
+            || bitmapBytes > maximumHostBackingBytes - allocationBytes)
+        {
+            throw std::invalid_argument(
+                "VGPR pool dimensions exceed their host model resource budget");
+        }
+        return residentWaveSlots;
+    }
+
 public:
     ResidentWaveVgprPool(
         std::uint32_t physicalRows,
-        std::uint32_t residentWaveSlots)
+        std::uint32_t residentWaveSlots,
+        std::size_t maximumHostBackingBytes
+            = kDefaultVgprModelBackingBudgetBytes)
         : physicalRows_(physicalRows),
-          allocations_(residentWaveSlots)
+          allocations_(ValidatedWaveSlots(
+              physicalRows, residentWaveSlots, maximumHostBackingBytes))
     {
-        if (physicalRows == 0U || residentWaveSlots == 0U)
-        {
-            throw std::invalid_argument(
-                "VGPR pool dimensions must be nonzero");
-        }
     }
 
     [[nodiscard]] std::uint32_t PhysicalRows() const noexcept
@@ -429,21 +453,35 @@ private:
 
 class PooledVgprStorage
 {
-public:
-    explicit PooledVgprStorage(std::uint32_t physicalRows)
-        : registers_(physicalRows),
-          initialized_(physicalRows)
+private:
+    using PhysicalRow = std::array<
+        PooledWaveRegister, kVgprRegistersPerPhysicalRow>;
+
+    [[nodiscard]] static std::uint32_t ValidatedStorageRows(
+        std::uint32_t physicalRows,
+        std::size_t maximumHostBackingBytes)
     {
-        if (physicalRows == 0U)
+        constexpr std::size_t bytesPerRow = sizeof(PhysicalRow)
+            + sizeof(std::array<bool, kVgprRegistersPerPhysicalRow>);
+        if (physicalRows == 0U || maximumHostBackingBytes == 0U
+            || physicalRows > maximumHostBackingBytes / bytesPerRow)
         {
             throw std::invalid_argument(
-                "pooled VGPR storage must contain physical rows");
+                "pooled VGPR storage exceeds its host model resource budget");
         }
+        return physicalRows;
+    }
 
+public:
+    explicit PooledVgprStorage(
+        std::uint32_t physicalRows,
+        std::size_t maximumHostBackingBytes
+            = kDefaultVgprModelBackingBudgetBytes)
+        : registers_(ValidatedStorageRows(physicalRows, maximumHostBackingBytes)),
+          initialized_(physicalRows)
+    {
         for (auto& row : initialized_)
-        {
             row.fill(false);
-        }
     }
 
     bool InvalidateNextReservedRow(
@@ -642,11 +680,6 @@ public:
     }
 
 private:
-    using PhysicalRow =
-        std::array<
-            PooledWaveRegister,
-            kVgprRegistersPerPhysicalRow>;
-
     std::vector<PhysicalRow> registers_;
     std::vector<std::array<bool, kVgprRegistersPerPhysicalRow>> initialized_;
 };

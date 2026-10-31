@@ -155,6 +155,48 @@
           "needle": "ValidateConstructorParameters"
         }
       ]
+    },
+    {
+      "id": "unknown-workgroup-fault-response-resource-exhaustion",
+      "origin": "Found during the 2026-10-31 CU-local memory reference adversarial resource review.",
+      "failure_mode": "Unique invalid workgroup and wave IDs can enqueue unlimited accepted fault responses and transaction-owner map entries even when resident workgroup capacity is finite.",
+      "regressions": [
+        {
+          "path": "source/memory/shared_local_memory_tests.cpp",
+          "needle": "TestOutstandingFaultResponseCapacityAndRecovery"
+        }
+      ],
+      "gates": [
+        {
+          "path": "source/memory/CMakeLists.txt",
+          "needle": "add_test(NAME cgx1_shared_local_memory_checks COMMAND cgx1_shared_local_memory_tests)"
+        },
+        {
+          "path": "source/memory/shared_local_memory.hpp",
+          "needle": "SubmitStatus::OutstandingCapacityUnavailable"
+        }
+      ]
+    },
+    {
+      "id": "fetched-control-dispatcher-slot-width-truncation",
+      "origin": "Found during 2026-10-31 control-flow parameter edge review after fetched CALL/RETURN integration.",
+      "failure_mode": "A manually undersized resident wave-slot output width can truncate a valid slot index and consume/control the wrong wave when RESIDENT_WAVE_SLOTS is not a power of two.",
+      "regressions": [
+        {
+          "path": "source/rtl/tests/cgx1_provisional_control_instruction_dispatch_invalid_param_tb.sv",
+          "needle": "dispatcher accepted an undersized wave-slot index"
+        }
+      ],
+      "gates": [
+        {
+          "path": "source/rtl/cgx1_provisional_control_instruction_dispatch.sv",
+          "needle": "provisional control dispatcher wave-slot width is too small"
+        },
+        {
+          "path": "scripts/validate_rtl.sh",
+          "needle": "fetched control dispatcher invalid-parameter diagnostic was missing"
+        }
+      ]
     }
   ]
 }

@@ -172,6 +172,8 @@ module cgx1_provisional_control_instruction_dispatch #(
     initial begin
         if (RESIDENT_WAVE_SLOTS < 1)
             $fatal(1, "provisional control instruction dispatcher requires at least one resident wave slot");
+        if (WAVE_SLOT_WIDTH < ((RESIDENT_WAVE_SLOTS <= 1) ? 1 : $clog2(RESIDENT_WAVE_SLOTS)))
+            $fatal(1, "provisional control dispatcher wave-slot width is too small");
         if (VIRTUAL_ADDRESS_WIDTH < 24)
             $fatal(1, "provisional control displacement requires at least a 24-bit virtual address");
     end

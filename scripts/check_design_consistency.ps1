@@ -920,6 +920,8 @@ Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "l
 Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "localparam logic [3:0] BRANCH_OPCODE = 4'h1;"
 Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "localparam logic [3:0] CALL_OPCODE = 4'h2;"
 Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "localparam logic [3:0] RETURN_OPCODE = 4'h3;"
+Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "provisional control dispatcher wave-slot width is too small"
+Require-Literal "source/rtl/tests/cgx1_provisional_control_instruction_dispatch_invalid_param_tb.sv" "dispatcher accepted an undersized wave-slot index"
 Require-Literal "source/rtl/cgx1_provisional_control_instruction_dispatch.sv" "= branch_next_pc[VIRTUAL_ADDRESS_WIDTH-1:0];"
 Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" ".control_event_return_pc(control_flow_event_return_pc)"
 Require-Literal "source/rtl/cgx1_compute_workgroup_execution_frontend.sv" "? control_event_return_pc : provisional_control_instruction_return_pc;"

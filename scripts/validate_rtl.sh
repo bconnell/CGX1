@@ -392,6 +392,22 @@ iverilog -g2012 -Wall -s cgx1_provisional_control_instruction_dispatch_tb \
 echo "==> Run provisional fetched-control instruction dispatcher RTL"
 timeout 30s vvp build/rtl/cgx1_provisional_control_instruction_dispatch_tb.vvp
 
+echo "==> Compile provisional control dispatcher invalid-parameter control"
+iverilog -g2012 -Wall -s cgx1_provisional_control_instruction_dispatch_invalid_param_tb \
+    -o build/rtl/cgx1_provisional_control_instruction_dispatch_invalid_param_tb.vvp \
+    source/rtl/cgx1_provisional_control_instruction_dispatch.sv \
+    source/rtl/tests/cgx1_provisional_control_instruction_dispatch_invalid_param_tb.sv
+if timeout 5s vvp build/rtl/cgx1_provisional_control_instruction_dispatch_invalid_param_tb.vvp > build/rtl/cgx1_provisional_control_instruction_dispatch_invalid_param.log 2>&1; then
+    echo "[fail] fetched control dispatcher accepted an undersized wave-slot index" >&2
+    exit 1
+fi
+if ! grep -q "provisional control dispatcher wave-slot width is too small" build/rtl/cgx1_provisional_control_instruction_dispatch_invalid_param.log; then
+    cat build/rtl/cgx1_provisional_control_instruction_dispatch_invalid_param.log >&2
+    echo "[fail] fetched control dispatcher invalid-parameter diagnostic was missing" >&2
+    exit 1
+fi
+echo "[pass] fetched control dispatcher rejected undersized wave-slot width"
+
 echo "==> Compile resident vector scheduler RTL"
 iverilog -g2012 -Wall -s cgx1_vector_resident_wave_scheduler_tb -o build/rtl/cgx1_vector_resident_wave_scheduler_tb.vvp \
     source/rtl/cgx1_vector_resident_wave_scheduler.sv \

@@ -80,6 +80,36 @@ void TestInvalidConstructorInputsDoNotAllocateBeforeValidation()
     checkRejected(0U, 32U, 1U);
     checkRejected(16U, 0U, 1U);
     checkRejected(16U, 32U, 0U);
+    bool invalidOperationLimit = false;
+    try
+    {
+        const CuSharedLocalMemory invalid(16U, 32U, 1U, 0U);
+        (void)invalid;
+    }
+    catch (const std::invalid_argument&)
+    {
+        invalidOperationLimit = true;
+    }
+    Check(invalidOperationLimit, "zero outstanding-operation limit was not rejected");
+
+    // Both backing arrays are bounded before construction. These inputs
+    // used to risk allocating gigabytes of memory during model setup.
+    bool hostBudgetRejected = false;
+    try
+    {
+        const CuSharedLocalMemory oversized(
+            cgx1::memory::kDefaultHostBackingBudgetBytes + 1U);
+        (void)oversized;
+    }
+    catch (const std::invalid_argument&)
+    {
+        hostBudgetRejected = true;
+    }
+    Check(hostBudgetRejected, "shared-memory model exceeded the default host backing budget");
+    checkRejected(16U, std::numeric_limits<std::uint32_t>::max(), 1U);
+
+    const CuSharedLocalMemory adjusted(64U, 8U, 1U, 2U, 128U);
+    (void)adjusted;
 
     // This must throw before any attempt to allocate a roughly 4-GiB
     // backing store. It guards the host when invalid hardware parameters
@@ -92,6 +122,61 @@ void TestInvalidConstructorInputsDoNotAllocateBeforeValidation()
             std::numeric_limits<std::uint32_t>::max()) + std::size_t{1U};
         checkRejected(outOfRange, 32U, 1U);
     }
+}
+
+
+void TestOutstandingFaultResponseCapacityAndRecovery()
+{
+    CuSharedLocalMemory memory(64U, 8U, 1U, 2U);
+    const std::array<std::uint32_t, 32> addresses{};
+    const auto first = memory.Submit(Request(
+        900U, 0U, 101U, AccessKind::Load, 1U, addresses));
+    const auto second = memory.Submit(Request(
+        901U, 0U, 102U, AccessKind::Load, 1U, addresses));
+    Check(first.status == SubmitStatus::Accepted
+            && first.fault == MemoryFault::UnknownWorkgroup
+            && second.status == SubmitStatus::Accepted
+            && second.fault == MemoryFault::UnknownWorkgroup,
+        "bounded unknown-workgroup fault fixture was not admitted");
+
+    for (std::uint64_t id = 902U; id < 910U; ++id)
+    {
+        const auto rejected = memory.Submit(Request(
+            id, 0U, id + 100U, AccessKind::Load, 1U, addresses));
+        Check(rejected.status == SubmitStatus::OutstandingCapacityUnavailable
+                && !memory.IsWaveWaiting(id, 0U),
+            "fault-response burst exceeded its finite operation capacity");
+    }
+    Check(memory.Submit(Request(
+            900U, 0U, 101U, AccessKind::Load, 1U, addresses)).status
+            == SubmitStatus::WaveBusy,
+        "same-wave duplicate lost priority over the capacity guard");
+
+    const auto completed = memory.TakeResponse();
+    Check(completed && completed->transactionTag == 101U
+            && completed->fault == MemoryFault::UnknownWorkgroup,
+        "taking a fault response did not release its operation ownership");
+    const auto third = memory.Submit(Request(
+        902U, 0U, 103U, AccessKind::Load, 1U, addresses));
+    Check(third.status == SubmitStatus::Accepted
+            && third.fault == MemoryFault::UnknownWorkgroup,
+        "fault queue capacity was not reused after response consumption");
+    Check(memory.CancelWave(901U, 0U) && !memory.IsWaveWaiting(901U, 0U),
+        "cancelled ready fault response leaked an operation slot");
+    const auto final = memory.TakeResponse();
+    Check(final && final->transactionTag == 103U
+            && !memory.IsWaveWaiting(902U, 0U),
+        "fault capacity reuse did not preserve the accepted response");
+    Check(memory.AllocateWorkgroup(1U, 32U) == AllocationStatus::Allocated,
+        "bounded-fault burst corrupted workgroup allocation");
+    Check(memory.Submit(Request(
+            1U, 0U, 104U, AccessKind::Load, 1U, addresses)).status
+            == SubmitStatus::Accepted,
+        "valid workgroup could not issue after bounded fault burst");
+    Check(Complete(memory).fault == MemoryFault::None,
+        "valid operation failed after fault-response capacity recovery");
+    Check(memory.ReleaseWorkgroup(1U),
+        "fault-response capacity recovery leaked workgroup ownership");
 }
 
 void TestAllocationIsolationAndReuse()
@@ -404,6 +489,7 @@ int main()
     try
     {
         TestInvalidConstructorInputsDoNotAllocateBeforeValidation();
+        TestOutstandingFaultResponseCapacityAndRecovery();
         TestAllocationIsolationAndReuse();
         TestCapacityAndFragmentation();
         TestBankServiceAndWaitLifecycle();

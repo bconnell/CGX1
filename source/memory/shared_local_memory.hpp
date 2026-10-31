@@ -19,6 +19,8 @@ namespace cgx1::memory
 {
 inline constexpr std::uint32_t kWaveLaneCount = 32U;
 inline constexpr std::uint32_t kDwordBytes = 4U;
+// Reference-model host allocation budget, not a GPU shared-memory limit.
+inline constexpr std::size_t kDefaultHostBackingBudgetBytes = 64U * 1024U * 1024U;
 
 enum class AllocationStatus : std::uint8_t
 {
@@ -42,7 +44,8 @@ enum class SubmitStatus : std::uint8_t
     WaveBusy,
     DuplicateTransactionTag,
     InvalidAccessKind,
-    WaveNotIssuable
+    WaveNotIssuable,
+    OutstandingCapacityUnavailable
 };
 
 enum class MemoryFault : std::uint8_t
@@ -90,22 +93,33 @@ struct MemoryResponse
 };
 
 // Executable reference for a finite CU-local, workgroup-scoped dword memory.
-// Bank count and service timing are model parameters, not frozen architecture.
+// Bank count, service timing, and outstanding-operation capacity are model
+// parameters, not frozen architecture. Admission is bounded even for faults
+// referencing workgroups that were never allocated.
 class CuSharedLocalMemory
 {
 private:
     [[nodiscard]] static std::size_t ValidateConstructorParameters(
         std::size_t capacityBytes,
         std::uint32_t bankCount,
-        std::uint32_t workgroupContextCount)
+        std::uint32_t workgroupContextCount,
+        std::uint32_t maximumOutstandingOperations,
+        std::size_t hostBackingBudgetBytes)
     {
+        // Validate both preallocated vectors before either can allocate.
+        // Use subtraction to avoid overflowing the host size type.
         if (capacityBytes == 0U
             || capacityBytes > std::numeric_limits<std::uint32_t>::max()
             || bankCount == 0U
-            || workgroupContextCount == 0U)
+            || workgroupContextCount == 0U
+            || maximumOutstandingOperations == 0U
+            || hostBackingBudgetBytes == 0U
+            || capacityBytes > hostBackingBudgetBytes
+            || (static_cast<std::uint64_t>(bankCount) * sizeof(std::uint64_t))
+                > (hostBackingBudgetBytes - std::min(capacityBytes, hostBackingBudgetBytes)))
         {
             throw std::invalid_argument(
-                "shared-memory capacity, bank count, and context count must be valid");
+                "shared-memory capacity, bank count, context count, operation limit, or host budget is invalid");
         }
         return capacityBytes;
     }
@@ -114,11 +128,15 @@ public:
     CuSharedLocalMemory(
         std::size_t capacityBytes,
         std::uint32_t bankCount = kWaveLaneCount,
-        std::uint32_t workgroupContextCount = 8U)
+        std::uint32_t workgroupContextCount = 8U,
+        std::uint32_t maximumOutstandingOperations = 1024U,
+        std::size_t hostBackingBudgetBytes = kDefaultHostBackingBudgetBytes)
         : storage_(ValidateConstructorParameters(
-              capacityBytes, bankCount, workgroupContextCount), 0U),
+              capacityBytes, bankCount, workgroupContextCount,
+              maximumOutstandingOperations, hostBackingBudgetBytes), 0U),
           bankCount_(bankCount),
           workgroupContextCount_(workgroupContextCount),
+          maximumOutstandingOperations_(maximumOutstandingOperations),
           lastServedSequenceByBank_(bankCount, 0U)
     {
     }
@@ -202,6 +220,12 @@ public:
             return {SubmitStatus::DuplicateTransactionTag, MemoryFault::None, std::nullopt};
         if (request.access != AccessKind::Load && request.access != AccessKind::Store)
             return {SubmitStatus::InvalidAccessKind, MemoryFault::None, std::nullopt};
+        // This includes ready-but-unconsumed fault responses. Without a cap,
+        // unique invalid workgroups can grow response and ownership maps
+        // indefinitely without consuming a resident-wave resource.
+        if (operationByWave_.size() >= maximumOutstandingOperations_)
+            return {SubmitStatus::OutstandingCapacityUnavailable,
+                MemoryFault::None, std::nullopt};
 
         auto fault = region == regions_.end()
             ? MemoryFault::UnknownWorkgroup : MemoryFault::None;
@@ -535,6 +559,7 @@ private:
     std::vector<std::uint8_t> storage_;
     const std::uint32_t bankCount_;
     const std::uint32_t workgroupContextCount_;
+    const std::uint32_t maximumOutstandingOperations_;
     std::unordered_map<std::uint64_t, MemoryRegion> regions_;
     std::list<PendingRequest> requests_;
     std::deque<MemoryResponse> responses_;

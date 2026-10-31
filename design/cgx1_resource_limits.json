@@ -275,7 +275,7 @@
         },
         {
           "path": "source/memory/shared_local_memory_tests.cpp",
-          "needle": "kDefaultHostBackingBudgetBytes + 1U",
+          "needle": "CuSharedLocalMemory oversized(65U, 4U, 1U, 2U, 64U)",
           "kind": "over"
         }
       ]
@@ -322,6 +322,29 @@
         {
           "path": "source/model/workgroup_scheduler_tests.cpp",
           "needle": "otherOverflow.Admit(Demand(",
+          "kind": "over"
+        }
+      ]
+    },
+    {
+      "id": "control-reference-stabilization-iteration-overflow",
+      "classification": "safety_overflow_bound",
+      "value": "Stack stabilization iteration count is bounded by actual frames with checked size_t arithmetic",
+      "rationale": "An excessively large configured control-stack depth must not overflow the software reference's unwind loop count and falsely fault a valid divergent path.",
+      "source": {
+        "path": "source/control/cgx1_wave_control.hpp",
+        "needle": "std::min(limits.controlDepth, state.controlStack.size())"
+      },
+      "requires_over_boundary": true,
+      "test_refs": [
+        {
+          "path": "source/control/tests.cpp",
+          "needle": "controlDepthNoOverflowMax",
+          "kind": "exact"
+        },
+        {
+          "path": "source/control/tests.cpp",
+          "needle": "controlDepthJustOverLimit",
           "kind": "over"
         }
       ]

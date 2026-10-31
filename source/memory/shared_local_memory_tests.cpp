@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <limits>
 #include <optional>
 #include <random>
 #include <stdexcept>
@@ -92,36 +91,34 @@ void TestInvalidConstructorInputsDoNotAllocateBeforeValidation()
     }
     Check(invalidOperationLimit, "zero outstanding-operation limit was not rejected");
 
-    // Both backing arrays are bounded before construction. These inputs
-    // used to risk allocating gigabytes of memory during model setup.
+    // Small explicit budgets make failures safe even if constructor
+    // prevalidation regresses. Never let a negative test allocate gigabytes.
     bool hostBudgetRejected = false;
     try
     {
-        const CuSharedLocalMemory oversized(
-            cgx1::memory::kDefaultHostBackingBudgetBytes + 1U);
+        const CuSharedLocalMemory oversized(65U, 4U, 1U, 2U, 64U);
         (void)oversized;
     }
     catch (const std::invalid_argument&)
     {
         hostBudgetRejected = true;
     }
-    Check(hostBudgetRejected, "shared-memory model exceeded the default host backing budget");
-    checkRejected(16U, std::numeric_limits<std::uint32_t>::max(), 1U);
+    Check(hostBudgetRejected, "shared-memory storage exceeded its host backing budget");
+
+    bool bankBudgetRejected = false;
+    try
+    {
+        const CuSharedLocalMemory excessiveBanks(16U, 8U, 1U, 2U, 32U);
+        (void)excessiveBanks;
+    }
+    catch (const std::invalid_argument&)
+    {
+        bankBudgetRejected = true;
+    }
+    Check(bankBudgetRejected, "shared-memory bank state exceeded its host backing budget");
 
     const CuSharedLocalMemory adjusted(64U, 8U, 1U, 2U, 128U);
     (void)adjusted;
-
-    // This must throw before any attempt to allocate a roughly 4-GiB
-    // backing store. It guards the host when invalid hardware parameters
-    // arrive during model construction.
-    checkRejected(std::numeric_limits<std::uint32_t>::max(), 0U, 1U);
-    checkRejected(std::numeric_limits<std::uint32_t>::max(), 32U, 0U);
-    if constexpr (sizeof(std::size_t) > sizeof(std::uint32_t))
-    {
-        const auto outOfRange = static_cast<std::size_t>(
-            std::numeric_limits<std::uint32_t>::max()) + std::size_t{1U};
-        checkRejected(outOfRange, 32U, 1U);
-    }
 }
 
 

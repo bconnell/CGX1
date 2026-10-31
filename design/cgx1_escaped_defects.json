@@ -153,6 +153,10 @@
         {
           "path": "source/memory/shared_local_memory.hpp",
           "needle": "ValidateConstructorParameters"
+        },
+        {
+          "path": "scripts/check_design_consistency.ps1",
+          "needle": "storage_(ValidateConstructorParameters("
         }
       ]
     },
@@ -224,6 +228,10 @@
         {
           "path": "source/matrix/cgx1_matrix_vgpr_pool.hpp",
           "needle": "ValidatedWaveSlots("
+        },
+        {
+          "path": "scripts/check_design_consistency.ps1",
+          "needle": "registers_(ValidatedStorageRows("
         }
       ]
     },
@@ -274,6 +282,27 @@
         {
           "path": "scripts/validate_rtl_inventory.py",
           "needle": "module validation artifact drift:"
+        }
+      ]
+    },
+    {
+      "id": "control-reference-stabilization-depth-arithmetic-wrap",
+      "origin": "Found during the 2026-10-31 cross-subsystem configured-limit arithmetic audit.",
+      "failure_mode": "A very large legal configured control-stack depth multiplies by three in size_t, overflows the stabilization loop bound, and incorrectly faults a valid divergent wave during join/deferred-path resumption.",
+      "regressions": [
+        {
+          "path": "source/control/tests.cpp",
+          "needle": "TestExtremeControlDepthDoesNotCorruptJoins"
+        }
+      ],
+      "gates": [
+        {
+          "path": "source/control/cgx1_wave_control.hpp",
+          "needle": "std::min(limits.controlDepth, state.controlStack.size())"
+        },
+        {
+          "path": "source/control/CMakeLists.txt",
+          "needle": "cgx1_control_flow_checks"
         }
       ]
     }

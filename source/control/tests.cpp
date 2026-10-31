@@ -3,8 +3,11 @@
 #include "cgx1_test_context.hpp"
 #include "cgx1_wave_control.hpp"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <random>
 
 using namespace cgx1::control;
@@ -404,12 +407,52 @@ bool TestSeededTransitionInvariants()
     return true;
 }
 
+
+bool TestExtremeControlDepthDoesNotCorruptJoins()
+{
+    constexpr std::size_t controlDepthNoOverflowMax =
+        (std::numeric_limits<std::size_t>::max() - 4U) / 3U;
+    constexpr std::size_t controlDepthJustOverLimit =
+        controlDepthNoOverflowMax + 1U;
+    const std::array<std::size_t, 3U> depths{
+        controlDepthNoOverflowMax,
+        controlDepthJustOverLimit,
+        std::numeric_limits<std::size_t>::max()
+    };
+
+    for (const auto depth : depths)
+    {
+        const ControlStackLimits limits{.controlDepth = depth, .callDepth = 8U};
+        auto state = InitializeWaveControl(0x1000U, 0xFU);
+        const auto branch = ApplyControlEvent(state, ControlEvent{
+            .kind = ControlEventKind::Branch,
+            .targetPc = 0x2000U,
+            .fallthroughPc = 0x3000U,
+            .joinPc = 0x4000U,
+            .takenMask = 0x3U
+        }, limits);
+        CHECK(branch.accepted && branch.fault == ControlFault::None
+            && state.activeMask == 0x3U && state.controlStack.size() == 1U);
+
+        const auto firstJoin = AdvanceAcceptedInstruction(state, 0x4000U, limits);
+        CHECK(firstJoin.accepted && firstJoin.fault == ControlFault::None
+            && !state.terminated && state.pc == 0x3000U
+            && state.activeMask == 0xCU);
+        const auto secondJoin = AdvanceAcceptedInstruction(state, 0x4000U, limits);
+        CHECK(secondJoin.accepted && secondJoin.fault == ControlFault::None
+            && !state.terminated && state.pc == 0x4000U
+            && state.activeMask == 0xFU && state.controlStack.empty());
+    }
+    return true;
+}
+
 int main()
 {
     if (!TestUniformBranch() || !TestDivergentBranchJoin() || !TestNestedJoinAndTermination()
         || !TestCallReturn() || !TestStaggeredLoopExit() || !TestLoopNestedInBranchTermination()
         || !TestLoopUnwindRestoresCallDepth() || !TestMalformedOuterJoinAndProtectedReturns()
         || !TestInvalidControlFaults()
+        || !TestExtremeControlDepthDoesNotCorruptJoins()
         || !TestSeededTransitionInvariants()) return 1;
     std::cout << "[pass] decoded wave control-flow reference checks passed.\n";
     return 0;

@@ -112,6 +112,14 @@ if (-not (Test-Path -LiteralPath $completenessPath -PathType Leaf)) {
     }
 }
 
+# Constructor memory-safety obligations remain at the allocation boundary.
+# Do not allow a later validation refactor to allocate model backing state first.
+Require-Literal "source/memory/shared_local_memory.hpp" "storage_(ValidateConstructorParameters("
+Require-Literal "source/matrix/cgx1_matrix_vgpr_pool.hpp" "allocations_(ValidatedWaveSlots("
+Require-Literal "source/matrix/cgx1_matrix_vgpr_pool.hpp" "registers_(ValidatedStorageRows("
+Require-Literal "source/model/workgroup_scheduler.hpp" "std::uint64_t UsedOtherWorkgroupUnits() const noexcept"
+Require-Literal "source/control/cgx1_wave_control.hpp" "std::min(limits.controlDepth, state.controlStack.size())"
+
 $length = Format-Number $architecture.mechanical_mm.length
 $height = Format-Number $architecture.mechanical_mm.height
 $thickness = Format-Number $architecture.mechanical_mm.thickness

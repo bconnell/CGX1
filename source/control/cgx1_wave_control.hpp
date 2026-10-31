@@ -2,8 +2,11 @@
 // Copyright (c) 2026 Brandon Connell
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
+#include <limits>
 #include <vector>
 
 namespace cgx1::control {
@@ -232,7 +235,15 @@ inline bool ResumeEmptyPath(WaveControlState& state)
 
 inline void Stabilize(WaveControlState& state, const ControlStackLimits& limits)
 {
-    const std::size_t iterationLimit = (limits.controlDepth * 3U) + 4U;
+    // A caller may supply an extreme configured limit. Stabilization can
+    // only unwind frames that actually exist, and the iteration arithmetic
+    // must never wrap or fault a valid divergent path.
+    const std::size_t activeDepth =
+        std::min(limits.controlDepth, state.controlStack.size());
+    const std::size_t safeTripleDepth =
+        (std::numeric_limits<std::size_t>::max() - 4U) / 3U;
+    const std::size_t iterationLimit =
+        (std::min(activeDepth, safeTripleDepth) * 3U) + 4U;
     for (std::size_t iteration = 0U; iteration < iterationLimit && !state.terminated; ++iteration)
     {
         if ((state.activeMask & ~state.liveMask) != 0U)

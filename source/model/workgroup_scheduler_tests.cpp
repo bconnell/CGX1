@@ -156,23 +156,25 @@ int TestAdmissionAndResourceBoundaries()
         = std::numeric_limits<std::uint32_t>::max();
     ComputeUnitWorkgroupScheduler otherOverflow(
         Limits(4U, 32U, 32U, 1024U, 2U, maxResourceUnits));
-    CHECK(otherOverflow.Admit(Demand(
-        70U, 1U, 16U, 1U, 0U, maxResourceUnits)) == AdmissionFailure::None);
+    const auto acceptedMaximumOther = otherOverflow.Admit(Demand(
+        70U, 1U, 16U, 1U, 0U, maxResourceUnits));
+    CHECK(acceptedMaximumOther == AdmissionFailure::None);
     CHECK(otherOverflow.UsedOtherWorkgroupUnits() == maxResourceUnits);
-    CHECK(otherOverflow.Admit(Demand(
-        71U, 1U, 16U, 1U, 0U, 1U))
-        == AdmissionFailure::OtherWorkgroupStateUnavailable);
+    const auto rejectedExcessOther = otherOverflow.Admit(Demand(
+        71U, 1U, 16U, 1U, 0U, 1U));
+    CHECK(rejectedExcessOther == AdmissionFailure::OtherWorkgroupStateUnavailable);
     CHECK(otherOverflow.WorkgroupCount() == 1U);
     CHECK(otherOverflow.UsedOtherWorkgroupUnits() == maxResourceUnits);
     CHECK(otherOverflow.CheckInvariants());
 
     ComputeUnitWorkgroupScheduler scalarOverflow(
         Limits(4U, 32U, maxResourceUnits, 1024U, 2U, 4U));
-    CHECK(scalarOverflow.Admit(Demand(
-        72U, 1U, 16U, maxResourceUnits)) == AdmissionFailure::None);
-    CHECK(scalarOverflow.Admit(Demand(
-        73U, 1U, 16U, 1U))
-        == AdmissionFailure::ScalarPredicateStateUnavailable);
+    const auto acceptedMaximumScalar = scalarOverflow.Admit(Demand(
+        72U, 1U, 16U, maxResourceUnits));
+    CHECK(acceptedMaximumScalar == AdmissionFailure::None);
+    const auto rejectedExcessScalar = scalarOverflow.Admit(Demand(
+        73U, 1U, 16U, 1U));
+    CHECK(rejectedExcessScalar == AdmissionFailure::ScalarPredicateStateUnavailable);
     CHECK(scalarOverflow.UsedScalarPredicateUnits() == maxResourceUnits);
     CHECK(scalarOverflow.CheckInvariants());
 

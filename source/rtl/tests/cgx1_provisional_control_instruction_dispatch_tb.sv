@@ -25,6 +25,7 @@ module cgx1_provisional_control_instruction_dispatch_tb;
     logic [SLOT_WIDTH-1:0] control_instruction_event_wave_slot;
     logic [2:0] control_instruction_event_kind;
     logic [VA_WIDTH-1:0] control_instruction_event_target_pc;
+    logic [VA_WIDTH-1:0] control_instruction_event_return_pc;
     logic [VA_WIDTH-1:0] control_instruction_event_fallthrough_pc;
     logic [VA_WIDTH-1:0] control_instruction_event_join_pc;
     logic [31:0] control_instruction_event_taken_mask;
@@ -102,7 +103,7 @@ module cgx1_provisional_control_instruction_dispatch_tb;
         @(negedge clk);
         decoded_unhandled_valid = 3'b100;
         decoded_class_flat[8+:4] = 4'h3;
-        decoded_opcode_flat[8+:4] = 4'h2;
+        decoded_opcode_flat[8+:4] = 4'h4;
         control_flow_event_accepted = 1'b0;
         handler_ready = 3'b100;
         #1;
@@ -153,7 +154,37 @@ module cgx1_provisional_control_instruction_dispatch_tb;
             || control_instruction_event_target_pc != MAX_ALIGNED_PC)
             $fatal(1, "negative branch from the final aligned PC lost its valid 57-bit target");
 
-        $display("[pass] provisional fetched branch/termination decode, arbitration, and handshake passed.");
+        @(negedge clk);
+        decoded_opcode_flat[0+:4] = 4'h2;
+        decoded_word_flat[0+:32] = 32'h3200_0008;
+        decoded_pc_flat[0+:VA_WIDTH] = 57'h4000;
+        #1;
+        if (!control_instruction_event_valid || control_instruction_event_wave_slot != 0
+            || control_instruction_event_kind != 3'd2
+            || control_instruction_event_target_pc != 57'h400c
+            || control_instruction_event_return_pc != 57'h4004
+            || control_instruction_event_fallthrough_pc != 0
+            || control_instruction_event_join_pc != 0
+            || control_instruction_event_taken_mask != 0)
+            $fatal(1, "fetched CALL lost its PC-relative target or explicit return PC");
+        decoded_opcode_flat[0+:4] = 4'h3;
+        decoded_word_flat[0+:32] = 32'h3300_0000;
+        #1;
+        if (!control_instruction_event_valid || control_instruction_event_kind != 3'd3
+            || control_instruction_event_target_pc != 0
+            || control_instruction_event_return_pc != 0
+            || control_instruction_event_taken_mask != 0)
+            $fatal(1, "fetched RETURN did not select the existing call-stack event");
+        decoded_opcode_flat[0+:4] = 4'h2;
+        decoded_word_flat[0+:32] = 32'h32ff_fffc;
+        decoded_pc_flat[0+:VA_WIDTH] = MAX_ALIGNED_PC;
+        #1;
+        if (!control_instruction_event_valid || control_instruction_event_kind != 3'd2
+            || control_instruction_event_target_pc != MAX_ALIGNED_PC
+            || control_instruction_event_return_pc[1:0] == 2'b00)
+            $fatal(1, "CALL at last aligned PC did not poison its invalid return PC");
+
+        $display("[pass] provisional fetched branch/call/return/termination decode, arbitration, and handshake passed.");
         $finish;
     end
 endmodule

@@ -23,6 +23,7 @@ module cgx1_provisional_control_instruction_dispatch #(
     output logic [WAVE_SLOT_WIDTH-1:0] control_instruction_event_wave_slot,
     output logic [2:0] control_instruction_event_kind,
     output logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_instruction_event_target_pc,
+    output logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_instruction_event_return_pc,
     output logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_instruction_event_fallthrough_pc,
     output logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_instruction_event_join_pc,
     output logic [31:0] control_instruction_event_taken_mask,
@@ -31,7 +32,11 @@ module cgx1_provisional_control_instruction_dispatch #(
     localparam logic [3:0] CONTROL_CLASS = 4'h3;
     localparam logic [3:0] TERMINATE_OPCODE = 4'h0;
     localparam logic [3:0] BRANCH_OPCODE = 4'h1;
+    localparam logic [3:0] CALL_OPCODE = 4'h2;
+    localparam logic [3:0] RETURN_OPCODE = 4'h3;
     localparam logic [2:0] EVENT_BRANCH = 3'd1;
+    localparam logic [2:0] EVENT_CALL = 3'd2;
+    localparam logic [2:0] EVENT_RETURN = 3'd3;
     localparam logic [2:0] EVENT_TERMINATE = 3'd7;
     localparam integer BRANCH_CALC_WIDTH = VIRTUAL_ADDRESS_WIDTH + 2;
     localparam logic signed [BRANCH_CALC_WIDTH-1:0] GPU_ADDRESS_LIMIT
@@ -59,6 +64,7 @@ module cgx1_provisional_control_instruction_dispatch #(
         control_instruction_event_wave_slot = '0;
         control_instruction_event_kind = '0;
         control_instruction_event_target_pc = '0;
+        control_instruction_event_return_pc = '0;
         control_instruction_event_fallthrough_pc = '0;
         control_instruction_event_join_pc = '0;
         control_instruction_event_taken_mask = '0;
@@ -75,7 +81,9 @@ module cgx1_provisional_control_instruction_dispatch #(
             if (decoded_unhandled_valid[decode_slot]
                 && (decoded_class_flat[(decode_slot*4)+:4] == CONTROL_CLASS)
                 && ((decoded_opcode_flat[(decode_slot*4)+:4] == TERMINATE_OPCODE)
-                    || (decoded_opcode_flat[(decode_slot*4)+:4] == BRANCH_OPCODE))) begin
+                    || (decoded_opcode_flat[(decode_slot*4)+:4] == BRANCH_OPCODE)
+                    || (decoded_opcode_flat[(decode_slot*4)+:4] == CALL_OPCODE)
+                    || (decoded_opcode_flat[(decode_slot*4)+:4] == RETURN_OPCODE))) begin
                 control_instruction_candidate_mask[decode_slot] = 1'b1;
             end
         end
@@ -92,6 +100,8 @@ module cgx1_provisional_control_instruction_dispatch #(
                     control_instruction_event_wave_slot = candidate_slot[WAVE_SLOT_WIDTH-1:0];
                     if (decoded_opcode_flat[(candidate_slot*4)+:4] == TERMINATE_OPCODE) begin
                         control_instruction_event_kind = EVENT_TERMINATE;
+                    end else if (decoded_opcode_flat[(candidate_slot*4)+:4] == RETURN_OPCODE) begin
+                        control_instruction_event_kind = EVENT_RETURN;
                     end else begin
                         branch_displacement_bits = decoded_word_flat[(candidate_slot*32)+:24];
                         branch_displacement = {{(BRANCH_CALC_WIDTH-24){branch_displacement_bits[23]}},
@@ -106,16 +116,23 @@ module cgx1_provisional_control_instruction_dispatch #(
                             branch_target_pc = branch_target[VIRTUAL_ADDRESS_WIDTH-1:0];
                         else
                             branch_target_pc = INVALID_PC_SENTINEL;
-                        control_instruction_event_kind = EVENT_BRANCH;
                         control_instruction_event_target_pc = branch_target_pc;
-                        // This provisional branch is unconditional, so the
-                        // existing branch transition does not consume these
-                        // two path PCs. Reuse the target to keep them valid at
-                        // the final aligned instruction address.
-                        control_instruction_event_fallthrough_pc = branch_target_pc;
-                        control_instruction_event_join_pc = branch_target_pc;
-                        control_instruction_event_taken_mask
-                            = active_lane_mask_flat[(candidate_slot*32)+:32];
+                        if (decoded_opcode_flat[(candidate_slot*4)+:4] == CALL_OPCODE) begin
+                            control_instruction_event_kind = EVENT_CALL;
+                            // The return PC is invalid at the last aligned
+                            // instruction, even when the target is in range.
+                            if ((branch_next_pc >= 0) && (branch_next_pc < GPU_ADDRESS_LIMIT))
+                                control_instruction_event_return_pc
+                                    = branch_next_pc[VIRTUAL_ADDRESS_WIDTH-1:0];
+                            else
+                                control_instruction_event_return_pc = INVALID_PC_SENTINEL;
+                        end else begin
+                            control_instruction_event_kind = EVENT_BRANCH;
+                            control_instruction_event_fallthrough_pc = branch_target_pc;
+                            control_instruction_event_join_pc = branch_target_pc;
+                            control_instruction_event_taken_mask
+                                = active_lane_mask_flat[(candidate_slot*32)+:32];
+                        end
                     end
                 end
             end
@@ -156,7 +173,7 @@ module cgx1_provisional_control_instruction_dispatch #(
         if (RESIDENT_WAVE_SLOTS < 1)
             $fatal(1, "provisional control instruction dispatcher requires at least one resident wave slot");
         if (VIRTUAL_ADDRESS_WIDTH < 24)
-            $fatal(1, "provisional control branch requires at least a 24-bit virtual address");
+            $fatal(1, "provisional control displacement requires at least a 24-bit virtual address");
     end
 `endif
 endmodule

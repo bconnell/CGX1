@@ -1572,6 +1572,74 @@ module cgx1_compute_workgroup_execution_frontend_tb;
         if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
             $fatal(1, "branch-then-termination leaked workgroup resources");
 
+
+        // Fetched CALL/RETURN share wave-control's bounded call stack with
+        // external control events, including its PC+4 return address.
+        instruction_fetch_enable = 1'b1;
+        instruction_memory_request_ready = 1'b1;
+        dispatch_start_pc = 57'h9000;
+        dispatch_with_resource_demand(8'd82, 1, 16, 0, 0, 0, 0, 64, 0, 0);
+        for (integer call_step = 0; call_step < 3; call_step = call_step + 1) begin
+            timeout = 0;
+            while (!instruction_memory_request_valid) begin
+                @(posedge clk); #1; timeout = timeout + 1;
+                if (timeout > 100)
+                    $fatal(1, "fetched CALL/RETURN did not issue its next request");
+            end
+            if (instruction_memory_request_workgroup_id != 8'd82
+                || instruction_memory_request_wave_slot != 0)
+                $fatal(1, "fetched CALL/RETURN lost workgroup or wave identity");
+            case (call_step)
+                0: begin
+                    if (instruction_memory_request_pc != 57'h9000)
+                        $fatal(1, "CALL fetch did not begin at entry PC");
+                    instruction_memory_response_word = 32'h3200_000c;
+                end
+                1: begin
+                    if (instruction_memory_request_pc != 57'h9010)
+                        $fatal(1, "CALL did not redirect to PC+4+12");
+                    instruction_memory_response_word = 32'h3300_0000;
+                end
+                default: begin
+                    if (instruction_memory_request_pc != 57'h9004)
+                        $fatal(1, "RETURN did not resume after CALL");
+                    instruction_memory_response_word = 32'h3000_0000;
+                end
+            endcase
+            fetch_tag0 = instruction_memory_request_transaction_tag;
+            fetch_epoch0 = instruction_memory_request_epoch;
+            fetch_pc0 = instruction_memory_request_pc;
+            @(posedge clk); #1;
+            @(negedge clk);
+            instruction_memory_response_workgroup_id = 8'd82;
+            instruction_memory_response_wave_slot = 0;
+            instruction_memory_response_epoch = fetch_epoch0;
+            instruction_memory_response_transaction_tag = fetch_tag0;
+            instruction_memory_response_pc = fetch_pc0;
+            instruction_memory_response_fault_code = 0;
+            instruction_memory_response_valid = 1'b1; #1;
+            if (!instruction_memory_response_ready)
+                $fatal(1, "matching CALL/RETURN response was not accepted");
+            @(posedge clk); #1;
+            @(negedge clk); instruction_memory_response_valid = 1'b0;
+            if (instruction_fetch_unhandled_valid[0])
+                $fatal(1, "fetched CALL/RETURN escaped to the external raw handler");
+            if (call_step < 2) begin
+                @(posedge clk); #1;
+                if ((call_step == 0 && control_pc_flat[0+:VA_WIDTH] != 57'h9010)
+                    || (call_step == 1 && control_pc_flat[0+:VA_WIDTH] != 57'h9004))
+                    $fatal(1, "fetched CALL/RETURN PC did not commit at event acceptance");
+            end
+        end
+        timeout = 0;
+        while (workgroup_active_mask != '0) begin
+            @(posedge clk); #1; timeout = timeout + 1;
+            if (timeout > 100)
+                $fatal(1, "fetched CALL/RETURN termination did not release workgroup");
+        end
+        if (allocation_active_bitmap != '0 || shared_local_bytes_used != 0)
+            $fatal(1, "fetched CALL/RETURN leaked workgroup resources");
+
         // An out-of-range branch target must become the existing invalid-PC
         // wave fault and retire through ordinary workgroup resource release.
         dispatch_start_pc = 57'h0;
@@ -1614,7 +1682,7 @@ module cgx1_compute_workgroup_execution_frontend_tb;
             $fatal(1, "invalid branch fault leaked workgroup resources");
         instruction_fetch_enable = 1'b0;
 
-        $display("[pass] authoritative residency, LSU and instruction fetch waits, fetched branch/termination/fault, stale response drain, fault/kill lifecycle, and region reuse passed.");
+        $display("[pass] authoritative residency, LSU and instruction fetch waits, fetched branch/call/return/termination/fault, stale response drain, fault/kill lifecycle, and region reuse passed.");
         $finish;
     end
 endmodule

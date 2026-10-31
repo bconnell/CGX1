@@ -304,6 +304,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [WAVE_SLOT_WIDTH-1:0] provisional_control_instruction_slot;
     logic [2:0] provisional_control_instruction_kind;
     logic [VIRTUAL_ADDRESS_WIDTH-1:0] provisional_control_instruction_target_pc;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] provisional_control_instruction_return_pc;
     logic [VIRTUAL_ADDRESS_WIDTH-1:0] provisional_control_instruction_fallthrough_pc;
     logic [VIRTUAL_ADDRESS_WIDTH-1:0] provisional_control_instruction_join_pc;
     logic [31:0] provisional_control_instruction_taken_mask;
@@ -313,6 +314,7 @@ module cgx1_compute_workgroup_execution_frontend #(
     logic [2:0] control_flow_event_kind;
     logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_sequential_pc;
     logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_target_pc;
+    logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_return_pc;
     logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_fallthrough_pc;
     logic [VIRTUAL_ADDRESS_WIDTH-1:0] control_flow_event_join_pc;
     logic [31:0] control_flow_event_taken_mask;
@@ -768,6 +770,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         .control_instruction_event_wave_slot(provisional_control_instruction_slot),
         .control_instruction_event_kind(provisional_control_instruction_kind),
         .control_instruction_event_target_pc(provisional_control_instruction_target_pc),
+        .control_instruction_event_return_pc(provisional_control_instruction_return_pc),
         .control_instruction_event_fallthrough_pc(provisional_control_instruction_fallthrough_pc),
         .control_instruction_event_join_pc(provisional_control_instruction_join_pc),
         .control_instruction_event_taken_mask(provisional_control_instruction_taken_mask),
@@ -784,6 +787,8 @@ module cgx1_compute_workgroup_execution_frontend #(
             ? control_event_sequential_pc : '0;
         control_flow_event_target_pc = control_event_valid
             ? control_event_target_pc : provisional_control_instruction_target_pc;
+        control_flow_event_return_pc = control_event_valid
+            ? control_event_return_pc : provisional_control_instruction_return_pc;
         control_flow_event_fallthrough_pc = control_event_valid
             ? control_event_fallthrough_pc : provisional_control_instruction_fallthrough_pc;
         control_flow_event_join_pc = control_event_valid
@@ -1116,7 +1121,7 @@ module cgx1_compute_workgroup_execution_frontend #(
         .control_event_target_pc(control_flow_event_target_pc),
         .control_event_fallthrough_pc(control_flow_event_fallthrough_pc),
         .control_event_join_pc(control_flow_event_join_pc),
-        .control_event_return_pc(control_event_return_pc),
+        .control_event_return_pc(control_flow_event_return_pc),
         .control_event_loop_test_pc(control_event_loop_test_pc),
         .control_event_loop_body_pc(control_event_loop_body_pc),
         .control_event_loop_exit_pc(control_event_loop_exit_pc),

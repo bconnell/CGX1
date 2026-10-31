@@ -27,10 +27,9 @@ struct ControlStreamStepResult
     control::ControlResult control{};
 };
 
-// Execute provisional fetched Control-class instructions: opcode 0 terminates
-// the active lanes, while opcode 1 branches all active lanes by a signed
-// 24-bit byte displacement from the next instruction. This bounded reference
-// does not model RTL fetch timing.
+// Execute provisional Control opcodes 0 TERMINATE, 1 BRANCH, 2 CALL,
+// and 3 RETURN. Branch and call use signed 24-bit offsets from PC+4.
+// Encodings remain provisional; fetch timing belongs to the RTL path.
 [[nodiscard]] inline ControlStreamStepResult StepControlInstructionStream(
     std::span<const std::uint32_t> words,
     std::uint64_t image_base,
@@ -54,7 +53,7 @@ struct ControlStreamStepResult
     const BaseInstruction instruction = DecodeBase(words[static_cast<std::size_t>(word_index)]);
     if (instruction.instructionClass != InstructionClass::Control)
         return {ControlStreamStepStatus::NotControlInstruction, {}};
-    if (instruction.opcode > 1U)
+    if (instruction.opcode > 3U)
         return {ControlStreamStepStatus::UnsupportedOpcode, {}};
     if (wave.terminated || wave.faulted || wave.activeMask == 0U)
         return {ControlStreamStepStatus::WaveNotRunnable, {}};
@@ -63,6 +62,10 @@ struct ControlStreamStepResult
     if (instruction.opcode == 0U)
     {
         event.kind = control::ControlEventKind::Terminate;
+    }
+    else if (instruction.opcode == 3U)
+    {
+        event.kind = control::ControlEventKind::Return;
     }
     else
     {
@@ -79,13 +82,20 @@ struct ControlStreamStepResult
         const std::uint64_t target_pc = (target < 0)
             ? address_limit
             : static_cast<std::uint64_t>(target);
-        event.kind = control::ControlEventKind::Branch;
         event.targetPc = target_pc;
-        // This encoding is unconditional, so these branch-event fields are
-        // unused by the transition. Keep them valid even at the final PC.
-        event.fallthroughPc = target_pc;
-        event.joinPc = target_pc;
-        event.takenMask = wave.activeMask;
+        if (instruction.opcode == 2U)
+        {
+            event.kind = control::ControlEventKind::Call;
+            // A CALL at the last aligned PC must fault its invalid return PC.
+            event.returnPc = static_cast<std::uint64_t>(next_pc);
+        }
+        else
+        {
+            event.kind = control::ControlEventKind::Branch;
+            event.fallthroughPc = target_pc;
+            event.joinPc = target_pc;
+            event.takenMask = wave.activeMask;
+        }
     }
 
     const control::ControlResult result = control::ApplyControlEvent(wave, event, limits);

@@ -348,7 +348,7 @@ void TestControlStreamTerminationAndUnsupportedInputs()
     const std::array<std::uint32_t, 3U> words{
         EncodeBase(BaseInstruction{InstructionClass::Control, 0U, 0x96U, 0x78U, 0x54U}),
         EncodeBase(BaseInstruction{InstructionClass::Control, 0U, 0U, 0U, 0U}),
-        EncodeBase(BaseInstruction{InstructionClass::Control, 2U, 0U, 0U, 0U})
+        EncodeBase(BaseInstruction{InstructionClass::Control, 4U, 0U, 0U, 0U})
     };
 
     auto wave = InitializeWaveControl(image_base, 0x0fU);
@@ -453,6 +453,104 @@ void TestControlStreamProvisionalBranch()
         "out-of-range provisional branch target did not follow the invalid-PC fault path");
 }
 
+
+void TestControlStreamProvisionalCallsAndReturns()
+{
+    using namespace cgx1::isa;
+    using cgx1::control::ApplyControlEvent;
+    using cgx1::control::ControlEvent;
+    using cgx1::control::ControlEventKind;
+    using cgx1::control::ControlFault;
+    using cgx1::control::ControlStackLimits;
+    using cgx1::control::InitializeWaveControl;
+
+    constexpr std::uint64_t base = 0x7000U;
+    const std::array<std::uint32_t, 5U> words{
+        EncodeBase(BaseInstruction{InstructionClass::Control, 2U, 0U, 0U, 4U}),
+        EncodeBase(BaseInstruction{InstructionClass::Control, 0U, 0U, 0U, 0U}),
+        EncodeBase(BaseInstruction{InstructionClass::Control, 2U, 0U, 0U, 4U}),
+        EncodeBase(BaseInstruction{InstructionClass::Control, 3U, 0U, 0U, 0U}),
+        EncodeBase(BaseInstruction{InstructionClass::Control, 3U, 0U, 0U, 0U})
+    };
+    auto wave = InitializeWaveControl(base, 0x0fU);
+    auto step = StepControlInstructionStream(words, base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed
+            && wave.pc == base + 8U && wave.callStack.size() == 1U
+            && wave.callStack.back() == base + 4U,
+        "fetched CALL did not save PC+4 or apply its signed displacement");
+    step = StepControlInstructionStream(words, base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed
+            && wave.pc == base + 16U && wave.callStack.size() == 2U
+            && wave.callStack.back() == base + 12U,
+        "nested fetched CALL did not save its distinct return PC");
+    step = StepControlInstructionStream(words, base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed
+            && wave.pc == base + 12U && wave.callStack.size() == 1U,
+        "first fetched RETURN lost its nested return PC");
+    step = StepControlInstructionStream(words, base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed
+            && wave.pc == base + 4U && wave.callStack.empty(),
+        "second fetched RETURN did not resume the original caller");
+    step = StepControlInstructionStream(words, base, wave);
+    Require(step.status == ControlStreamStepStatus::Executed && wave.terminated,
+        "fetched CALL/RETURN did not reach the caller's termination");
+
+    auto empty = InitializeWaveControl(base + 12U, 1U);
+    step = StepControlInstructionStream(words, base, empty);
+    Require(step.status == ControlStreamStepStatus::ControlFault
+            && step.control.fault == ControlFault::CallStackUnderflow && empty.faulted,
+        "fetched RETURN with an empty call stack did not fault");
+
+    ControlStackLimits limits{};
+    limits.callDepth = 1U;
+    auto overflow = InitializeWaveControl(base, 1U);
+    step = StepControlInstructionStream(words, base, overflow, limits);
+    Require(step.status == ControlStreamStepStatus::Executed
+            && overflow.callStack.size() == 1U,
+        "one-deep call stack rejected its first CALL");
+    step = StepControlInstructionStream(words, base, overflow, limits);
+    Require(step.status == ControlStreamStepStatus::ControlFault
+            && step.control.fault == ControlFault::CallStackOverflow && overflow.faulted,
+        "second fetched CALL bypassed the configured call-depth limit");
+
+    auto protected_wave = InitializeWaveControl(base, 3U);
+    const auto call = ApplyControlEvent(protected_wave, ControlEvent{
+        .kind = ControlEventKind::Call, .targetPc = base + 8U, .returnPc = base + 4U
+    });
+    const auto split = ApplyControlEvent(protected_wave, ControlEvent{
+        .kind = ControlEventKind::Branch, .targetPc = base + 12U,
+        .fallthroughPc = base + 16U, .joinPc = base + 20U, .takenMask = 1U
+    });
+    Require(call.accepted && split.accepted && !protected_wave.faulted
+            && protected_wave.callStack.size() == 1U
+            && protected_wave.controlStack.size() == 1U,
+        "fetched protected RETURN fixture did not establish a split call depth");
+    step = StepControlInstructionStream(words, base, protected_wave);
+    Require(step.status == ControlStreamStepStatus::ControlFault
+            && step.control.fault == ControlFault::UnbalancedControl
+            && protected_wave.faulted,
+        "fetched RETURN crossed an active split's saved call depth");
+
+    constexpr std::uint64_t max_pc = cgx1::control::kGpuVirtualAddressLimit - 4U;
+    const std::array<std::uint32_t, 1U> boundary{
+        EncodeBase(BaseInstruction{InstructionClass::Control, 2U, 0xffU, 0xffU, 0xfcU})
+    };
+    auto bad_return = InitializeWaveControl(max_pc, 1U);
+    step = StepControlInstructionStream(boundary, max_pc, bad_return);
+    Require(step.status == ControlStreamStepStatus::ControlFault
+            && step.control.fault == ControlFault::InvalidPc && bad_return.faulted,
+        "CALL from final aligned PC did not reject out-of-range return PC");
+
+    const std::array<std::uint32_t, 1U> negative{
+        EncodeBase(BaseInstruction{InstructionClass::Control, 2U, 0xffU, 0xffU, 0xf8U})
+    };
+    auto bad_target = InitializeWaveControl(0U, 1U);
+    step = StepControlInstructionStream(negative, 0U, bad_target);
+    Require(step.status == ControlStreamStepStatus::ControlFault
+            && step.control.fault == ControlFault::InvalidPc && bad_target.faulted,
+        "out-of-range fetched CALL target did not fault");
+}
+
 } // namespace
 
 int main()
@@ -534,6 +632,7 @@ int main()
     TestUnsupportedVectorInstructionsDoNotMutateState();
     TestControlStreamTerminationAndUnsupportedInputs();
     TestControlStreamProvisionalBranch();
+    TestControlStreamProvisionalCallsAndReturns();
 
     std::cout << "CGX 1 ISA base encoding, provisional INT32 vector semantics, and fetched Control checks passed.\n";
     return 0;

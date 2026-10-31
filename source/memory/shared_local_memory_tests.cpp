@@ -4,8 +4,10 @@
 #include "shared_local_memory.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <random>
 #include <stdexcept>
@@ -54,6 +56,42 @@ MemoryResponse Complete(CuSharedLocalMemory& memory)
         (void)memory.ServiceCycle();
     }
     throw std::runtime_error("shared-memory transaction failed to complete");
+}
+
+
+void TestInvalidConstructorInputsDoNotAllocateBeforeValidation()
+{
+    auto checkRejected = [](std::size_t bytes, std::uint32_t banks,
+                            std::uint32_t contexts)
+    {
+        bool rejected = false;
+        try
+        {
+            const CuSharedLocalMemory invalid(bytes, banks, contexts);
+            (void)invalid;
+        }
+        catch (const std::invalid_argument&)
+        {
+            rejected = true;
+        }
+        Check(rejected, "invalid shared-memory constructor input was not rejected early");
+    };
+
+    checkRejected(0U, 32U, 1U);
+    checkRejected(16U, 0U, 1U);
+    checkRejected(16U, 32U, 0U);
+
+    // This must throw before any attempt to allocate a roughly 4-GiB
+    // backing store. It guards the host when invalid hardware parameters
+    // arrive during model construction.
+    checkRejected(std::numeric_limits<std::uint32_t>::max(), 0U, 1U);
+    checkRejected(std::numeric_limits<std::uint32_t>::max(), 32U, 0U);
+    if constexpr (sizeof(std::size_t) > sizeof(std::uint32_t))
+    {
+        const auto outOfRange = static_cast<std::size_t>(
+            std::numeric_limits<std::uint32_t>::max()) + std::size_t{1U};
+        checkRejected(outOfRange, 32U, 1U);
+    }
 }
 
 void TestAllocationIsolationAndReuse()
@@ -365,6 +403,7 @@ int main()
 {
     try
     {
+        TestInvalidConstructorInputsDoNotAllocateBeforeValidation();
         TestAllocationIsolationAndReuse();
         TestCapacityAndFragmentation();
         TestBankServiceAndWaitLifecycle();

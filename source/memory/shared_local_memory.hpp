@@ -93,15 +93,11 @@ struct MemoryResponse
 // Bank count and service timing are model parameters, not frozen architecture.
 class CuSharedLocalMemory
 {
-public:
-    CuSharedLocalMemory(
+private:
+    [[nodiscard]] static std::size_t ValidateConstructorParameters(
         std::size_t capacityBytes,
-        std::uint32_t bankCount = kWaveLaneCount,
-        std::uint32_t workgroupContextCount = 8U)
-        : storage_(capacityBytes, 0U),
-          bankCount_(bankCount),
-          workgroupContextCount_(workgroupContextCount),
-          lastServedSequenceByBank_(bankCount, 0U)
+        std::uint32_t bankCount,
+        std::uint32_t workgroupContextCount)
     {
         if (capacityBytes == 0U
             || capacityBytes > std::numeric_limits<std::uint32_t>::max()
@@ -111,6 +107,20 @@ public:
             throw std::invalid_argument(
                 "shared-memory capacity, bank count, and context count must be valid");
         }
+        return capacityBytes;
+    }
+
+public:
+    CuSharedLocalMemory(
+        std::size_t capacityBytes,
+        std::uint32_t bankCount = kWaveLaneCount,
+        std::uint32_t workgroupContextCount = 8U)
+        : storage_(ValidateConstructorParameters(
+              capacityBytes, bankCount, workgroupContextCount), 0U),
+          bankCount_(bankCount),
+          workgroupContextCount_(workgroupContextCount),
+          lastServedSequenceByBank_(bankCount, 0U)
+    {
     }
 
     [[nodiscard]] AllocationStatus AllocateWorkgroup(

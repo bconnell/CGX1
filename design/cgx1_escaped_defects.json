@@ -134,6 +134,27 @@
           "needle": "compiler timeout/captured-log wrapper is missing or unbounded"
         }
       ]
+    },
+    {
+      "id": "invalid-model-constructor-preallocates-memory",
+      "origin": "Found during the 2026-10-31 horizontal CGX1 resource-safety audit.",
+      "failure_mode": "CU-local shared-memory model can allocate a multi-gigabyte backing vector before validating invalid capacity, bank count, or workgroup-context parameters.",
+      "regressions": [
+        {
+          "path": "source/memory/shared_local_memory_tests.cpp",
+          "needle": "TestInvalidConstructorInputsDoNotAllocateBeforeValidation"
+        }
+      ],
+      "gates": [
+        {
+          "path": "source/memory/CMakeLists.txt",
+          "needle": "add_test(NAME cgx1_shared_local_memory_checks COMMAND cgx1_shared_local_memory_tests)"
+        },
+        {
+          "path": "source/memory/shared_local_memory.hpp",
+          "needle": "ValidateConstructorParameters"
+        }
+      ]
     }
   ]
 }

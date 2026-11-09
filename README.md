@@ -145,6 +145,30 @@ The complete engineering document set is listed in the [Documentation Index](doc
 | Sources | Public technical and procurement references | [Open](docs/SOURCES.md) |
 | Roadmap | Remaining prototype and silicon work | [Open](docs/ROADMAP.md) |
 
+## Executable CU and RTL reference scope
+
+The current implementation includes a bounded CPU reference and RTL simulation path
+for complete-workgroup admission, pooled VGPR allocation and restore, local
+workgroup barriers, per-wave shared/local-memory requests, CU-local dispatch,
+instruction fetching, and provisional vector/control execution. Fetched
+Control opcodes 0 through 3 currently represent terminate, unconditional
+branch, call, and return. The software and RTL models preserve workgroup and
+wave identity across waits, faults, aborts, and resource release.
+
+These are **provisional functional models**, not a complete GPU implementation.
+The public ISA and command ABI are not frozen. Global queue arbitration,
+full memory translation/cache behavior, compiler and driver integration,
+graphics execution, physical timing/area/power, and manufactured silicon
+remain outside this executable scope. See [project status](docs/STATUS.md),
+[control flow](docs/CONTROL_FLOW.md), [instruction fetch](docs/INSTRUCTION_FETCH.md),
+and [validation evidence](docs/VALIDATION.md).
+
+The reference test gates also distinguish CTest invocation from active
+Debug/Release assertions, check exact source identity in a clean candidate,
+exercise intentionally failing controls, and limit local/hosted build outputs.
+Passing a simulation establishes only the tested source-level contract, not
+hardware performance or physical conformance.
+
 ## Build and test
 
 A standard CMake toolchain is sufficient for the current analytical model, ISA reference tests, matrix numeric, physical-architecture, register-interface, banking, staging, scoreboard, INT8 arithmetic, INT8 path integration, and INT8 engine-shell tests, power-management policy tests, and firmware tests.

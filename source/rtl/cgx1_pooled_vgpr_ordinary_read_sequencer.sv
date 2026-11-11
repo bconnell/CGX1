@@ -48,11 +48,16 @@ module cgx1_pooled_vgpr_ordinary_read_sequencer #(
        if(service_ready) begin response_valid=1; response_uninitialized=!(service0_initialized&&service1_initialized); response0_data=service0_data; response1_data=service1_data; end
      end
    end else begin
-     service_valid=1; service_single=1; service_row0=row1_q; service_row1=row1_q; service_bank0=bank1_q; service_bank1=bank1_q;
-     if(service_ready) begin
-       response_valid=request_valid && request_wave_slot==wave_q && request_source0==src0_q && request_source1==src1_q;
-       response_uninitialized=!(first_init_q&&service0_initialized);
-       response0_data=first_data_q; response1_data=service0_data;
+     // A dropped request cancels a completed or abandoned split read and must
+     // release the shared ordinary port immediately. A live request must keep
+     // the same identity until its second half is returned.
+     if(request_valid) begin
+       service_valid=1; service_single=1; service_row0=row1_q; service_row1=row1_q; service_bank0=bank1_q; service_bank1=bank1_q;
+       if(service_ready) begin
+         response_valid=request_wave_slot==wave_q && request_source0==src0_q && request_source1==src1_q;
+         response_uninitialized=!(first_init_q&&service0_initialized);
+         response0_data=first_data_q; response1_data=service0_data;
+       end
      end
    end
  end
@@ -61,7 +66,11 @@ module cgx1_pooled_vgpr_ordinary_read_sequencer #(
    else begin
      if(!split_q && request_valid && distinct_same_bank && source0_valid && source1_valid && service_ready) begin
        split_q<=1; wave_q<=request_wave_slot; src0_q<=request_source0; src1_q<=request_source1; row1_q<=source1_row; bank1_q<=source1_bank; first_data_q<=service0_data; first_init_q<=service0_initialized;
-     end else if(split_q && service_ready && request_valid && request_wave_slot==wave_q && request_source0==src0_q && request_source1==src1_q) begin split_q<=0; end
+     end else if(split_q && !request_valid) begin
+       split_q<=0;
+     end else if(split_q && service_ready && request_wave_slot==wave_q && request_source0==src0_q && request_source1==src1_q) begin
+       split_q<=0;
+     end
    end
  end
 `ifndef SYNTHESIS

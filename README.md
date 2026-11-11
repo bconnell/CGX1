@@ -19,9 +19,15 @@ CGX 1 is a compact desktop GPU architecture built around a low profile, dual slo
 
 > **Repository policy:** CGX 1 is published as a public engineering reference. This repository does **not** accept pull requests, issues, discussions, external patches, or other community contributions. The MIT license permits independent forks and derivative work, but those remain separate projects unless Brandon Connell explicitly incorporates a change. For work inquiries or a serious private security concern, use the contact information in [AUTHORS.md](AUTHORS.md).
 
-[![CGX 1 mechanical blueprint](mechanical/cgx1_blueprint.svg)](mechanical/cgx1_blueprint.svg)
+<p align="center">
+  <a href="mechanical/cgx1_blueprint.svg">
+    <img src="mechanical/cgx1_blueprint_readme.svg" alt="CGX 1 mechanical blueprint preview" width="900">
+  </a>
+</p>
 
-[Open the mechanical blueprint directly](mechanical/cgx1_blueprint.svg)
+<p align="center"><sub>Readable README preview. Open the full engineering blueprint for the detailed sheet.</sub></p>
+
+[Open the full mechanical blueprint directly](mechanical/cgx1_blueprint.svg)
 
 ## Design at a glance
 

@@ -1,0 +1,89 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2026 Brandon Connell -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1700" viewBox="0 0 1200 1700" role="img" aria-labelledby="title desc">
+  <title id="title">CGX 1 mechanical blueprint README preview</title>
+  <desc id="desc">Readable mechanical overview of the CGX 1 card and external thermal dock using current engineering target dimensions in millimeters.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="6" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,8 L8,4 z" fill="#25313d"/>
+    </marker>
+    <style>
+      .bg{fill:#fff}
+      .outline{fill:none;stroke:#1f2937;stroke-width:4}
+      .part{fill:#eef2f6;stroke:#3b4652;stroke-width:3}
+      .accent{fill:#dcecff;stroke:#315f91;stroke-width:3}
+      .warm{fill:#fff0d8;stroke:#9c6725;stroke-width:3}
+      .dim{fill:none;stroke:#25313d;stroke-width:2;marker-start:url(#arrow);marker-end:url(#arrow)}
+      .title{font-family:Arial,sans-serif;font-size:38px;font-weight:700;fill:#111827}
+      .subtitle{font-family:Arial,sans-serif;font-size:22px;fill:#475569}
+      .head{font-family:Arial,sans-serif;font-size:30px;font-weight:700;fill:#1f2937}
+      .txt{font-family:Arial,sans-serif;font-size:25px;fill:#20242a}
+      .small{font-family:Arial,sans-serif;font-size:21px;fill:#30363d}
+      .tiny{font-family:Arial,sans-serif;font-size:18px;fill:#4b5563}
+      .note{font-family:Arial,sans-serif;font-size:18px;fill:#475569}
+    </style>
+  </defs>
+  <rect width="1200" height="1700" class="bg"/>
+  <text x="60" y="62" class="title">CGX 1 Mechanical Blueprint</text>
+  <text x="60" y="98" class="subtitle">README preview · engineering target dimensions · millimeters</text>
+  <text x="60" y="128" class="tiny">Design Engineer: Brandon Connell · © 2026</text>
+
+  <text x="70" y="205" class="head">Card envelope</text>
+  <rect x="95" y="245" width="805" height="329" rx="4" class="outline"/>
+  <circle cx="245" cy="410" r="118" class="part"/>
+  <circle cx="750" cy="410" r="118" class="part"/>
+  <text x="181" y="407" class="txt">50 mm fan</text>
+  <text x="195" y="440" class="small">10 mm thick</text>
+  <text x="686" y="407" class="txt">50 mm fan</text>
+  <text x="700" y="440" class="small">10 mm thick</text>
+  <rect x="424" y="300" width="178" height="178" rx="3" class="accent"/>
+  <text x="452" y="382" class="small">55 × 55 mm</text>
+  <text x="457" y="414" class="tiny">package target</text>
+  <line x1="95" y1="610" x2="900" y2="610" class="dim"/>
+  <text x="448" y="650" class="txt">167.5 mm</text>
+  <line x1="935" y1="245" x2="935" y2="574" class="dim"/>
+  <text x="955" y="420" class="txt">68.5 mm</text>
+
+  <text x="70" y="735" class="head">Installed thickness</text>
+  <rect x="95" y="775" width="290" height="210" rx="4" class="outline"/>
+  <rect x="130" y="810" width="220" height="140" class="accent"/>
+  <text x="156" y="875" class="txt">dual slot</text>
+  <line x1="95" y1="1025" x2="385" y2="1025" class="dim"/>
+  <text x="174" y="1064" class="txt">39.5 mm</text>
+
+  <text x="510" y="735" class="head">Card target summary</text>
+  <rect x="505" y="775" width="600" height="290" rx="8" class="part"/>
+  <text x="545" y="830" class="txt">PCB envelope</text>
+  <text x="825" y="830" class="txt">167.5 × 68.5 mm</text>
+  <text x="545" y="885" class="txt">Installed thickness</text>
+  <text x="825" y="885" class="txt">39.5 mm</text>
+  <text x="545" y="940" class="txt">Package target</text>
+  <text x="825" y="940" class="txt">55 × 55 mm</text>
+  <text x="545" y="995" class="txt">Card fans</text>
+  <text x="825" y="995" class="txt">2 × 50 × 10 mm</text>
+
+  <text x="70" y="1155" class="head">External thermal dock · top packing view</text>
+  <rect x="95" y="1195" width="885" height="400" rx="8" class="outline"/>
+  <rect x="125" y="1225" width="720" height="210" rx="4" class="part"/>
+  <text x="315" y="1270" class="txt">Corsair XR5 240 reference radiator</text>
+  <text x="392" y="1305" class="small">280 × 120 × 30 mm</text>
+  <rect x="150" y="1330" width="270" height="85" rx="4" class="accent"/>
+  <rect x="550" y="1330" width="270" height="85" rx="4" class="accent"/>
+  <text x="205" y="1383" class="small">120 × 25 mm fan</text>
+  <text x="605" y="1383" class="small">120 × 25 mm fan</text>
+  <rect x="125" y="1465" width="350" height="95" rx="4" class="warm"/>
+  <text x="155" y="1507" class="small">Alphacool 14571 pump/reservoir</text>
+  <text x="214" y="1540" class="tiny">112 × 57 × 41.95 mm</text>
+  <rect x="520" y="1465" width="325" height="95" rx="4" class="warm"/>
+  <text x="563" y="1507" class="small">controls, fittings,</text>
+  <text x="575" y="1540" class="small">sensor service area</text>
+  <line x1="95" y1="1630" x2="980" y2="1630" class="dim"/>
+  <text x="477" y="1668" class="txt">310 mm</text>
+  <line x1="1025" y1="1195" x2="1025" y2="1595" class="dim"/>
+  <text x="1048" y="1405" class="txt">210 mm</text>
+  <text x="1040" y="1195" class="small">Dock height</text>
+  <text x="1040" y="1228" class="txt">75 mm</text>
+  <text x="1040" y="1280" class="note">48 V AC/DC</text>
+  <text x="1040" y="1308" class="note">supply remains</text>
+  <text x="1040" y="1336" class="note">external.</text>
+</svg>
